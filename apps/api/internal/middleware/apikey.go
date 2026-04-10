@@ -36,6 +36,7 @@ func APIKey(pool *pgxpool.Pool) gin.HandlerFunc {
 
 		c.Set("user_id", userID)
 		c.Set("tenant_id", tenantID)
+		_, _ = pool.Exec(c.Request.Context(), "UPDATE api_keys SET last_used_at = now() WHERE key_hash = digest($1, 'sha256')", key)
 		c.Request = c.Request.WithContext(
 			context.WithValue(c.Request.Context(), tenantContextKey{}, tenantID),
 		)

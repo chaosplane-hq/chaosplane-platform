@@ -18,7 +18,7 @@ func TestRateLimit_NoAPIKey_PassesThrough(t *testing.T) {
 
 	w := httptest.NewRecorder()
 	c, r := gin.CreateTestContext(w)
-	r.Use(RateLimit(rdb, DefaultRateLimiterConfig()))
+	r.Use(RateLimit(rdb, nil, DefaultRateLimiterConfig()))
 	r.GET("/test", func(c *gin.Context) {
 		c.JSON(http.StatusOK, gin.H{"ok": true})
 	})
@@ -35,7 +35,7 @@ func TestRateLimit_RedisUnavailable_FailOpen(t *testing.T) {
 
 	w := httptest.NewRecorder()
 	c, r := gin.CreateTestContext(w)
-	r.Use(RateLimit(rdb, DefaultRateLimiterConfig()))
+	r.Use(RateLimit(rdb, nil, DefaultRateLimiterConfig()))
 	r.GET("/test", func(c *gin.Context) {
 		c.JSON(http.StatusOK, gin.H{"ok": true})
 	})
@@ -53,7 +53,7 @@ func TestRateLimit_HeadersSet(t *testing.T) {
 
 	w := httptest.NewRecorder()
 	_, r := gin.CreateTestContext(w)
-	r.Use(RateLimit(rdb, DefaultRateLimiterConfig()))
+	r.Use(RateLimit(rdb, nil, DefaultRateLimiterConfig()))
 	r.GET("/test", func(c *gin.Context) {
 		c.JSON(http.StatusOK, gin.H{"ok": true})
 	})
@@ -67,7 +67,7 @@ func TestRateLimit_HeadersSet(t *testing.T) {
 
 func TestDefaultRateLimiterConfig(t *testing.T) {
 	cfg := DefaultRateLimiterConfig()
-	if cfg.RequestsPerSecond != 100 {
-		t.Errorf("expected 100 req/s, got %d", cfg.RequestsPerSecond)
+	if cfg.RequestsPerSecond != 10 {
+		t.Errorf("expected 10 req/s, got %d", cfg.RequestsPerSecond)
 	}
 }

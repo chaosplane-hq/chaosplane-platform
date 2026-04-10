@@ -25,6 +25,9 @@ func New(
 	health *handler.HealthHandler,
 	auth *handler.AuthHandler,
 	hierarchy *handler.HierarchyHandler,
+	onboarding *handler.OnboardingHandler,
+	invitations *handler.InvitationHandler,
+	apiKeys *handler.APIKeyHandler,
 	experiments *handler.ExperimentHandler,
 	policies *handler.PolicyHandler,
 	ws *handler.WebSocketHandler,
@@ -60,14 +63,26 @@ func New(
 	authProtected.Use(middleware.JWT(authService))
 	{
 		authProtected.GET("/me", auth.Me)
+		authProtected.POST("/quick-setup", onboarding.QuickSetup)
 		authProtected.Use(middleware.CSRFSameSite(authService))
 		authProtected.POST("/logout", auth.Logout)
 	}
 
 	saas := r.Group("/api/v1")
 	saas.Use(middleware.JWT(authService), middleware.TenantContext(pool.App))
+	if rdb != nil {
+		saas.Use(middleware.RateLimit(rdb, pool.App, middleware.DefaultRateLimiterConfig()))
+	}
 	{
 		saas.GET("/hierarchy", hierarchy.List)
+		saas.GET("/onboarding", onboarding.Get)
+		saas.PATCH("/onboarding", onboarding.Update)
+		saas.POST("/onboarding/skip", onboarding.Skip)
+		saas.POST("/onboarding/complete", onboarding.Complete)
+		saas.GET("/invitations", invitations.List)
+		saas.POST("/invitations/accept", invitations.Accept)
+		saas.POST("/invitations/decline", invitations.Decline)
+		saas.GET("/api-keys", apiKeys.List)
 
 		manage := saas.Group("")
 		manage.Use(middleware.RequireTenantRole(pool.App, "admin", "editor"))
@@ -82,13 +97,20 @@ func New(
 			manage.PATCH("/projects/:id", hierarchy.UpdateProject)
 			manage.POST("/environments", hierarchy.CreateEnvironment)
 			manage.PATCH("/environments/:id", hierarchy.UpdateEnvironment)
+			manage.POST("/agents/test-connection", onboarding.TestAgentConnection)
+			manage.POST("/invitations", invitations.Create)
+			manage.POST("/invitations/:id/resend", invitations.Resend)
+			manage.DELETE("/invitations/:id", invitations.Revoke)
+			manage.POST("/api-keys", apiKeys.Create)
+			manage.POST("/api-keys/:id/rotate", apiKeys.Rotate)
+			manage.DELETE("/api-keys/:id", apiKeys.Revoke)
 		}
 	}
 
 	api := r.Group("/api/v1")
 	api.Use(middleware.APIKey(pool.App))
 	if rdb != nil {
-		api.Use(middleware.RateLimit(rdb, middleware.DefaultRateLimiterConfig()))
+		api.Use(middleware.RateLimit(rdb, pool.App, middleware.DefaultRateLimiterConfig()))
 	}
 	{
 		api.POST("/experiments", experiments.Create)

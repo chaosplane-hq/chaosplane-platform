@@ -57,6 +57,20 @@ func InitializeServer(ctx context.Context) (*Server, error) {
 	resultAnalysisHandler := handler.NewResultAnalysisHandler(resultAnalysisService)
 	aiChatService := service.NewAIChatService(pool)
 	aiChatHandler := handler.NewAIChatHandler(aiChatService)
+	samlService := service.NewSAMLService(pool)
+	abacService := service.NewABACService(pool)
+	mfaService := service.NewMFAService(pool)
+	sessionMgmtService := service.NewSessionManagementService(pool)
+	deletionService := service.NewAccountDeletionService(pool)
+	emailChangeService := service.NewEmailChangeService(pool)
+	auditExportService := service.NewAuditExportService(pool)
+	enterpriseHandler := handler.NewEnterpriseHandler(samlService, abacService, mfaService, sessionMgmtService, deletionService, emailChangeService, auditExportService)
+	gamedayService := service.NewGameDayService(pool)
+	gamedayHandler := handler.NewGameDayHandler(gamedayService)
+	resilienceService := service.NewResilienceScoreService(pool)
+	resilienceHandler := handler.NewResilienceScoreHandler(resilienceService)
+	wfTemplateService := service.NewWorkflowTemplateService(pool)
+	wfTemplateHandler := handler.NewWorkflowTemplateHandler(wfTemplateService)
 
 	k8sClient, err := service.NewK8sClient(cfg)
 	if err != nil {
@@ -70,6 +84,6 @@ func InitializeServer(ctx context.Context) (*Server, error) {
 	policyHandler := handler.NewPolicyHandler(policyService)
 	wsHandler := handler.NewWebSocketHandler(experimentService)
 
-	srv := New(cfg, pool, healthHandler, authHandler, hierarchyHandler, onboardingHandler, invitationHandler, apiKeyHandler, oauthHandler, accountHandler, agentHandler, billingHandler, notificationHandler, auditHandler, topologyHandler, topoAnalysisHandler, vulnerabilityHandler, suggestionHandler, resultAnalysisHandler, aiChatHandler, experimentHandler, policyHandler, wsHandler, rdb, authService)
+	srv := New(cfg, pool, healthHandler, authHandler, hierarchyHandler, onboardingHandler, invitationHandler, apiKeyHandler, oauthHandler, accountHandler, agentHandler, billingHandler, notificationHandler, auditHandler, topologyHandler, topoAnalysisHandler, vulnerabilityHandler, suggestionHandler, resultAnalysisHandler, aiChatHandler, enterpriseHandler, gamedayHandler, resilienceHandler, wfTemplateHandler, experimentHandler, policyHandler, wsHandler, rdb, authService)
 	return srv, nil
 }

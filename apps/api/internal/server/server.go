@@ -40,6 +40,10 @@ func New(
 	suggestions *handler.ExperimentSuggestionHandler,
 	resultAnalysis *handler.ResultAnalysisHandler,
 	aiChat *handler.AIChatHandler,
+	enterprise *handler.EnterpriseHandler,
+	gameday *handler.GameDayHandler,
+	resilience *handler.ResilienceScoreHandler,
+	wfTemplates *handler.WorkflowTemplateHandler,
 	experiments *handler.ExperimentHandler,
 	policies *handler.PolicyHandler,
 	ws *handler.WebSocketHandler,
@@ -136,6 +140,15 @@ func New(
 		saas.GET("/ai/chat/sessions/:id/messages", aiChat.GetMessages)
 		saas.POST("/ai/chat/sessions/:id/messages", aiChat.SendMessage)
 		saas.DELETE("/ai/chat/sessions/:id", aiChat.DeleteSession)
+		saas.GET("/sessions", enterprise.ListSessions)
+		saas.DELETE("/sessions/:id", enterprise.RevokeSession)
+		saas.POST("/sessions/revoke-all", enterprise.RevokeAllSessions)
+		saas.GET("/mfa/recovery-codes/count", enterprise.GetRecoveryCodeCount)
+		saas.GET("/audit-exports", enterprise.ListAuditExports)
+		saas.GET("/gamedays", gameday.List)
+		saas.GET("/gamedays/:id", gameday.Get)
+		saas.GET("/resilience-score", resilience.Get)
+		saas.GET("/workflow-templates", wfTemplates.List)
 
 		manage := saas.Group("")
 		manage.Use(middleware.RequireTenantRole(pool.App, "admin", "editor"))
@@ -176,6 +189,26 @@ func New(
 			manage.POST("/suggestions/generate", suggestions.Generate)
 			manage.DELETE("/suggestions/:id", suggestions.Delete)
 			manage.POST("/result-analysis", resultAnalysis.Analyze)
+			manage.GET("/saml-providers", enterprise.ListSAMLProviders)
+			manage.POST("/saml-providers", enterprise.CreateSAMLProvider)
+			manage.DELETE("/saml-providers/:id", enterprise.DeleteSAMLProvider)
+			manage.GET("/abac-policies", enterprise.ListABACPolicies)
+			manage.POST("/abac-policies", enterprise.CreateABACPolicy)
+			manage.DELETE("/abac-policies/:id", enterprise.DeleteABACPolicy)
+			manage.POST("/abac-policies/evaluate", enterprise.EvaluateABAC)
+			manage.POST("/mfa/recovery-codes", enterprise.GenerateRecoveryCodes)
+			manage.POST("/account/request-deletion", enterprise.RequestDeletion)
+			manage.POST("/account/cancel-deletion", enterprise.CancelDeletion)
+			manage.POST("/account/change-email", enterprise.RequestEmailChange)
+			manage.POST("/account/confirm-email-change", enterprise.ConfirmEmailChange)
+			manage.POST("/audit-exports", enterprise.CreateAuditExport)
+			manage.POST("/gamedays", gameday.Create)
+			manage.PATCH("/gamedays/:id/status", gameday.UpdateStatus)
+			manage.POST("/gamedays/:id/events", gameday.AddEvent)
+			manage.POST("/gamedays/:id/postmortem", gameday.CreatePostmortem)
+			manage.POST("/resilience-score/calculate", resilience.Calculate)
+			manage.POST("/workflow-templates", wfTemplates.Create)
+			manage.DELETE("/workflow-templates/:id", wfTemplates.Delete)
 		}
 	}
 

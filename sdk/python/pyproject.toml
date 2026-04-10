@@ -1,0 +1,11 @@
+[project]
+name = "chaosplane"
+version = "0.1.0"
+description = "ChaosPlane Platform SDK for Python"
+requires-python = ">=3.10"
+dependencies = ["httpx>=0.24"]
+license = {text = "MIT"}
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"

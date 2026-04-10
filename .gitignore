@@ -1,2 +1,59 @@
+# Binaries
+bin/
 server
 *.exe
+*.exe~
+*.dll
+*.so
+*.dylib
+*.test
+
+# Go
+vendor/
+*.out
+cover.out
+coverage.html
+
+# Node / Next.js
+node_modules/
+.next/
+out/
+.turbo/
+.vercel/
+*.tsbuildinfo
+next-env.d.ts
+
+# pnpm
+.pnpm-store/
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+.project
+.settings/
+
+# OS
+.DS_Store
+Thumbs.db
+ehthumbs.db
+Desktop.ini
+
+# Environment
+.env
+.env.local
+.env.*.local
+
+# Build / Artifacts
+dist/
+tmp/
+
+# Debug
+__debug_bin*
+debug
+*.prof
+
+# Docker
+docker-compose.override.yaml

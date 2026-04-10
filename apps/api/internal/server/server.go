@@ -35,6 +35,8 @@ func New(
 	notifications *handler.NotificationHandler,
 	audit *handler.AuditHandler,
 	topology *handler.TopologyHandler,
+	topoAnalysis *handler.TopologyAnalysisHandler,
+	vulnerability *handler.VulnerabilityHandler,
 	experiments *handler.ExperimentHandler,
 	policies *handler.PolicyHandler,
 	ws *handler.WebSocketHandler,
@@ -75,6 +77,9 @@ func New(
 		agentPublic.POST("/register", agent.Register)
 		agentPublic.POST("/heartbeat", agent.Heartbeat)
 		agentPublic.POST("/topology", topology.Submit)
+		agentPublic.POST("/topology/dependencies", topoAnalysis.SubmitDependencies)
+		agentPublic.POST("/topology/metrics", topoAnalysis.SubmitMetrics)
+		agentPublic.POST("/topology/drifts", topoAnalysis.SubmitDrift)
 	}
 
 	webhooks := r.Group("/webhooks")
@@ -116,6 +121,10 @@ func New(
 		saas.GET("/billing", billing.GetStatus)
 		saas.GET("/topology/latest", topology.Latest)
 		saas.GET("/topology/history", topology.List)
+		saas.GET("/topology/dependencies", topoAnalysis.GetDependencyMap)
+		saas.GET("/topology/drifts", topoAnalysis.GetDrifts)
+		saas.GET("/topology/metrics", topoAnalysis.GetMetrics)
+		saas.GET("/vulnerabilities", vulnerability.List)
 
 		manage := saas.Group("")
 		manage.Use(middleware.RequireTenantRole(pool.App, "admin", "editor"))
@@ -150,6 +159,9 @@ func New(
 			manage.POST("/notification-rules", notifications.CreateRule)
 			manage.DELETE("/notification-rules/:id", notifications.DeleteRule)
 			manage.GET("/audit-logs", audit.List)
+			manage.POST("/topology/drifts/:id/acknowledge", topoAnalysis.AcknowledgeDrift)
+			manage.PATCH("/vulnerabilities/:id", vulnerability.UpdateStatus)
+			manage.POST("/vulnerabilities/scan", vulnerability.Scan)
 		}
 	}
 

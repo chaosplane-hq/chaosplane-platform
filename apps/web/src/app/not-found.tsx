@@ -1,3 +1,5 @@
+'use client';
+
 import { Button, Tile } from '@carbon/react';
 import { ArrowLeft } from '@carbon/icons-react';
 import Link from 'next/link';

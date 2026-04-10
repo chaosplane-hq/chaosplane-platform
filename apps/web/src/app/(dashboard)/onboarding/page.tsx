@@ -198,7 +198,7 @@ export default function OnboardingPage() {
       <Column lg={8} md={8} sm={4}>
         <Tile className={styles.stepTile}>
           <div className={styles.stepHeader}>
-            <StepIcon size={24} className={styles.stepIcon} />
+            <span className={styles.stepIcon}><StepIcon size={24} /></span>
             <div>
               <h3 className={styles.stepTitle}>{meta.label}</h3>
               <p className={styles.stepSubtitle}>{meta.description}</p>

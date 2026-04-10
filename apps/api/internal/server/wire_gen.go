@@ -47,6 +47,10 @@ func InitializeServer(ctx context.Context) (*Server, error) {
 	auditHandler := handler.NewAuditHandler(auditService)
 	topologyService := service.NewTopologyService(pool)
 	topologyHandler := handler.NewTopologyHandler(topologyService)
+	topoAnalysisService := service.NewTopologyAnalysisService(pool)
+	topoAnalysisHandler := handler.NewTopologyAnalysisHandler(topoAnalysisService)
+	vulnerabilityService := service.NewVulnerabilityService(pool)
+	vulnerabilityHandler := handler.NewVulnerabilityHandler(vulnerabilityService)
 
 	k8sClient, err := service.NewK8sClient(cfg)
 	if err != nil {
@@ -60,6 +64,6 @@ func InitializeServer(ctx context.Context) (*Server, error) {
 	policyHandler := handler.NewPolicyHandler(policyService)
 	wsHandler := handler.NewWebSocketHandler(experimentService)
 
-	srv := New(cfg, pool, healthHandler, authHandler, hierarchyHandler, onboardingHandler, invitationHandler, apiKeyHandler, oauthHandler, accountHandler, agentHandler, billingHandler, notificationHandler, auditHandler, topologyHandler, experimentHandler, policyHandler, wsHandler, rdb, authService)
+	srv := New(cfg, pool, healthHandler, authHandler, hierarchyHandler, onboardingHandler, invitationHandler, apiKeyHandler, oauthHandler, accountHandler, agentHandler, billingHandler, notificationHandler, auditHandler, topologyHandler, topoAnalysisHandler, vulnerabilityHandler, experimentHandler, policyHandler, wsHandler, rdb, authService)
 	return srv, nil
 }

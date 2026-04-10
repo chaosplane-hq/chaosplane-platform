@@ -24,6 +24,7 @@ func New(
 	pool *database.Pool,
 	health *handler.HealthHandler,
 	auth *handler.AuthHandler,
+	hierarchy *handler.HierarchyHandler,
 	experiments *handler.ExperimentHandler,
 	policies *handler.PolicyHandler,
 	ws *handler.WebSocketHandler,
@@ -49,13 +50,39 @@ func New(
 		authPublic.POST("/register", auth.Register)
 		authPublic.POST("/login", auth.Login)
 		authPublic.POST("/refresh", auth.Refresh)
+		authPublic.POST("/forgot-password", auth.ForgotPassword)
+		authPublic.POST("/reset-password", auth.ResetPassword)
+		authPublic.POST("/verify-email", auth.VerifyEmail)
+		authPublic.POST("/resend-verification", auth.ResendVerification)
 	}
 
 	authProtected := r.Group("/auth")
 	authProtected.Use(middleware.JWT(authService))
 	{
 		authProtected.GET("/me", auth.Me)
+		authProtected.Use(middleware.CSRFSameSite(authService))
 		authProtected.POST("/logout", auth.Logout)
+	}
+
+	saas := r.Group("/api/v1")
+	saas.Use(middleware.JWT(authService), middleware.TenantContext(pool.App))
+	{
+		saas.GET("/hierarchy", hierarchy.List)
+
+		manage := saas.Group("")
+		manage.Use(middleware.RequireTenantRole(pool.App, "admin", "editor"))
+		{
+			manage.POST("/organizations", hierarchy.CreateOrganization)
+			manage.PATCH("/organizations/:id", hierarchy.UpdateOrganization)
+			manage.POST("/workspaces", hierarchy.CreateWorkspace)
+			manage.PATCH("/workspaces/:id", hierarchy.UpdateWorkspace)
+			manage.POST("/teams", hierarchy.CreateTeam)
+			manage.PATCH("/teams/:id", hierarchy.UpdateTeam)
+			manage.POST("/projects", hierarchy.CreateProject)
+			manage.PATCH("/projects/:id", hierarchy.UpdateProject)
+			manage.POST("/environments", hierarchy.CreateEnvironment)
+			manage.PATCH("/environments/:id", hierarchy.UpdateEnvironment)
+		}
 	}
 
 	api := r.Group("/api/v1")

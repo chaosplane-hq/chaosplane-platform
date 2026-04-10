@@ -1,6 +1,11 @@
 package service
 
-import "testing"
+import (
+	"testing"
+	"time"
+
+	"github.com/chaosplane-hq/chaosplane-platform/apps/api/internal/config"
+)
 
 func TestSlugify(t *testing.T) {
 	if got := slugify("  Chaos Plane, Inc. "); got != "chaos-plane-inc" {
@@ -13,5 +18,47 @@ func TestHashTokenDeterministic(t *testing.T) {
 	b := hashToken("token-123")
 	if a == "" || a != b {
 		t.Fatalf("expected deterministic token hash")
+	}
+}
+
+func TestCSRFTokenRoundTrip(t *testing.T) {
+	svc := NewAuthService(nil, &config.Config{CSRFSecret: "csrf-secret"}, nil)
+	token, err := svc.GenerateCSRFToken("user-1", "tenant-1")
+	if err != nil {
+		t.Fatalf("generate csrf token: %v", err)
+	}
+	if err := svc.ValidateCSRFToken("user-1", "tenant-1", token); err != nil {
+		t.Fatalf("validate csrf token: %v", err)
+	}
+}
+
+func TestSignAndParseAccessToken(t *testing.T) {
+	claims := &AccessTokenClaims{
+		JTI:       "11111111-1111-1111-1111-111111111111",
+		Subject:   "user-1",
+		TenantID:  "tenant-1",
+		Email:     "user@example.com",
+		TokenType: "access",
+		IssuedAt:  time.Now().Unix(),
+		ExpiresAt: time.Now().Add(15 * time.Minute).Unix(),
+	}
+
+	token, err := signToken(claims, "jwt-secret")
+	if err != nil {
+		t.Fatalf("sign token: %v", err)
+	}
+
+	parsed, err := parseSignedToken(token, "jwt-secret")
+	if err != nil {
+		t.Fatalf("parse token: %v", err)
+	}
+	if parsed.Subject != claims.Subject || parsed.TenantID != claims.TenantID {
+		t.Fatalf("unexpected parsed claims: %+v", parsed)
+	}
+}
+
+func TestDefaultSlug(t *testing.T) {
+	if got := defaultSlug("", "My Workspace"); got != "my-workspace" {
+		t.Fatalf("unexpected default slug: %s", got)
 	}
 }

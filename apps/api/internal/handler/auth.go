@@ -2,6 +2,7 @@ package handler
 
 import (
 	"errors"
+	"io"
 	"net"
 	"net/http"
 
@@ -66,9 +67,71 @@ func (h *AuthHandler) Refresh(c *gin.Context) {
 	c.JSON(http.StatusOK, resp)
 }
 
+func (h *AuthHandler) ForgotPassword(c *gin.Context) {
+	var req service.ForgotPasswordRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	resp, err := h.svc.ForgotPassword(c.Request.Context(), &req)
+	if err != nil {
+		h.writeAuthError(c, err)
+		return
+	}
+
+	c.JSON(http.StatusOK, resp)
+}
+
+func (h *AuthHandler) ResetPassword(c *gin.Context) {
+	var req service.ResetPasswordRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	if err := h.svc.ResetPassword(c.Request.Context(), &req); err != nil {
+		h.writeAuthError(c, err)
+		return
+	}
+
+	c.Status(http.StatusNoContent)
+}
+
+func (h *AuthHandler) VerifyEmail(c *gin.Context) {
+	var req service.VerifyEmailRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	if err := h.svc.VerifyEmail(c.Request.Context(), &req); err != nil {
+		h.writeAuthError(c, err)
+		return
+	}
+
+	c.Status(http.StatusNoContent)
+}
+
+func (h *AuthHandler) ResendVerification(c *gin.Context) {
+	var req service.ResendVerificationRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	resp, err := h.svc.ResendVerification(c.Request.Context(), &req)
+	if err != nil {
+		h.writeAuthError(c, err)
+		return
+	}
+
+	c.JSON(http.StatusOK, resp)
+}
+
 func (h *AuthHandler) Logout(c *gin.Context) {
 	var req service.LogoutRequest
-	if err := c.ShouldBindJSON(&req); err != nil {
+	if err := c.ShouldBindJSON(&req); err != nil && !errors.Is(err, io.EOF) {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
 	}
@@ -110,6 +173,12 @@ func (h *AuthHandler) Me(c *gin.Context) {
 func (h *AuthHandler) writeAuthError(c *gin.Context, err error) {
 	switch {
 	case errors.Is(err, service.ErrInvalidCredentials), errors.Is(err, service.ErrRefreshTokenInvalid):
+		c.JSON(http.StatusUnauthorized, gin.H{"error": err.Error()})
+	case errors.Is(err, service.ErrEmailNotVerified), errors.Is(err, service.ErrCSRFInvalid):
+		c.JSON(http.StatusForbidden, gin.H{"error": err.Error()})
+	case errors.Is(err, service.ErrTokenExpired):
+		c.JSON(http.StatusGone, gin.H{"error": err.Error()})
+	case errors.Is(err, service.ErrRefreshReuse):
 		c.JSON(http.StatusUnauthorized, gin.H{"error": err.Error()})
 	case errors.Is(err, service.ErrAccountLocked):
 		c.JSON(http.StatusLocked, gin.H{"error": err.Error()})

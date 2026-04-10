@@ -17,6 +17,7 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
+	"github.com/redis/go-redis/v9"
 	"golang.org/x/crypto/bcrypt"
 
 	"github.com/chaosplane-hq/chaosplane-platform/apps/api/internal/config"
@@ -29,15 +30,20 @@ var (
 	ErrInvalidCredentials  = errors.New("invalid credentials")
 	ErrRefreshTokenInvalid = errors.New("invalid refresh token")
 	ErrAccountLocked       = errors.New("account is locked")
+	ErrEmailNotVerified    = errors.New("email is not verified")
+	ErrTokenExpired        = errors.New("token expired")
+	ErrRefreshReuse        = errors.New("refresh token reuse detected")
+	ErrCSRFInvalid         = errors.New("invalid csrf token")
 )
 
 type AuthService struct {
 	pool *database.Pool
 	cfg  *config.Config
+	rdb  *redis.Client
 }
 
-func NewAuthService(pool *database.Pool, cfg *config.Config) *AuthService {
-	return &AuthService{pool: pool, cfg: cfg}
+func NewAuthService(pool *database.Pool, cfg *config.Config, rdb *redis.Client) *AuthService {
+	return &AuthService{pool: pool, cfg: cfg, rdb: rdb}
 }
 
 type RegisterRequest struct {
@@ -60,6 +66,23 @@ type LogoutRequest struct {
 	RefreshToken string `json:"refreshToken,omitempty"`
 }
 
+type ForgotPasswordRequest struct {
+	Email string `json:"email" binding:"required,email"`
+}
+
+type ResetPasswordRequest struct {
+	Token       string `json:"token" binding:"required"`
+	NewPassword string `json:"newPassword" binding:"required,min=8"`
+}
+
+type VerifyEmailRequest struct {
+	Token string `json:"token" binding:"required"`
+}
+
+type ResendVerificationRequest struct {
+	Email string `json:"email" binding:"required,email"`
+}
+
 type CurrentUserRequest struct {
 	UserID   string
 	TenantID string
@@ -80,16 +103,29 @@ type AuthTenant struct {
 }
 
 type AuthResponse struct {
-	AccessToken  string     `json:"accessToken"`
-	RefreshToken string     `json:"refreshToken"`
-	ExpiresIn    int64      `json:"expiresIn"`
-	User         AuthUser   `json:"user"`
-	Tenant       AuthTenant `json:"tenant"`
+	AccessToken           string     `json:"accessToken"`
+	RefreshToken          string     `json:"refreshToken"`
+	ExpiresIn             int64      `json:"expiresIn"`
+	User                  AuthUser   `json:"user"`
+	Tenant                AuthTenant `json:"tenant"`
+	VerificationToken     string     `json:"verificationToken,omitempty"`
+	VerificationExpiresAt string     `json:"verificationExpiresAt,omitempty"`
 }
 
 type CurrentUserResponse struct {
-	User   AuthUser   `json:"user"`
-	Tenant AuthTenant `json:"tenant"`
+	User      AuthUser   `json:"user"`
+	Tenant    AuthTenant `json:"tenant"`
+	CSRFToken string     `json:"csrfToken"`
+}
+
+type VerificationTokenResponse struct {
+	VerificationToken string `json:"verificationToken,omitempty"`
+	ExpiresAt         string `json:"expiresAt"`
+}
+
+type PasswordResetTokenResponse struct {
+	ResetToken string `json:"resetToken,omitempty"`
+	ExpiresAt  string `json:"expiresAt"`
 }
 
 type AccessTokenClaims struct {
@@ -103,19 +139,20 @@ type AccessTokenClaims struct {
 }
 
 type authIdentity struct {
-	UserID        string
-	Email         string
-	Name          string
-	PasswordHash  string
-	EmailVerified bool
-	Status        string
-	FailedLogins  int
-	LockedUntil   *time.Time
-	LastLoginAt   *time.Time
-	TenantID      string
-	TenantName    string
-	TenantSlug    string
-	DefaultOrgID  *string
+	UserID             string
+	Email              string
+	Name               string
+	PasswordHash       string
+	EmailVerified      bool
+	AcceptedTOSVersion string
+	Status             string
+	FailedLogins       int
+	LockedUntil        *time.Time
+	LastLoginAt        *time.Time
+	TenantID           string
+	TenantName         string
+	TenantSlug         string
+	DefaultOrgID       *string
 }
 
 type storedRefreshToken struct {
@@ -246,6 +283,13 @@ func (s *AuthService) Register(ctx context.Context, req *RegisterRequest, ip net
 		return nil, err
 	}
 
+	verificationToken, expiresAt, err := s.createEmailVerificationToken(ctx, tx, ident.UserID)
+	if err != nil {
+		return nil, err
+	}
+	resp.VerificationToken = verificationToken
+	resp.VerificationExpiresAt = expiresAt.Format(time.RFC3339)
+
 	if err := tx.Commit(ctx); err != nil {
 		return nil, fmt.Errorf("commit register tx: %w", err)
 	}
@@ -261,6 +305,9 @@ func (s *AuthService) Login(ctx context.Context, req *LoginRequest, ip net.IP, u
 
 	if ident.LockedUntil != nil && ident.LockedUntil.After(time.Now()) {
 		return nil, ErrAccountLocked
+	}
+	if !ident.EmailVerified {
+		return nil, ErrEmailNotVerified
 	}
 
 	if ident.PasswordHash == "" || bcrypt.CompareHashAndPassword([]byte(ident.PasswordHash), []byte(req.Password)) != nil {
@@ -305,8 +352,14 @@ func (s *AuthService) Refresh(ctx context.Context, req *RefreshRequest, ip net.I
 	if err != nil {
 		return nil, err
 	}
-	if stored.RevokedAt != nil || stored.ExpiresAt.Before(time.Now()) {
+	if stored.ExpiresAt.Before(time.Now()) {
 		return nil, ErrRefreshTokenInvalid
+	}
+	if stored.RevokedAt != nil {
+		if err := s.revokeRefreshFamily(ctx, tx, stored.FamilyID); err != nil {
+			return nil, err
+		}
+		return nil, ErrRefreshReuse
 	}
 
 	if _, err := tx.Exec(ctx, `UPDATE refresh_tokens SET revoked_at = now() WHERE id = $1::uuid`, stored.ID); err != nil {
@@ -323,6 +376,182 @@ func (s *AuthService) Refresh(ctx context.Context, req *RefreshRequest, ip net.I
 	}
 
 	return resp, nil
+}
+
+func (s *AuthService) ForgotPassword(ctx context.Context, req *ForgotPasswordRequest) (*PasswordResetTokenResponse, error) {
+	var userID string
+	err := s.pool.App.QueryRow(ctx, `
+		SELECT id::text
+		FROM users
+		WHERE lower(email) = lower($1) AND deleted_at IS NULL
+	`, normalizeEmail(req.Email)).Scan(&userID)
+	if err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			return &PasswordResetTokenResponse{ExpiresAt: time.Now().Add(24 * time.Hour).Format(time.RFC3339)}, nil
+		}
+		return nil, fmt.Errorf("lookup forgot-password user: %w", err)
+	}
+
+	tx, err := s.pool.App.BeginTx(ctx, pgx.TxOptions{})
+	if err != nil {
+		return nil, fmt.Errorf("begin forgot-password tx: %w", err)
+	}
+	defer func() { _ = tx.Rollback(ctx) }()
+
+	if _, err := tx.Exec(ctx, `
+		UPDATE password_reset_tokens
+		SET used_at = now()
+		WHERE user_id = $1::uuid AND used_at IS NULL
+	`, userID); err != nil {
+		return nil, fmt.Errorf("expire old reset tokens: %w", err)
+	}
+
+	plainToken, tokenHash, err := generateOpaqueToken()
+	if err != nil {
+		return nil, fmt.Errorf("generate reset token: %w", err)
+	}
+	expiresAt := time.Now().Add(24 * time.Hour)
+	if _, err := tx.Exec(ctx, `
+		INSERT INTO password_reset_tokens (user_id, token_hash, expires_at)
+		VALUES ($1::uuid, $2, $3)
+	`, userID, tokenHash, expiresAt); err != nil {
+		return nil, fmt.Errorf("store reset token: %w", err)
+	}
+
+	if err := tx.Commit(ctx); err != nil {
+		return nil, fmt.Errorf("commit forgot-password tx: %w", err)
+	}
+
+	return &PasswordResetTokenResponse{ResetToken: plainToken, ExpiresAt: expiresAt.Format(time.RFC3339)}, nil
+}
+
+func (s *AuthService) ResetPassword(ctx context.Context, req *ResetPasswordRequest) error {
+	hashedPassword, err := bcrypt.GenerateFromPassword([]byte(req.NewPassword), bcrypt.DefaultCost)
+	if err != nil {
+		return fmt.Errorf("hash password: %w", err)
+	}
+
+	tx, err := s.pool.App.BeginTx(ctx, pgx.TxOptions{})
+	if err != nil {
+		return fmt.Errorf("begin reset-password tx: %w", err)
+	}
+	defer func() { _ = tx.Rollback(ctx) }()
+
+	var userID string
+	var expiresAt time.Time
+	err = tx.QueryRow(ctx, `
+		SELECT user_id::text, expires_at
+		FROM password_reset_tokens
+		WHERE token_hash = $1 AND used_at IS NULL
+	`, hashToken(req.Token)).Scan(&userID, &expiresAt)
+	if err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			return ErrInvalidCredentials
+		}
+		return fmt.Errorf("lookup reset token: %w", err)
+	}
+	if expiresAt.Before(time.Now()) {
+		return ErrTokenExpired
+	}
+
+	if _, err := tx.Exec(ctx, `
+		UPDATE users
+		SET password_hash = $2, failed_login_count = 0, locked_until = NULL, status = 'active'
+		WHERE id = $1::uuid
+	`, userID, string(hashedPassword)); err != nil {
+		return fmt.Errorf("update password: %w", err)
+	}
+
+	if _, err := tx.Exec(ctx, `
+		UPDATE password_reset_tokens SET used_at = now() WHERE token_hash = $1 AND used_at IS NULL
+	`, hashToken(req.Token)); err != nil {
+		return fmt.Errorf("mark reset token used: %w", err)
+	}
+
+	if _, err := tx.Exec(ctx, `
+		UPDATE refresh_tokens SET revoked_at = now() WHERE user_id = $1::uuid AND revoked_at IS NULL
+	`, userID); err != nil {
+		return fmt.Errorf("revoke refresh tokens after password reset: %w", err)
+	}
+
+	if err := tx.Commit(ctx); err != nil {
+		return fmt.Errorf("commit reset-password tx: %w", err)
+	}
+	return nil
+}
+
+func (s *AuthService) VerifyEmail(ctx context.Context, req *VerifyEmailRequest) error {
+	tx, err := s.pool.App.BeginTx(ctx, pgx.TxOptions{})
+	if err != nil {
+		return fmt.Errorf("begin verify-email tx: %w", err)
+	}
+	defer func() { _ = tx.Rollback(ctx) }()
+
+	var userID string
+	var expiresAt time.Time
+	err = tx.QueryRow(ctx, `
+		SELECT user_id::text, expires_at
+		FROM email_verification_tokens
+		WHERE token_hash = $1 AND used_at IS NULL
+	`, hashToken(req.Token)).Scan(&userID, &expiresAt)
+	if err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			return ErrInvalidCredentials
+		}
+		return fmt.Errorf("lookup verification token: %w", err)
+	}
+	if expiresAt.Before(time.Now()) {
+		return ErrTokenExpired
+	}
+
+	if _, err := tx.Exec(ctx, `
+		UPDATE users
+		SET email_verified = true, email_verified_at = now()
+		WHERE id = $1::uuid
+	`, userID); err != nil {
+		return fmt.Errorf("mark email verified: %w", err)
+	}
+
+	if _, err := tx.Exec(ctx, `
+		UPDATE email_verification_tokens SET used_at = now() WHERE token_hash = $1 AND used_at IS NULL
+	`, hashToken(req.Token)); err != nil {
+		return fmt.Errorf("mark verification token used: %w", err)
+	}
+
+	if err := tx.Commit(ctx); err != nil {
+		return fmt.Errorf("commit verify-email tx: %w", err)
+	}
+	return nil
+}
+
+func (s *AuthService) ResendVerification(ctx context.Context, req *ResendVerificationRequest) (*VerificationTokenResponse, error) {
+	ident, err := s.lookupIdentityByEmail(ctx, req.Email)
+	if err != nil {
+		if errors.Is(err, ErrInvalidCredentials) {
+			return &VerificationTokenResponse{ExpiresAt: time.Now().Add(24 * time.Hour).Format(time.RFC3339)}, nil
+		}
+		return nil, err
+	}
+	if ident.EmailVerified {
+		return &VerificationTokenResponse{ExpiresAt: time.Now().Format(time.RFC3339)}, nil
+	}
+
+	tx, err := s.pool.App.BeginTx(ctx, pgx.TxOptions{})
+	if err != nil {
+		return nil, fmt.Errorf("begin resend-verification tx: %w", err)
+	}
+	defer func() { _ = tx.Rollback(ctx) }()
+
+	plain, expiresAt, err := s.createEmailVerificationToken(ctx, tx, ident.UserID)
+	if err != nil {
+		return nil, err
+	}
+
+	if err := tx.Commit(ctx); err != nil {
+		return nil, fmt.Errorf("commit resend-verification tx: %w", err)
+	}
+
+	return &VerificationTokenResponse{VerificationToken: plain, ExpiresAt: expiresAt.Format(time.RFC3339)}, nil
 }
 
 func (s *AuthService) Logout(ctx context.Context, claims *AccessTokenClaims, req *LogoutRequest) error {
@@ -375,7 +604,12 @@ func (s *AuthService) CurrentUser(ctx context.Context, req *CurrentUserRequest) 
 		return nil, fmt.Errorf("load current user: %w", err)
 	}
 
-	return &CurrentUserResponse{User: user, Tenant: tenant}, nil
+	csrfToken, err := s.GenerateCSRFToken(user.ID, tenant.ID)
+	if err != nil {
+		return nil, err
+	}
+
+	return &CurrentUserResponse{User: user, Tenant: tenant, CSRFToken: csrfToken}, nil
 }
 
 func (s *AuthService) ParseAccessToken(token string) (*AccessTokenClaims, error) {
@@ -393,6 +627,15 @@ func (s *AuthService) IsBlacklisted(ctx context.Context, jti string) (bool, erro
 	if jti == "" {
 		return false, nil
 	}
+	if s.pool == nil || s.pool.App == nil {
+		return false, nil
+	}
+	if s.rdb != nil {
+		res, err := s.rdb.Exists(ctx, blacklistRedisKey(jti)).Result()
+		if err == nil && res > 0 {
+			return true, nil
+		}
+	}
 	var exists bool
 	err := s.pool.App.QueryRow(ctx, `
 		SELECT EXISTS(
@@ -405,6 +648,37 @@ func (s *AuthService) IsBlacklisted(ctx context.Context, jti string) (bool, erro
 	return exists, nil
 }
 
+func (s *AuthService) GenerateCSRFToken(userID, tenantID string) (string, error) {
+	data := strings.Join([]string{userID, tenantID}, ":")
+	mac := hmac.New(sha256.New, []byte(s.cfg.CSRFSecret))
+	if _, err := mac.Write([]byte(data)); err != nil {
+		return "", fmt.Errorf("sign csrf token: %w", err)
+	}
+	return base64.RawURLEncoding.EncodeToString([]byte(data)) + "." + hex.EncodeToString(mac.Sum(nil)), nil
+}
+
+func (s *AuthService) ValidateCSRFToken(userID, tenantID, token string) error {
+	parts := strings.Split(token, ".")
+	if len(parts) != 2 {
+		return ErrCSRFInvalid
+	}
+	decoded, err := base64.RawURLEncoding.DecodeString(parts[0])
+	if err != nil {
+		return ErrCSRFInvalid
+	}
+	if string(decoded) != strings.Join([]string{userID, tenantID}, ":") {
+		return ErrCSRFInvalid
+	}
+	mac := hmac.New(sha256.New, []byte(s.cfg.CSRFSecret))
+	if _, err := mac.Write(decoded); err != nil {
+		return fmt.Errorf("validate csrf token: %w", err)
+	}
+	if !hmac.Equal([]byte(parts[1]), []byte(hex.EncodeToString(mac.Sum(nil)))) {
+		return ErrCSRFInvalid
+	}
+	return nil
+}
+
 func (s *AuthService) lookupIdentityByEmail(ctx context.Context, email string) (authIdentity, error) {
 	row := s.pool.App.QueryRow(ctx, `
 		SELECT
@@ -413,6 +687,7 @@ func (s *AuthService) lookupIdentityByEmail(ctx context.Context, email string) (
 			u.name,
 			COALESCE(u.password_hash, ''),
 			u.email_verified,
+			COALESCE(u.accepted_tos_version, ''),
 			u.status,
 			u.failed_login_count,
 			u.locked_until,
@@ -436,6 +711,7 @@ func (s *AuthService) lookupIdentityByEmail(ctx context.Context, email string) (
 		&ident.Name,
 		&ident.PasswordHash,
 		&ident.EmailVerified,
+		&ident.AcceptedTOSVersion,
 		&ident.Status,
 		&ident.FailedLogins,
 		&ident.LockedUntil,
@@ -642,6 +918,44 @@ func generateOpaqueToken() (string, string, error) {
 func hashToken(token string) string {
 	sum := sha256.Sum256([]byte(token))
 	return hex.EncodeToString(sum[:])
+}
+
+func (s *AuthService) createEmailVerificationToken(ctx context.Context, tx pgx.Tx, userID string) (string, time.Time, error) {
+	if _, err := tx.Exec(ctx, `
+		UPDATE email_verification_tokens
+		SET used_at = now()
+		WHERE user_id = $1::uuid AND used_at IS NULL
+	`, userID); err != nil {
+		return "", time.Time{}, fmt.Errorf("expire old verification tokens: %w", err)
+	}
+
+	plainToken, tokenHash, err := generateOpaqueToken()
+	if err != nil {
+		return "", time.Time{}, fmt.Errorf("generate verification token: %w", err)
+	}
+	expiresAt := time.Now().Add(24 * time.Hour)
+	if _, err := tx.Exec(ctx, `
+		INSERT INTO email_verification_tokens (user_id, token_hash, expires_at)
+		VALUES ($1::uuid, $2, $3)
+	`, userID, tokenHash, expiresAt); err != nil {
+		return "", time.Time{}, fmt.Errorf("store verification token: %w", err)
+	}
+	return plainToken, expiresAt, nil
+}
+
+func (s *AuthService) revokeRefreshFamily(ctx context.Context, tx pgx.Tx, familyID string) error {
+	if _, err := tx.Exec(ctx, `
+		UPDATE refresh_tokens
+		SET revoked_at = COALESCE(revoked_at, now())
+		WHERE family_id = $1::uuid
+	`, familyID); err != nil {
+		return fmt.Errorf("revoke refresh family: %w", err)
+	}
+	return nil
+}
+
+func blacklistRedisKey(jti string) string {
+	return "jwt:blacklist:" + jti
 }
 
 func signToken(claims *AccessTokenClaims, secret string) (string, error) {

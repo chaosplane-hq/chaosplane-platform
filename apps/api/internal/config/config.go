@@ -18,6 +18,8 @@ type Config struct {
 	JWTSecret       string
 	AccessTokenTTL  time.Duration
 	RefreshTokenTTL time.Duration
+	CSRFSecret      string
+	FrontendURL     string
 }
 
 func New() *Config {
@@ -32,6 +34,8 @@ func New() *Config {
 		JWTSecret:       getEnv("JWT_SECRET", "dev-secret-change-me"),
 		AccessTokenTTL:  getDurationEnv("ACCESS_TOKEN_TTL", 15*time.Minute),
 		RefreshTokenTTL: getDurationEnv("REFRESH_TOKEN_TTL", 30*24*time.Hour),
+		CSRFSecret:      getEnv("CSRF_SECRET", getEnv("JWT_SECRET", "dev-secret-change-me")),
+		FrontendURL:     getEnv("FRONTEND_URL", "http://localhost:3000"),
 	}
 }
 

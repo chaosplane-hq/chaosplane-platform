@@ -22,8 +22,11 @@ func InitializeServer(ctx context.Context) (*Server, error) {
 		return nil, err
 	}
 	healthHandler := handler.NewHealthHandler(pool)
-	authService := service.NewAuthService(pool, cfg)
+	rdb := NewRedisClient(cfg)
+	authService := service.NewAuthService(pool, cfg, rdb)
 	authHandler := handler.NewAuthHandler(authService)
+	hierarchyService := service.NewHierarchyService(pool)
+	hierarchyHandler := handler.NewHierarchyHandler(hierarchyService)
 
 	k8sClient, err := service.NewK8sClient(cfg)
 	if err != nil {
@@ -37,8 +40,6 @@ func InitializeServer(ctx context.Context) (*Server, error) {
 	policyHandler := handler.NewPolicyHandler(policyService)
 	wsHandler := handler.NewWebSocketHandler(experimentService)
 
-	rdb := NewRedisClient(cfg)
-
-	srv := New(cfg, pool, healthHandler, authHandler, experimentHandler, policyHandler, wsHandler, rdb, authService)
+	srv := New(cfg, pool, healthHandler, authHandler, hierarchyHandler, experimentHandler, policyHandler, wsHandler, rdb, authService)
 	return srv, nil
 }

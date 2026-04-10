@@ -10,6 +10,7 @@ import (
 	"github.com/chaosplane-hq/chaosplane-platform/apps/api/internal/database"
 	"github.com/chaosplane-hq/chaosplane-platform/apps/api/internal/handler"
 	"github.com/chaosplane-hq/chaosplane-platform/apps/api/internal/middleware"
+	"github.com/chaosplane-hq/chaosplane-platform/apps/api/internal/service"
 )
 
 type Server struct {
@@ -22,10 +23,12 @@ func New(
 	cfg *config.Config,
 	pool *database.Pool,
 	health *handler.HealthHandler,
+	auth *handler.AuthHandler,
 	experiments *handler.ExperimentHandler,
 	policies *handler.PolicyHandler,
 	ws *handler.WebSocketHandler,
 	rdb *redis.Client,
+	authService *service.AuthService,
 ) *Server {
 	if cfg.Environment == "production" {
 		gin.SetMode(gin.ReleaseMode)
@@ -40,6 +43,20 @@ func New(
 
 	r.GET("/healthz", health.Healthz)
 	r.GET("/readyz", health.Readyz)
+
+	authPublic := r.Group("/auth")
+	{
+		authPublic.POST("/register", auth.Register)
+		authPublic.POST("/login", auth.Login)
+		authPublic.POST("/refresh", auth.Refresh)
+	}
+
+	authProtected := r.Group("/auth")
+	authProtected.Use(middleware.JWT(authService))
+	{
+		authProtected.GET("/me", auth.Me)
+		authProtected.POST("/logout", auth.Logout)
+	}
 
 	api := r.Group("/api/v1")
 	api.Use(middleware.APIKey(pool.App))

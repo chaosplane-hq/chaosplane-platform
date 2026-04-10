@@ -22,6 +22,8 @@ func InitializeServer(ctx context.Context) (*Server, error) {
 		return nil, err
 	}
 	healthHandler := handler.NewHealthHandler(pool)
+	authService := service.NewAuthService(pool, cfg)
+	authHandler := handler.NewAuthHandler(authService)
 
 	k8sClient, err := service.NewK8sClient(cfg)
 	if err != nil {
@@ -37,6 +39,6 @@ func InitializeServer(ctx context.Context) (*Server, error) {
 
 	rdb := NewRedisClient(cfg)
 
-	srv := New(cfg, pool, healthHandler, experimentHandler, policyHandler, wsHandler, rdb)
+	srv := New(cfg, pool, healthHandler, authHandler, experimentHandler, policyHandler, wsHandler, rdb, authService)
 	return srv, nil
 }

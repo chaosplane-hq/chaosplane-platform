@@ -51,6 +51,12 @@ func InitializeServer(ctx context.Context) (*Server, error) {
 	topoAnalysisHandler := handler.NewTopologyAnalysisHandler(topoAnalysisService)
 	vulnerabilityService := service.NewVulnerabilityService(pool)
 	vulnerabilityHandler := handler.NewVulnerabilityHandler(vulnerabilityService)
+	suggestionService := service.NewExperimentSuggestionService(pool)
+	suggestionHandler := handler.NewExperimentSuggestionHandler(suggestionService)
+	resultAnalysisService := service.NewResultAnalysisService(pool)
+	resultAnalysisHandler := handler.NewResultAnalysisHandler(resultAnalysisService)
+	aiChatService := service.NewAIChatService(pool)
+	aiChatHandler := handler.NewAIChatHandler(aiChatService)
 
 	k8sClient, err := service.NewK8sClient(cfg)
 	if err != nil {
@@ -64,6 +70,6 @@ func InitializeServer(ctx context.Context) (*Server, error) {
 	policyHandler := handler.NewPolicyHandler(policyService)
 	wsHandler := handler.NewWebSocketHandler(experimentService)
 
-	srv := New(cfg, pool, healthHandler, authHandler, hierarchyHandler, onboardingHandler, invitationHandler, apiKeyHandler, oauthHandler, accountHandler, agentHandler, billingHandler, notificationHandler, auditHandler, topologyHandler, topoAnalysisHandler, vulnerabilityHandler, experimentHandler, policyHandler, wsHandler, rdb, authService)
+	srv := New(cfg, pool, healthHandler, authHandler, hierarchyHandler, onboardingHandler, invitationHandler, apiKeyHandler, oauthHandler, accountHandler, agentHandler, billingHandler, notificationHandler, auditHandler, topologyHandler, topoAnalysisHandler, vulnerabilityHandler, suggestionHandler, resultAnalysisHandler, aiChatHandler, experimentHandler, policyHandler, wsHandler, rdb, authService)
 	return srv, nil
 }

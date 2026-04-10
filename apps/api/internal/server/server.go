@@ -37,6 +37,9 @@ func New(
 	topology *handler.TopologyHandler,
 	topoAnalysis *handler.TopologyAnalysisHandler,
 	vulnerability *handler.VulnerabilityHandler,
+	suggestions *handler.ExperimentSuggestionHandler,
+	resultAnalysis *handler.ResultAnalysisHandler,
+	aiChat *handler.AIChatHandler,
 	experiments *handler.ExperimentHandler,
 	policies *handler.PolicyHandler,
 	ws *handler.WebSocketHandler,
@@ -125,6 +128,14 @@ func New(
 		saas.GET("/topology/drifts", topoAnalysis.GetDrifts)
 		saas.GET("/topology/metrics", topoAnalysis.GetMetrics)
 		saas.GET("/vulnerabilities", vulnerability.List)
+		saas.GET("/suggestions", suggestions.List)
+		saas.GET("/result-analysis", resultAnalysis.List)
+		saas.GET("/result-analysis/:id", resultAnalysis.Get)
+		saas.GET("/ai/chat/sessions", aiChat.ListSessions)
+		saas.POST("/ai/chat/sessions", aiChat.CreateSession)
+		saas.GET("/ai/chat/sessions/:id/messages", aiChat.GetMessages)
+		saas.POST("/ai/chat/sessions/:id/messages", aiChat.SendMessage)
+		saas.DELETE("/ai/chat/sessions/:id", aiChat.DeleteSession)
 
 		manage := saas.Group("")
 		manage.Use(middleware.RequireTenantRole(pool.App, "admin", "editor"))
@@ -162,6 +173,9 @@ func New(
 			manage.POST("/topology/drifts/:id/acknowledge", topoAnalysis.AcknowledgeDrift)
 			manage.PATCH("/vulnerabilities/:id", vulnerability.UpdateStatus)
 			manage.POST("/vulnerabilities/scan", vulnerability.Scan)
+			manage.POST("/suggestions/generate", suggestions.Generate)
+			manage.DELETE("/suggestions/:id", suggestions.Delete)
+			manage.POST("/result-analysis", resultAnalysis.Analyze)
 		}
 	}
 

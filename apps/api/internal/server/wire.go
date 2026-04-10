@@ -1,0 +1,26 @@
+//go:build wireinject
+// +build wireinject
+
+package server
+
+import (
+	"context"
+
+	"github.com/google/wire"
+
+	"github.com/chaosplane-hq/chaosplane-platform/apps/api/internal/config"
+	"github.com/chaosplane-hq/chaosplane-platform/apps/api/internal/database"
+	"github.com/chaosplane-hq/chaosplane-platform/apps/api/internal/handler"
+)
+
+var ProviderSet = wire.NewSet(
+	config.New,
+	database.NewPool,
+	handler.NewHealthHandler,
+	New,
+)
+
+func InitializeServer(ctx context.Context) (*Server, error) {
+	wire.Build(ProviderSet)
+	return nil, nil
+}

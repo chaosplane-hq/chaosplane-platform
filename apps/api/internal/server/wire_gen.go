@@ -12,6 +12,7 @@ import (
 	"github.com/chaosplane-hq/chaosplane-platform/apps/api/internal/config"
 	"github.com/chaosplane-hq/chaosplane-platform/apps/api/internal/database"
 	"github.com/chaosplane-hq/chaosplane-platform/apps/api/internal/handler"
+	"github.com/chaosplane-hq/chaosplane-platform/apps/api/internal/service"
 )
 
 func InitializeServer(ctx context.Context) (*Server, error) {
@@ -21,6 +22,21 @@ func InitializeServer(ctx context.Context) (*Server, error) {
 		return nil, err
 	}
 	healthHandler := handler.NewHealthHandler(pool)
-	srv := New(cfg, pool, healthHandler)
+
+	k8sClient, err := service.NewK8sClient(cfg)
+	if err != nil {
+		return nil, err
+	}
+
+	experimentService := service.NewExperimentService(k8sClient)
+	policyService := service.NewPolicyService(k8sClient)
+
+	experimentHandler := handler.NewExperimentHandler(experimentService)
+	policyHandler := handler.NewPolicyHandler(policyService)
+	wsHandler := handler.NewWebSocketHandler(experimentService)
+
+	rdb := NewRedisClient(cfg)
+
+	srv := New(cfg, pool, healthHandler, experimentHandler, policyHandler, wsHandler, rdb)
 	return srv, nil
 }

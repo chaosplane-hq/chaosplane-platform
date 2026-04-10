@@ -12,9 +12,10 @@ type Config struct {
 	SuperadminDBURL string
 	CORSOrigins     []string
 	Environment     string
+	Kubeconfig      string
+	RedisURL        string
 }
 
-// New loads configuration from environment variables.
 func New() *Config {
 	return &Config{
 		Port:            getEnv("PORT", "8080"),
@@ -22,6 +23,8 @@ func New() *Config {
 		SuperadminDBURL: getEnv("SUPERADMIN_DATABASE_URL", ""),
 		CORSOrigins:     strings.Split(getEnv("CORS_ORIGINS", "*"), ","),
 		Environment:     getEnv("ENVIRONMENT", "development"),
+		Kubeconfig:      getEnv("KUBECONFIG", ""),
+		RedisURL:        getEnv("REDIS_URL", ""),
 	}
 }
 

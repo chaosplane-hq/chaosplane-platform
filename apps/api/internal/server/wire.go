@@ -11,12 +11,20 @@ import (
 	"github.com/chaosplane-hq/chaosplane-platform/apps/api/internal/config"
 	"github.com/chaosplane-hq/chaosplane-platform/apps/api/internal/database"
 	"github.com/chaosplane-hq/chaosplane-platform/apps/api/internal/handler"
+	"github.com/chaosplane-hq/chaosplane-platform/apps/api/internal/service"
 )
 
 var ProviderSet = wire.NewSet(
 	config.New,
 	database.NewPool,
 	handler.NewHealthHandler,
+	handler.NewExperimentHandler,
+	handler.NewPolicyHandler,
+	handler.NewWebSocketHandler,
+	service.NewK8sClient,
+	service.NewExperimentService,
+	service.NewPolicyService,
+	NewRedisClient,
 	New,
 )
 

@@ -31,6 +31,9 @@ func New(
 	oauth *handler.OAuthHandler,
 	account *handler.AccountHandler,
 	agent *handler.AgentHandler,
+	billing *handler.BillingHandler,
+	notifications *handler.NotificationHandler,
+	audit *handler.AuditHandler,
 	experiments *handler.ExperimentHandler,
 	policies *handler.PolicyHandler,
 	ws *handler.WebSocketHandler,
@@ -72,6 +75,13 @@ func New(
 		agentPublic.POST("/heartbeat", agent.Heartbeat)
 	}
 
+	webhooks := r.Group("/webhooks")
+	{
+		webhooks.POST("/stripe", billing.WebhookStripe)
+		webhooks.POST("/toss", billing.WebhookToss)
+		webhooks.POST("/dodo", billing.WebhookDodo)
+	}
+
 	authProtected := r.Group("/auth")
 	authProtected.Use(middleware.JWT(authService))
 	{
@@ -87,6 +97,7 @@ func New(
 
 	saas := r.Group("/api/v1")
 	saas.Use(middleware.JWT(authService), middleware.TenantContext(pool.App))
+	saas.Use(middleware.AuditLog(pool.App))
 	if rdb != nil {
 		saas.Use(middleware.RateLimit(rdb, pool.App, middleware.DefaultRateLimiterConfig()))
 	}
@@ -100,6 +111,7 @@ func New(
 		saas.POST("/invitations/accept", invitations.Accept)
 		saas.POST("/invitations/decline", invitations.Decline)
 		saas.GET("/api-keys", apiKeys.List)
+		saas.GET("/billing", billing.GetStatus)
 
 		manage := saas.Group("")
 		manage.Use(middleware.RequireTenantRole(pool.App, "admin", "editor"))
@@ -124,6 +136,16 @@ func New(
 			manage.GET("/agent-tokens", agent.ListTokens)
 			manage.POST("/agent-tokens", agent.CreateToken)
 			manage.DELETE("/agent-tokens/:id", agent.RevokeToken)
+			manage.POST("/billing/upgrade", billing.Upgrade)
+			manage.POST("/billing/cancel", billing.Cancel)
+			manage.POST("/billing/reactivate", billing.Reactivate)
+			manage.GET("/notification-channels", notifications.ListChannels)
+			manage.POST("/notification-channels", notifications.CreateChannel)
+			manage.DELETE("/notification-channels/:id", notifications.DeleteChannel)
+			manage.GET("/notification-rules", notifications.ListRules)
+			manage.POST("/notification-rules", notifications.CreateRule)
+			manage.DELETE("/notification-rules/:id", notifications.DeleteRule)
+			manage.GET("/audit-logs", audit.List)
 		}
 	}
 

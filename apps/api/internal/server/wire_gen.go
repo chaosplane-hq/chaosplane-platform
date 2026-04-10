@@ -39,6 +39,12 @@ func InitializeServer(ctx context.Context) (*Server, error) {
 	accountHandler := handler.NewAccountHandler(accountService)
 	agentService := service.NewAgentService(pool)
 	agentHandler := handler.NewAgentHandler(agentService)
+	billingService := service.NewBillingService(pool, cfg)
+	billingHandler := handler.NewBillingHandler(billingService)
+	notificationService := service.NewNotificationService(pool)
+	notificationHandler := handler.NewNotificationHandler(notificationService)
+	auditService := service.NewAuditService(pool)
+	auditHandler := handler.NewAuditHandler(auditService)
 
 	k8sClient, err := service.NewK8sClient(cfg)
 	if err != nil {
@@ -52,6 +58,6 @@ func InitializeServer(ctx context.Context) (*Server, error) {
 	policyHandler := handler.NewPolicyHandler(policyService)
 	wsHandler := handler.NewWebSocketHandler(experimentService)
 
-	srv := New(cfg, pool, healthHandler, authHandler, hierarchyHandler, onboardingHandler, invitationHandler, apiKeyHandler, oauthHandler, accountHandler, agentHandler, experimentHandler, policyHandler, wsHandler, rdb, authService)
+	srv := New(cfg, pool, healthHandler, authHandler, hierarchyHandler, onboardingHandler, invitationHandler, apiKeyHandler, oauthHandler, accountHandler, agentHandler, billingHandler, notificationHandler, auditHandler, experimentHandler, policyHandler, wsHandler, rdb, authService)
 	return srv, nil
 }

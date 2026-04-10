@@ -1,9 +1,41 @@
 'use client';
 
-import { Button, PasswordInput, TextInput } from '@carbon/react';
+import { useState } from 'react';
+import { useRouter } from 'next/navigation';
+import { Button, InlineNotification, PasswordInput, TextInput } from '@carbon/react';
 import { LogoGithub } from '@carbon/icons-react';
+import { login, oauthAuthorize } from '@/lib/auth';
 
 export default function LoginPage() {
+  const router = useRouter();
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
+  const [error, setError] = useState('');
+  const [loading, setLoading] = useState(false);
+
+  async function handleSubmit(e: React.FormEvent) {
+    e.preventDefault();
+    setError('');
+    setLoading(true);
+    try {
+      await login(email, password);
+      router.push('/experiments');
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Login failed');
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  async function handleOAuth(provider: string) {
+    try {
+      const url = await oauthAuthorize(provider);
+      window.location.href = url;
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'OAuth failed');
+    }
+  }
+
   return (
     <main className="login-page">
       <div className="login-container">
@@ -16,25 +48,25 @@ export default function LoginPage() {
         <div className="login-card">
           <h2 className="login-card__title">Sign in</h2>
 
+          {error && (
+            <InlineNotification
+              kind="error"
+              title="Error"
+              subtitle={error}
+              lowContrast
+              hideCloseButton={false}
+              onCloseButtonClick={() => setError('')}
+            />
+          )}
+
           <div className="login-oauth">
-            <Button
-              kind="tertiary"
-              className="login-oauth__btn"
-            >
+            <Button kind="tertiary" className="login-oauth__btn" onClick={() => handleOAuth('google')}>
               Continue with Google
             </Button>
-            <Button
-              kind="tertiary"
-              renderIcon={LogoGithub}
-              iconDescription="GitHub"
-              className="login-oauth__btn"
-            >
+            <Button kind="tertiary" renderIcon={LogoGithub} iconDescription="GitHub" className="login-oauth__btn" onClick={() => handleOAuth('github')}>
               Continue with GitHub
             </Button>
-            <Button
-              kind="tertiary"
-              className="login-oauth__btn"
-            >
+            <Button kind="tertiary" className="login-oauth__btn" onClick={() => handleOAuth('microsoft')}>
               Continue with Microsoft
             </Button>
           </div>
@@ -43,22 +75,26 @@ export default function LoginPage() {
             <span>or sign in with email</span>
           </div>
 
-          <form className="login-form" onSubmit={(e) => e.preventDefault()}>
+          <form className="login-form" onSubmit={handleSubmit}>
             <TextInput
               id="email"
               labelText="Email address"
               type="email"
               placeholder="you@company.com"
               autoComplete="email"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
             />
             <PasswordInput
               id="password"
               labelText="Password"
               placeholder="••••••••"
               autoComplete="current-password"
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
             />
-            <Button type="submit" className="login-form__submit">
-              Sign in
+            <Button type="submit" className="login-form__submit" disabled={loading}>
+              {loading ? 'Signing in...' : 'Sign in'}
             </Button>
           </form>
         </div>

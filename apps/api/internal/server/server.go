@@ -34,6 +34,7 @@ func New(
 	billing *handler.BillingHandler,
 	notifications *handler.NotificationHandler,
 	audit *handler.AuditHandler,
+	topology *handler.TopologyHandler,
 	experiments *handler.ExperimentHandler,
 	policies *handler.PolicyHandler,
 	ws *handler.WebSocketHandler,
@@ -73,6 +74,7 @@ func New(
 	{
 		agentPublic.POST("/register", agent.Register)
 		agentPublic.POST("/heartbeat", agent.Heartbeat)
+		agentPublic.POST("/topology", topology.Submit)
 	}
 
 	webhooks := r.Group("/webhooks")
@@ -112,6 +114,8 @@ func New(
 		saas.POST("/invitations/decline", invitations.Decline)
 		saas.GET("/api-keys", apiKeys.List)
 		saas.GET("/billing", billing.GetStatus)
+		saas.GET("/topology/latest", topology.Latest)
+		saas.GET("/topology/history", topology.List)
 
 		manage := saas.Group("")
 		manage.Use(middleware.RequireTenantRole(pool.App, "admin", "editor"))

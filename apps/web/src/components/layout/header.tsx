@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import {
   Header,
   HeaderGlobalAction,
@@ -10,13 +10,26 @@ import {
   HeaderPanel,
   SkipToContent,
 } from '@carbon/react';
-import { Notification, UserAvatar } from '@carbon/icons-react';
+import { Notification, UserAvatar, Logout } from '@carbon/icons-react';
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 import { AppSidebar } from './sidebar';
+import { getCurrentUser, logout, type CurrentUserResponse } from '@/lib/auth';
 
 export function AppHeader() {
+  const router = useRouter();
   const [isSideNavExpanded, setIsSideNavExpanded] = useState(false);
   const [isUserPanelOpen, setIsUserPanelOpen] = useState(false);
+  const [user, setUser] = useState<CurrentUserResponse | null>(null);
+
+  useEffect(() => {
+    getCurrentUser().then(setUser).catch(() => setUser(null));
+  }, []);
+
+  async function handleLogout() {
+    await logout();
+    router.push('/login');
+  }
 
   return (
     <>
@@ -45,10 +58,28 @@ export function AppHeader() {
         </HeaderGlobalBar>
         <HeaderPanel expanded={isUserPanelOpen}>
           <div style={{ padding: 'var(--cds-spacing-05)', color: 'var(--cds-text-primary)' }}>
-            <p style={{ margin: 0, fontWeight: 600 }}>User Name</p>
+            <p style={{ margin: 0, fontWeight: 600 }}>{user?.user.name ?? 'Not signed in'}</p>
             <p style={{ margin: '4px 0 0', fontSize: '0.875rem', color: 'var(--cds-text-secondary)' }}>
-              user@company.com
+              {user?.user.email ?? ''}
             </p>
+            {user?.tenant && (
+              <p style={{ margin: '4px 0 0', fontSize: '0.75rem', color: 'var(--cds-text-helper)' }}>
+                {user.tenant.name}
+              </p>
+            )}
+            <div style={{ marginTop: 'var(--cds-spacing-05)', borderTop: '1px solid var(--cds-border-subtle-01)', paddingTop: 'var(--cds-spacing-04)' }}>
+              <button
+                type="button"
+                onClick={handleLogout}
+                style={{
+                  background: 'none', border: 'none', color: 'var(--cds-text-error)',
+                  cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '0.5rem',
+                  fontSize: '0.875rem', padding: 0,
+                }}
+              >
+                <Logout size={16} /> Sign out
+              </button>
+            </div>
           </div>
         </HeaderPanel>
       </Header>

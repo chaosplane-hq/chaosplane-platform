@@ -13,6 +13,7 @@ import {
   Chemistry,
   Cloud,
   Settings,
+  Rocket,
 } from '@carbon/icons-react';
 import { usePathname } from 'next/navigation';
 import Link from 'next/link';
@@ -26,6 +27,7 @@ const navItems = [
   { href: '/', label: 'Dashboard', icon: Dashboard },
   { href: '/experiments', label: 'Experiments', icon: Chemistry },
   { href: '/environments', label: 'Environments', icon: Cloud },
+  { href: '/onboarding', label: 'Get Started', icon: Rocket },
   { href: '/settings', label: 'Settings', icon: Settings },
 ];
 

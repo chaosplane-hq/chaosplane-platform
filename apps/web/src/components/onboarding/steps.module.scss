@@ -1,0 +1,113 @@
+.step {
+  display: flex;
+  flex-direction: column;
+  gap: var(--cds-spacing-05);
+}
+
+.desc {
+  color: var(--cds-text-secondary);
+  margin: 0;
+  font-size: var(--cds-body-short-01-font-size);
+  line-height: var(--cds-body-short-01-line-height);
+}
+
+.actions {
+  display: flex;
+  align-items: center;
+  gap: var(--cds-spacing-03);
+  flex-wrap: wrap;
+  margin-top: var(--cds-spacing-03);
+}
+
+.codeTile {
+  background: var(--cds-layer-02);
+  border: 1px solid var(--cds-border-subtle);
+  padding: var(--cds-spacing-05);
+}
+
+.codeLabel {
+  font-size: var(--cds-label-01-font-size);
+  color: var(--cds-text-secondary);
+  margin: 0 0 var(--cds-spacing-03);
+}
+
+.code {
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 0.8125rem;
+  color: var(--cds-text-primary);
+  margin: 0;
+  white-space: pre-wrap;
+  word-break: break-all;
+}
+
+.experimentCards {
+  display: flex;
+  flex-direction: column;
+  gap: var(--cds-spacing-03);
+}
+
+.expCard {
+  cursor: default;
+  padding: var(--cds-spacing-04);
+}
+
+.expType {
+  font-size: var(--cds-label-01-font-size);
+  font-weight: 600;
+  color: var(--cds-text-primary);
+  margin: 0 0 var(--cds-spacing-02);
+}
+
+.expDesc {
+  font-size: var(--cds-label-01-font-size);
+  color: var(--cds-text-secondary);
+  margin: 0;
+}
+
+.checklist {
+  display: flex;
+  flex-direction: column;
+  gap: var(--cds-spacing-03);
+}
+
+.checkItem {
+  display: flex;
+  align-items: center;
+  gap: var(--cds-spacing-03);
+  font-size: var(--cds-body-short-01-font-size);
+  color: var(--cds-text-primary);
+}
+
+.checkIcon {
+  color: var(--cds-support-success);
+  flex-shrink: 0;
+}
+
+.quickSetup {
+  padding: var(--cds-spacing-05);
+}
+
+.quickSetupHeader {
+  display: flex;
+  align-items: center;
+  gap: var(--cds-spacing-03);
+  margin-bottom: var(--cds-spacing-03);
+  color: var(--cds-text-primary);
+}
+
+.quickSetupTitle {
+  font-size: var(--cds-heading-02-font-size);
+  font-weight: var(--cds-heading-02-font-weight);
+  margin: 0;
+}
+
+.quickSetupDesc {
+  font-size: var(--cds-body-short-01-font-size);
+  color: var(--cds-text-secondary);
+  margin: 0 0 var(--cds-spacing-05);
+}
+
+.quickSetupActions {
+  display: flex;
+  gap: var(--cds-spacing-03);
+}

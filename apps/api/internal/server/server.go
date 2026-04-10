@@ -28,6 +28,9 @@ func New(
 	onboarding *handler.OnboardingHandler,
 	invitations *handler.InvitationHandler,
 	apiKeys *handler.APIKeyHandler,
+	oauth *handler.OAuthHandler,
+	account *handler.AccountHandler,
+	agent *handler.AgentHandler,
 	experiments *handler.ExperimentHandler,
 	policies *handler.PolicyHandler,
 	ws *handler.WebSocketHandler,
@@ -57,6 +60,16 @@ func New(
 		authPublic.POST("/reset-password", auth.ResetPassword)
 		authPublic.POST("/verify-email", auth.VerifyEmail)
 		authPublic.POST("/resend-verification", auth.ResendVerification)
+		authPublic.GET("/invitations/lookup", invitations.LookupByToken)
+		authPublic.POST("/invitations/accept-by-token", invitations.AcceptByToken)
+		authPublic.GET("/oauth/:provider/authorize", oauth.Authorize)
+		authPublic.POST("/oauth/callback", oauth.Callback)
+	}
+
+	agentPublic := r.Group("/agent")
+	{
+		agentPublic.POST("/register", agent.Register)
+		agentPublic.POST("/heartbeat", agent.Heartbeat)
 	}
 
 	authProtected := r.Group("/auth")
@@ -64,6 +77,10 @@ func New(
 	{
 		authProtected.GET("/me", auth.Me)
 		authProtected.POST("/quick-setup", onboarding.QuickSetup)
+		authProtected.POST("/accept-tos", account.AcceptTOS)
+		authProtected.GET("/account/export", account.Export)
+		authProtected.DELETE("/account", account.Delete)
+		authProtected.POST("/account/cancel-deletion", account.CancelDeletion)
 		authProtected.Use(middleware.CSRFSameSite(authService))
 		authProtected.POST("/logout", auth.Logout)
 	}
@@ -104,6 +121,9 @@ func New(
 			manage.POST("/api-keys", apiKeys.Create)
 			manage.POST("/api-keys/:id/rotate", apiKeys.Rotate)
 			manage.DELETE("/api-keys/:id", apiKeys.Revoke)
+			manage.GET("/agent-tokens", agent.ListTokens)
+			manage.POST("/agent-tokens", agent.CreateToken)
+			manage.DELETE("/agent-tokens/:id", agent.RevokeToken)
 		}
 	}
 

@@ -20,6 +20,13 @@ type Config struct {
 	RefreshTokenTTL time.Duration
 	CSRFSecret      string
 	FrontendURL     string
+
+	GoogleClientID        string
+	GoogleClientSecret    string
+	GitHubClientID        string
+	GitHubClientSecret    string
+	MicrosoftClientID     string
+	MicrosoftClientSecret string
 }
 
 func New() *Config {
@@ -36,6 +43,13 @@ func New() *Config {
 		RefreshTokenTTL: getDurationEnv("REFRESH_TOKEN_TTL", 30*24*time.Hour),
 		CSRFSecret:      getEnv("CSRF_SECRET", getEnv("JWT_SECRET", "dev-secret-change-me")),
 		FrontendURL:     getEnv("FRONTEND_URL", "http://localhost:3000"),
+
+		GoogleClientID:        getEnv("GOOGLE_CLIENT_ID", ""),
+		GoogleClientSecret:    getEnv("GOOGLE_CLIENT_SECRET", ""),
+		GitHubClientID:        getEnv("GITHUB_CLIENT_ID", ""),
+		GitHubClientSecret:    getEnv("GITHUB_CLIENT_SECRET", ""),
+		MicrosoftClientID:     getEnv("MICROSOFT_CLIENT_ID", ""),
+		MicrosoftClientSecret: getEnv("MICROSOFT_CLIENT_SECRET", ""),
 	}
 }
 

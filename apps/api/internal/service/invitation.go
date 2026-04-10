@@ -314,3 +314,128 @@ func invitationRoleToTeamRole(role string) string {
 		return "viewer"
 	}
 }
+
+type InvitationByTokenResponse struct {
+	ID               string  `json:"id"`
+	TenantName       string  `json:"tenantName"`
+	OrganizationName string  `json:"organizationName"`
+	TeamName         *string `json:"teamName,omitempty"`
+	Email            string  `json:"email"`
+	Role             string  `json:"role"`
+	Status           string  `json:"status"`
+	ExpiresAt        string  `json:"expiresAt"`
+}
+
+func (s *InvitationService) LookupByToken(ctx context.Context, token string) (*InvitationByTokenResponse, error) {
+	row := s.pool.App.QueryRow(ctx, `
+		SELECT
+			i.id::text,
+			t.name,
+			o.name,
+			tm.name,
+			i.email,
+			i.role,
+			i.status,
+			i.expires_at
+		FROM invitations i
+		JOIN tenants t ON t.id = i.tenant_id
+		JOIN organizations o ON o.id = i.organization_id
+		LEFT JOIN teams tm ON tm.id = i.team_id
+		WHERE i.token_hash = $1
+	`, hashToken(token))
+
+	var resp InvitationByTokenResponse
+	if err := row.Scan(&resp.ID, &resp.TenantName, &resp.OrganizationName, &resp.TeamName, &resp.Email, &resp.Role, &resp.Status, &resp.ExpiresAt); err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			return nil, ErrHierarchyNotFound
+		}
+		return nil, fmt.Errorf("lookup invitation by token: %w", err)
+	}
+	return &resp, nil
+}
+
+type AcceptByTokenRequest struct {
+	Token    string `json:"token" binding:"required"`
+	Email    string `json:"email" binding:"required,email"`
+	Name     string `json:"name" binding:"required,min=2"`
+	Password string `json:"password" binding:"required,min=8"`
+}
+
+func (s *InvitationService) AcceptByToken(ctx context.Context, req *AcceptByTokenRequest) (*Invitation, error) {
+	tx, err := s.pool.App.BeginTx(ctx, pgx.TxOptions{})
+	if err != nil {
+		return nil, fmt.Errorf("begin accept-by-token tx: %w", err)
+	}
+	defer func() { _ = tx.Rollback(ctx) }()
+
+	var inv Invitation
+	err = tx.QueryRow(ctx, `
+		SELECT id::text, tenant_id::text, organization_id::text, team_id::text, email, role, status, expires_at, accepted_at, created_at
+		FROM invitations
+		WHERE token_hash = $1 AND status = 'pending'
+	`, hashToken(req.Token)).Scan(&inv.ID, &inv.TenantID, &inv.OrganizationID, &inv.TeamID, &inv.Email, &inv.Role, &inv.Status, &inv.ExpiresAt, &inv.AcceptedAt, &inv.CreatedAt)
+	if err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			return nil, ErrHierarchyNotFound
+		}
+		return nil, fmt.Errorf("lookup invitation for accept-by-token: %w", err)
+	}
+	if inv.ExpiresAt.Before(time.Now()) {
+		_, _ = tx.Exec(ctx, `UPDATE invitations SET status = 'expired' WHERE id = $1::uuid`, inv.ID)
+		_ = tx.Commit(ctx)
+		return nil, ErrTokenExpired
+	}
+	if !strings.EqualFold(inv.Email, strings.ToLower(strings.TrimSpace(req.Email))) {
+		return nil, ErrInvalidCredentials
+	}
+
+	var userID string
+	err = tx.QueryRow(ctx, `SELECT id::text FROM users WHERE lower(email) = lower($1) AND deleted_at IS NULL`, inv.Email).Scan(&userID)
+	if errors.Is(err, pgx.ErrNoRows) {
+		err = tx.QueryRow(ctx, `
+			INSERT INTO users (email, name, password_hash, email_verified, email_verified_at)
+			VALUES (lower($1), $2, crypt($3, gen_salt('bf')), true, now())
+			RETURNING id::text
+		`, inv.Email, strings.TrimSpace(req.Name), req.Password).Scan(&userID)
+		if err != nil {
+			return nil, fmt.Errorf("create user from invitation: %w", err)
+		}
+	} else if err != nil {
+		return nil, fmt.Errorf("lookup existing user for invitation: %w", err)
+	}
+
+	if _, err := tx.Exec(ctx, `
+		INSERT INTO user_tenants (user_id, tenant_id)
+		VALUES ($1::uuid, $2::uuid)
+		ON CONFLICT (user_id, tenant_id) DO NOTHING
+	`, userID, inv.TenantID); err != nil {
+		return nil, fmt.Errorf("link user to tenant via invitation: %w", err)
+	}
+
+	if inv.TeamID != nil {
+		role := invitationRoleToTeamRole(inv.Role)
+		if _, err := tx.Exec(ctx, `
+			INSERT INTO team_members (team_id, user_id, role)
+			VALUES ($1::uuid, $2::uuid, $3)
+			ON CONFLICT (team_id, user_id) DO NOTHING
+		`, *inv.TeamID, userID, role); err != nil {
+			return nil, fmt.Errorf("add user to team via invitation: %w", err)
+		}
+	}
+
+	row := tx.QueryRow(ctx, `
+		UPDATE invitations
+		SET status = 'accepted', accepted_at = now()
+		WHERE id = $1::uuid
+		RETURNING id::text, tenant_id::text, organization_id::text, team_id::text, email, role, status, expires_at, accepted_at, created_at
+	`, inv.ID)
+	accepted, err := scanInvitation(row)
+	if err != nil {
+		return nil, err
+	}
+
+	if err := tx.Commit(ctx); err != nil {
+		return nil, fmt.Errorf("commit accept-by-token tx: %w", err)
+	}
+	return accepted, nil
+}

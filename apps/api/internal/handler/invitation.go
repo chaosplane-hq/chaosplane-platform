@@ -85,6 +85,34 @@ func (h *InvitationHandler) Decline(c *gin.Context) {
 	c.JSON(http.StatusOK, resp)
 }
 
+func (h *InvitationHandler) LookupByToken(c *gin.Context) {
+	token := c.Query("token")
+	if token == "" {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "token query parameter is required"})
+		return
+	}
+	resp, err := h.svc.LookupByToken(c.Request.Context(), token)
+	if err != nil {
+		writeInvitationError(c, err)
+		return
+	}
+	c.JSON(http.StatusOK, resp)
+}
+
+func (h *InvitationHandler) AcceptByToken(c *gin.Context) {
+	var req service.AcceptByTokenRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+	resp, err := h.svc.AcceptByToken(c.Request.Context(), &req)
+	if err != nil {
+		writeInvitationError(c, err)
+		return
+	}
+	c.JSON(http.StatusOK, resp)
+}
+
 func writeInvitationError(c *gin.Context, err error) {
 	switch {
 	case errors.Is(err, service.ErrHierarchyNotFound):

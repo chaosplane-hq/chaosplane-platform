@@ -1,38 +1,26 @@
 'use client';
 
 import { useState } from 'react';
-import { useRouter } from 'next/navigation';
-import { Button, InlineNotification, PasswordInput, TextInput } from '@carbon/react';
-import { LogoGithub } from '@carbon/icons-react';
-import { login, oauthAuthorize } from '@/lib/auth';
+import { Button, InlineNotification, TextInput } from '@carbon/react';
+import { forgotPassword } from '@/lib/auth';
 
-export default function LoginPage() {
-  const router = useRouter();
+export default function ForgotPasswordPage() {
   const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
+  const [success, setSuccess] = useState(false);
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     setError('');
     setLoading(true);
     try {
-      await login(email, password);
-      router.push('/experiments');
+      await forgotPassword(email);
+      setSuccess(true);
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Login failed');
+      setError(err instanceof Error ? err.message : 'Request failed');
     } finally {
       setLoading(false);
-    }
-  }
-
-  async function handleOAuth(provider: string) {
-    try {
-      const url = await oauthAuthorize(provider);
-      window.location.href = url;
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'OAuth failed');
     }
   }
 
@@ -46,7 +34,10 @@ export default function LoginPage() {
         </div>
 
         <div className="login-card">
-          <h2 className="login-card__title">Sign in</h2>
+          <h2 className="login-card__title">Reset password</h2>
+          <p className="login-card__subtitle">
+            Enter your email and we&apos;ll send you a link to reset your password.
+          </p>
 
           {error && (
             <InlineNotification
@@ -59,51 +50,34 @@ export default function LoginPage() {
             />
           )}
 
-          <div className="login-oauth">
-            <Button kind="tertiary" className="login-oauth__btn" onClick={() => handleOAuth('google')}>
-              Continue with Google
-            </Button>
-            <Button kind="tertiary" renderIcon={LogoGithub} iconDescription="GitHub" className="login-oauth__btn" onClick={() => handleOAuth('github')}>
-              Continue with GitHub
-            </Button>
-            <Button kind="tertiary" className="login-oauth__btn" onClick={() => handleOAuth('microsoft')}>
-              Continue with Microsoft
-            </Button>
-          </div>
-
-          <div className="login-divider">
-            <span>or sign in with email</span>
-          </div>
-
-          <form className="login-form" onSubmit={handleSubmit}>
-            <TextInput
-              id="email"
-              labelText="Email address"
-              type="email"
-              placeholder="you@company.com"
-              autoComplete="email"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
+          {success ? (
+            <InlineNotification
+              kind="success"
+              title="Check your email"
+              subtitle="If an account exists for that address, we sent a password reset link."
+              lowContrast
+              hideCloseButton
             />
-            <PasswordInput
-              id="password"
-              labelText="Password"
-              placeholder="••••••••"
-              autoComplete="current-password"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-            />
-            <Button type="submit" className="login-form__submit" disabled={loading}>
-              {loading ? 'Signing in...' : 'Sign in'}
-            </Button>
-            <p className="login-form__forgot">
-              <a href="/forgot-password" className="login-link">Forgot password?</a>
-            </p>
-          </form>
+          ) : (
+            <form className="login-form" onSubmit={handleSubmit}>
+              <TextInput
+                id="email"
+                labelText="Email address"
+                type="email"
+                placeholder="you@company.com"
+                autoComplete="email"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                required
+              />
+              <Button type="submit" className="login-form__submit" disabled={loading}>
+                {loading ? 'Sending...' : 'Send reset link'}
+              </Button>
+            </form>
+          )}
 
           <p className="login-footer">
-            Don&apos;t have an account?{' '}
-            <a href="/register" className="login-link">Create account</a>
+            <a href="/login" className="login-link">Back to sign in</a>
           </p>
         </div>
       </div>
@@ -165,32 +139,10 @@ export default function LoginPage() {
           margin: 0;
         }
 
-        .login-oauth {
-          display: flex;
-          flex-direction: column;
-          gap: var(--cds-spacing-03);
-        }
-
-        .login-oauth__btn {
-          width: 100%;
-          max-width: 100%;
-          justify-content: center;
-        }
-
-        .login-divider {
-          display: flex;
-          align-items: center;
-          gap: var(--cds-spacing-04);
+        .login-card__subtitle {
           color: var(--cds-text-secondary);
-          font-size: var(--cds-label-01-font-size);
-        }
-
-        .login-divider::before,
-        .login-divider::after {
-          content: '';
-          flex: 1;
-          height: 1px;
-          background-color: var(--cds-border-subtle-01);
+          font-size: var(--cds-body-short-01-font-size);
+          margin: calc(-1 * var(--cds-spacing-04)) 0 0;
         }
 
         .login-form {
@@ -204,11 +156,6 @@ export default function LoginPage() {
           max-width: 100%;
           justify-content: center;
           margin-top: var(--cds-spacing-02);
-        }
-
-        .login-form__forgot {
-          text-align: center;
-          margin: 0;
         }
 
         .login-footer {

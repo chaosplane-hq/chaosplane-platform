@@ -1,10 +1,14 @@
 'use client';
 
-import { Grid, Column, Tile, SkeletonText, Link } from '@carbon/react';
+import { Grid, Column, Tile, SkeletonText, Tag, Link, InlineNotification, Button } from '@carbon/react';
 import { useExperiments } from '@/lib/hooks/use-experiments';
+import { useOnboarding } from '@/lib/hooks/use-onboarding';
+import { useResilienceScore } from '@/lib/hooks/use-resilience';
+import { useVulnerabilities } from '@/lib/hooks/use-vulnerabilities';
+import { useSuggestions } from '@/lib/hooks/use-suggestions';
 import { StatusTag } from '@/components/experiments/status-tag';
 import styles from '@/components/experiments/experiments.module.scss';
-import type { Experiment } from '@/lib/types';
+import type { Experiment, ResilienceGrade, VulnerabilitySeverity, SuggestionPriority } from '@/lib/types';
 import NextLink from 'next/link';
 
 function formatTime(iso?: string) {
@@ -38,28 +42,71 @@ function calcAvgDuration(experiments: Experiment[]) {
   return mins > 0 ? `${mins}m ${secs}s` : `${secs}s`;
 }
 
+const GRADE_COLORS: Record<ResilienceGrade, string> = {
+  A: 'var(--cds-support-success)',
+  B: 'var(--cds-support-success)',
+  C: 'var(--cds-support-warning)',
+  D: 'var(--cds-support-error)',
+  F: 'var(--cds-support-error)',
+};
+
+const SEVERITY_TYPE: Record<VulnerabilitySeverity, 'red' | 'purple' | 'gray' | 'blue' | 'cyan'> = {
+  critical: 'red',
+  high: 'red',
+  medium: 'purple',
+  low: 'gray',
+  info: 'blue',
+};
+
+const PRIORITY_TYPE: Record<SuggestionPriority, 'red' | 'purple' | 'blue'> = {
+  high: 'red',
+  medium: 'purple',
+  low: 'blue',
+};
+
 export default function DashboardPage() {
   const { data, isLoading } = useExperiments({ limit: 100 });
+  const { data: onboarding } = useOnboarding();
+  const { data: resilience, isLoading: resilienceLoading } = useResilienceScore();
+  const { data: vulnData, isLoading: vulnLoading } = useVulnerabilities({ limit: 5 });
+  const { data: suggestionsData, isLoading: suggestionsLoading } = useSuggestions({ limit: 3 });
+
   const experiments = data?.experiments ?? [];
   const total = data?.total ?? 0;
   const running = experiments.filter((e) => e.status.phase === 'Running').length;
   const recent = experiments.slice(0, 5);
+  const vulnerabilities = vulnData?.vulnerabilities ?? [];
+  const suggestions = suggestionsData?.suggestions ?? [];
 
-  const actionDist = experiments.reduce<Record<string, number>>((acc, e) => {
-    acc[e.action.type] = (acc[e.action.type] ?? 0) + 1;
-    return acc;
-  }, {});
+  const showOnboarding = onboarding && !onboarding.completed && !onboarding.skipped;
+  const completedSteps = onboarding?.steps.filter((s) => s.completed).length ?? 0;
+  const totalSteps = onboarding?.steps.length ?? 0;
 
   return (
     <Grid fullWidth>
       <Column lg={16} md={8} sm={4}>
         <div className={styles.pageHeader}>
           <h2 className={styles.pageTitle}>Dashboard</h2>
-          <p className={styles.pageSubtitle}>
-            Monitor and manage your chaos experiments.
-          </p>
+          <p className={styles.pageSubtitle}>Monitor and manage your chaos experiments.</p>
         </div>
       </Column>
+
+      {showOnboarding && (
+        <Column lg={16} md={8} sm={4} style={{ marginBottom: 'var(--cds-spacing-05)' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--cds-spacing-04)' }}>
+            <InlineNotification
+              kind="info"
+              title={`Getting started — ${completedSteps}/${totalSteps} steps completed`}
+              subtitle="Complete setup to unlock the full platform."
+              lowContrast
+              style={{ flex: 1 }}
+            />
+            <Button kind="tertiary" size="sm" as={NextLink} href="/onboarding">
+              Continue setup
+            </Button>
+          </div>
+        </Column>
+      )}
 
       <Column lg={4} md={4} sm={4}>
         <Tile className={styles.statTile}>
@@ -89,7 +136,100 @@ export default function DashboardPage() {
         </Tile>
       </Column>
 
-      <Column lg={10} md={8} sm={4} style={{ marginTop: 'var(--cds-spacing-05)' }}>
+      <Column lg={4} md={4} sm={4} style={{ marginTop: 'var(--cds-spacing-05)' }}>
+        <Tile className={styles.statTile}>
+          <p className={styles.statLabel}>Resilience Score</p>
+          {resilienceLoading ? (
+            <SkeletonText />
+          ) : resilience ? (
+            <div style={{ display: 'flex', alignItems: 'baseline', gap: 'var(--cds-spacing-03)' }}>
+              <p
+                className={styles.statValue}
+                style={{ color: GRADE_COLORS[resilience.grade] }}
+              >
+                {resilience.grade}
+              </p>
+              <span style={{ color: 'var(--cds-text-secondary)', fontSize: 'var(--cds-label-01-font-size)' }}>
+                {resilience.score}/100
+              </span>
+            </div>
+          ) : (
+            <p className={styles.statValue} style={{ color: 'var(--cds-text-secondary)' }}>—</p>
+          )}
+        </Tile>
+      </Column>
+
+      <Column lg={6} md={8} sm={4} style={{ marginTop: 'var(--cds-spacing-05)' }}>
+        <Tile style={{ height: '100%' }}>
+          <h3 className={styles.sectionTitle}>Recent Vulnerabilities</h3>
+          {vulnLoading ? (
+            <SkeletonText paragraph lineCount={4} />
+          ) : vulnerabilities.length === 0 ? (
+            <p style={{ color: 'var(--cds-text-secondary)' }}>No vulnerabilities detected.</p>
+          ) : (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--cds-spacing-03)' }}>
+              {vulnerabilities.map((v) => (
+                <div
+                  key={v.id}
+                  style={{
+                    display: 'flex',
+                    alignItems: 'flex-start',
+                    justifyContent: 'space-between',
+                    gap: 'var(--cds-spacing-03)',
+                    padding: 'var(--cds-spacing-03)',
+                    background: 'var(--cds-layer-02)',
+                  }}
+                >
+                  <span style={{ fontSize: 'var(--cds-body-short-01-font-size)', color: 'var(--cds-text-primary)', flex: 1 }}>
+                    {v.title}
+                  </span>
+                  <Tag type={SEVERITY_TYPE[v.severity]} size="sm">
+                    {v.severity}
+                  </Tag>
+                </div>
+              ))}
+            </div>
+          )}
+        </Tile>
+      </Column>
+
+      <Column lg={6} md={8} sm={4} style={{ marginTop: 'var(--cds-spacing-05)' }}>
+        <Tile style={{ height: '100%' }}>
+          <h3 className={styles.sectionTitle}>AI Suggestions</h3>
+          {suggestionsLoading ? (
+            <SkeletonText paragraph lineCount={4} />
+          ) : suggestions.length === 0 ? (
+            <p style={{ color: 'var(--cds-text-secondary)' }}>No suggestions available.</p>
+          ) : (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--cds-spacing-04)' }}>
+              {suggestions.map((s) => (
+                <div
+                  key={s.id}
+                  style={{
+                    padding: 'var(--cds-spacing-04)',
+                    background: 'var(--cds-layer-02)',
+                    borderLeft: '3px solid var(--cds-interactive)',
+                  }}
+                >
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--cds-spacing-03)', marginBottom: 'var(--cds-spacing-02)' }}>
+                    <span style={{ fontSize: 'var(--cds-body-short-01-font-size)', fontWeight: 600, color: 'var(--cds-text-primary)' }}>
+                      {s.title}
+                    </span>
+                    <Tag type={PRIORITY_TYPE[s.priority]} size="sm">
+                      {s.priority}
+                    </Tag>
+                  </div>
+                  <p style={{ margin: 0, fontSize: 'var(--cds-label-01-font-size)', color: 'var(--cds-text-secondary)' }}>
+                    {s.description}
+                  </p>
+                </div>
+              ))}
+            </div>
+          )}
+        </Tile>
+      </Column>
+
+      <Column lg={16} md={8} sm={4} style={{ marginTop: 'var(--cds-spacing-05)' }}>
         <Tile>
           <h3 className={styles.sectionTitle}>Recent Experiments</h3>
           {isLoading ? (
@@ -103,7 +243,18 @@ export default function DashboardPage() {
               <thead>
                 <tr>
                   {['Name', 'Action', 'Status', 'Started'].map((h) => (
-                    <th key={h} style={{ textAlign: 'left', padding: 'var(--cds-spacing-03)', fontSize: 'var(--cds-label-01-font-size)', color: 'var(--cds-text-secondary)', borderBottom: '1px solid var(--cds-border-subtle)' }}>{h}</th>
+                    <th
+                      key={h}
+                      style={{
+                        textAlign: 'left',
+                        padding: 'var(--cds-spacing-03)',
+                        fontSize: 'var(--cds-label-01-font-size)',
+                        color: 'var(--cds-text-secondary)',
+                        borderBottom: '1px solid var(--cds-border-subtle)',
+                      }}
+                    >
+                      {h}
+                    </th>
                   ))}
                 </tr>
               </thead>
@@ -113,37 +264,19 @@ export default function DashboardPage() {
                     <td style={{ padding: 'var(--cds-spacing-03)', borderBottom: '1px solid var(--cds-border-subtle)' }}>
                       <Link as={NextLink} href={`/experiments/${exp.name}`}>{exp.name}</Link>
                     </td>
-                    <td style={{ padding: 'var(--cds-spacing-03)', fontSize: 'var(--cds-label-01-font-size)', color: 'var(--cds-text-secondary)', borderBottom: '1px solid var(--cds-border-subtle)' }}>{exp.action.type}</td>
+                    <td style={{ padding: 'var(--cds-spacing-03)', fontSize: 'var(--cds-label-01-font-size)', color: 'var(--cds-text-secondary)', borderBottom: '1px solid var(--cds-border-subtle)' }}>
+                      {exp.action.type}
+                    </td>
                     <td style={{ padding: 'var(--cds-spacing-03)', borderBottom: '1px solid var(--cds-border-subtle)' }}>
                       <StatusTag phase={exp.status.phase} size="sm" />
                     </td>
-                    <td style={{ padding: 'var(--cds-spacing-03)', fontSize: 'var(--cds-label-01-font-size)', color: 'var(--cds-text-secondary)', borderBottom: '1px solid var(--cds-border-subtle)' }}>{formatTime(exp.status.startTime)}</td>
+                    <td style={{ padding: 'var(--cds-spacing-03)', fontSize: 'var(--cds-label-01-font-size)', color: 'var(--cds-text-secondary)', borderBottom: '1px solid var(--cds-border-subtle)' }}>
+                      {formatTime(exp.status.startTime)}
+                    </td>
                   </tr>
                 ))}
               </tbody>
             </table>
-          )}
-        </Tile>
-      </Column>
-
-      <Column lg={6} md={8} sm={4} style={{ marginTop: 'var(--cds-spacing-05)' }}>
-        <Tile>
-          <h3 className={styles.sectionTitle}>Action Distribution</h3>
-          {isLoading ? (
-            <SkeletonText paragraph lineCount={4} />
-          ) : Object.keys(actionDist).length === 0 ? (
-            <p style={{ color: 'var(--cds-text-secondary)' }}>No data yet.</p>
-          ) : (
-            <div className={styles.distributionRow}>
-              {Object.entries(actionDist)
-                .sort(([, a], [, b]) => b - a)
-                .map(([type, count]) => (
-                  <div key={type} className={styles.distributionItem}>
-                    <span className={styles.distributionCount}>{count}</span>
-                    <span>{type}</span>
-                  </div>
-                ))}
-            </div>
           )}
         </Tile>
       </Column>

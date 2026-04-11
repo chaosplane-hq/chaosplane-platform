@@ -159,6 +159,75 @@ export async function oauthAuthorize(provider: string): Promise<string> {
   return data.authUrl;
 }
 
+export async function forgotPassword(email: string): Promise<void> {
+  const res = await fetch(`${API_BASE}/auth/forgot-password`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ email }),
+  });
+  if (!res.ok) {
+    const body = await res.json().catch(() => ({}));
+    throw new Error(body.error || `Request failed: ${res.status}`);
+  }
+}
+
+export async function resetPassword(token: string, password: string): Promise<void> {
+  const res = await fetch(`${API_BASE}/auth/reset-password`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ token, password }),
+  });
+  if (!res.ok) {
+    const body = await res.json().catch(() => ({}));
+    throw new Error(body.error || `Reset failed: ${res.status}`);
+  }
+}
+
+export async function verifyEmail(token: string): Promise<void> {
+  const res = await fetch(`${API_BASE}/auth/verify-email`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ token }),
+  });
+  if (!res.ok) {
+    const body = await res.json().catch(() => ({}));
+    throw new Error(body.error || `Verification failed: ${res.status}`);
+  }
+}
+
+export interface InvitationDetails {
+  id: string;
+  email: string;
+  tenantName: string;
+  inviterName: string;
+  role: string;
+  expiresAt: string;
+}
+
+export async function lookupInvitation(token: string): Promise<InvitationDetails> {
+  const res = await fetch(`${API_BASE}/auth/invitations/lookup?token=${encodeURIComponent(token)}`);
+  if (!res.ok) {
+    const body = await res.json().catch(() => ({}));
+    throw new Error(body.error || `Invitation lookup failed: ${res.status}`);
+  }
+  return res.json();
+}
+
+export async function acceptInvitation(token: string, name: string, password: string): Promise<AuthResponse> {
+  const res = await fetch(`${API_BASE}/auth/invitations/accept-by-token`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ token, name, password }),
+  });
+  if (!res.ok) {
+    const body = await res.json().catch(() => ({}));
+    throw new Error(body.error || `Accept invitation failed: ${res.status}`);
+  }
+  const data: AuthResponse = await res.json();
+  setTokens(data.accessToken, data.refreshToken);
+  return data;
+}
+
 export async function oauthCallback(provider: string, code: string, state: string): Promise<AuthResponse> {
   const res = await fetch(`${API_BASE}/auth/oauth/callback`, {
     method: 'POST',

@@ -24,6 +24,63 @@ import {
   type NotificationRuleListResponse,
   type CreateNotificationRuleRequest,
   type NotificationRule,
+  type HierarchyResponse,
+  type CreateOrganizationRequest,
+  type CreateWorkspaceRequest,
+  type CreateProjectRequest,
+  type CreateEnvironmentRequest,
+  type PatchOrganizationRequest,
+  type PatchWorkspaceRequest,
+  type PatchProjectRequest,
+  type PatchEnvironmentRequest,
+  type Organization,
+  type Workspace,
+  type Project,
+  type Environment,
+  type ResilienceScore,
+  type ResilienceScoreParams,
+  type ResilienceScoreHistory,
+  type VulnerabilityListResponse,
+  type VulnerabilityListParams,
+  type Vulnerability,
+  type SuggestionListResponse,
+  type SuggestionListParams,
+  type GameDay,
+  type GameDayListResponse,
+  type CreateGameDayRequest,
+  type CreateGameDayEventRequest,
+  type GameDayEvent,
+  type GameDayPostmortem,
+  type CreatePostmortemRequest,
+  type WorkflowTemplate,
+  type WorkflowTemplateListResponse,
+  type CreateWorkflowTemplateRequest,
+  type AuditLog,
+  type AuditLogListResponse,
+  type AuditLogListParams,
+  type AuditExport,
+  type AuditExportListResponse,
+  type SSOProvider,
+  type SSOProviderListResponse,
+  type CreateSSOProviderRequest,
+  type ABACPolicy,
+  type ABACPolicyListResponse,
+  type CreateABACPolicyRequest,
+  type MFARecoveryCodes,
+  type ActiveSession,
+  type ServiceDependencyListResponse,
+  type TopologyDriftListResponse,
+  type TopologyMetricsListResponse,
+  type VulnerabilityListWithSummaryResponse,
+  type UpdateVulnerabilityStatusRequest,
+  type SuggestionWithConfidenceListResponse,
+  type ResultAnalysisListResponse,
+  type ResultAnalysis,
+  type TriggerAnalysisRequest,
+  type ChatSessionListResponse,
+  type ChatMessageListResponse,
+  type SendMessageRequest,
+  type SendMessageResponse,
 } from './types';
 
 import { authHeaders } from './auth';
@@ -153,4 +210,217 @@ export const notificationsApi = {
     apiFetch<NotificationRule>('/api/v1/notification-rules', { method: 'POST', body: JSON.stringify(data) }),
   deleteRule: (id: string) =>
     apiFetch<void>(`/api/v1/notification-rules/${id}`, { method: 'DELETE' }),
+};
+
+export const hierarchyApi = {
+  list: () => apiFetch<HierarchyResponse>('/api/v1/hierarchy'),
+  createOrg: (data: CreateOrganizationRequest) =>
+    apiFetch<Organization>('/api/v1/organizations', { method: 'POST', body: JSON.stringify(data) }),
+  patchOrg: (id: string, data: PatchOrganizationRequest) =>
+    apiFetch<Organization>(`/api/v1/organizations/${id}`, { method: 'PATCH', body: JSON.stringify(data) }),
+  createWorkspace: (data: CreateWorkspaceRequest) =>
+    apiFetch<Workspace>('/api/v1/workspaces', { method: 'POST', body: JSON.stringify(data) }),
+  patchWorkspace: (id: string, data: PatchWorkspaceRequest) =>
+    apiFetch<Workspace>(`/api/v1/workspaces/${id}`, { method: 'PATCH', body: JSON.stringify(data) }),
+  createProject: (data: CreateProjectRequest) =>
+    apiFetch<Project>('/api/v1/projects', { method: 'POST', body: JSON.stringify(data) }),
+  patchProject: (id: string, data: PatchProjectRequest) =>
+    apiFetch<Project>(`/api/v1/projects/${id}`, { method: 'PATCH', body: JSON.stringify(data) }),
+  createEnvironment: (data: CreateEnvironmentRequest) =>
+    apiFetch<Environment>('/api/v1/environments', { method: 'POST', body: JSON.stringify(data) }),
+  patchEnvironment: (id: string, data: PatchEnvironmentRequest) =>
+    apiFetch<Environment>(`/api/v1/environments/${id}`, { method: 'PATCH', body: JSON.stringify(data) }),
+};
+
+export const resilienceApi = {
+  get: (params?: ResilienceScoreParams) => {
+    const query = new URLSearchParams();
+    if (params?.environmentId) query.set('environmentId', params.environmentId);
+    const qs = query.toString();
+    return apiFetch<ResilienceScore>(`/api/v1/resilience-score${qs ? `?${qs}` : ''}`);
+  },
+  calculate: (environmentId: string) =>
+    apiFetch<ResilienceScore>('/api/v1/resilience-score/calculate', {
+      method: 'POST',
+      body: JSON.stringify({ environmentId }),
+    }),
+};
+
+export const vulnerabilitiesApi = {
+  list: (params?: VulnerabilityListParams) => {
+    const query = new URLSearchParams();
+    if (params?.limit) query.set('limit', String(params.limit));
+    if (params?.offset) query.set('offset', String(params.offset));
+    if (params?.severity) query.set('severity', params.severity);
+    if (params?.status) query.set('status', params.status);
+    if (params?.environmentId) query.set('environmentId', params.environmentId);
+    const qs = query.toString();
+    return apiFetch<VulnerabilityListResponse>(`/api/v1/vulnerabilities${qs ? `?${qs}` : ''}`);
+  },
+  updateStatus: (id: string, status: string) =>
+    apiFetch<Vulnerability>(`/api/v1/vulnerabilities/${id}/status`, {
+      method: 'PATCH',
+      body: JSON.stringify({ status }),
+    }),
+  scan: (environmentId?: string) =>
+    apiFetch<void>('/api/v1/vulnerabilities/scan', {
+      method: 'POST',
+      body: JSON.stringify({ environmentId }),
+    }),
+};
+
+export const suggestionsApi = {
+  list: (params?: SuggestionListParams) => {
+    const query = new URLSearchParams();
+    if (params?.limit) query.set('limit', String(params.limit));
+    if (params?.offset) query.set('offset', String(params.offset));
+    const qs = query.toString();
+    return apiFetch<SuggestionWithConfidenceListResponse>(`/api/v1/suggestions${qs ? `?${qs}` : ''}`);
+  },
+  generate: () =>
+    apiFetch<SuggestionWithConfidenceListResponse>('/api/v1/suggestions/generate', { method: 'POST' }),
+  delete: (id: string) =>
+    apiFetch<void>(`/api/v1/suggestions/${id}`, { method: 'DELETE' }),
+};
+
+export const topologyApi = {
+  dependencies: () => apiFetch<ServiceDependencyListResponse>('/api/v1/topology/dependencies'),
+  drifts: () => apiFetch<TopologyDriftListResponse>('/api/v1/topology/drifts'),
+  metrics: () => apiFetch<TopologyMetricsListResponse>('/api/v1/topology/metrics'),
+  acknowledgeDrift: (id: string) =>
+    apiFetch<void>(`/api/v1/topology/drifts/${id}/acknowledge`, { method: 'POST' }),
+};
+
+export const resultAnalysisApi = {
+  list: () => apiFetch<ResultAnalysisListResponse>('/api/v1/result-analysis'),
+  get: (id: string) => apiFetch<ResultAnalysis>(`/api/v1/result-analysis/${id}`),
+  trigger: (data: TriggerAnalysisRequest) =>
+    apiFetch<ResultAnalysis>('/api/v1/result-analysis', { method: 'POST', body: JSON.stringify(data) }),
+};
+
+export const aiChatApi = {
+  listSessions: () => apiFetch<ChatSessionListResponse>('/api/v1/ai/chat/sessions'),
+  createSession: () => apiFetch<{ id: string; title: string; createdAt: string; updatedAt: string; messageCount: number }>('/api/v1/ai/chat/sessions', { method: 'POST' }),
+  deleteSession: (id: string) => apiFetch<void>(`/api/v1/ai/chat/sessions/${id}`, { method: 'DELETE' }),
+  listMessages: (sessionId: string) =>
+    apiFetch<ChatMessageListResponse>(`/api/v1/ai/chat/sessions/${sessionId}/messages`),
+  sendMessage: (sessionId: string, data: SendMessageRequest) =>
+    apiFetch<SendMessageResponse>(`/api/v1/ai/chat/sessions/${sessionId}/messages`, {
+      method: 'POST',
+      body: JSON.stringify(data),
+    }),
+};
+
+export const gameDaysApi = {
+  list: () => apiFetch<GameDayListResponse>('/api/v1/gamedays'),
+  get: (id: string) => apiFetch<GameDay>(`/api/v1/gamedays/${id}`),
+  create: (data: CreateGameDayRequest) =>
+    apiFetch<GameDay>('/api/v1/gamedays', { method: 'POST', body: JSON.stringify(data) }),
+  updateStatus: (id: string, status: string) =>
+    apiFetch<GameDay>(`/api/v1/gamedays/${id}/status`, { method: 'PATCH', body: JSON.stringify({ status }) }),
+  addEvent: (id: string, data: CreateGameDayEventRequest) =>
+    apiFetch<GameDayEvent>(`/api/v1/gamedays/${id}/events`, { method: 'POST', body: JSON.stringify(data) }),
+  createPostmortem: (id: string, data: CreatePostmortemRequest) =>
+    apiFetch<GameDayPostmortem>(`/api/v1/gamedays/${id}/postmortem`, { method: 'POST', body: JSON.stringify(data) }),
+  updatePostmortem: (id: string, data: CreatePostmortemRequest) =>
+    apiFetch<GameDayPostmortem>(`/api/v1/gamedays/${id}/postmortem`, { method: 'PUT', body: JSON.stringify(data) }),
+};
+
+export const resilienceHistoryApi = {
+  history: (params?: ResilienceScoreParams) => {
+    const query = new URLSearchParams();
+    if (params?.environmentId) query.set('environmentId', params.environmentId);
+    const qs = query.toString();
+    return apiFetch<ResilienceScoreHistory>(`/api/v1/resilience-score/history${qs ? `?${qs}` : ''}`);
+  },
+};
+
+export const workflowsApi = {
+  list: () => apiFetch<WorkflowTemplateListResponse>('/api/v1/workflow-templates'),
+  get: (id: string) => apiFetch<WorkflowTemplate>(`/api/v1/workflow-templates/${id}`),
+  create: (data: CreateWorkflowTemplateRequest) =>
+    apiFetch<WorkflowTemplate>('/api/v1/workflow-templates', { method: 'POST', body: JSON.stringify(data) }),
+  delete: (id: string) =>
+    apiFetch<void>(`/api/v1/workflow-templates/${id}`, { method: 'DELETE' }),
+};
+
+export const auditApi = {
+  list: (params?: AuditLogListParams) => {
+    const query = new URLSearchParams();
+    if (params?.limit) query.set('limit', String(params.limit));
+    if (params?.offset) query.set('offset', String(params.offset));
+    if (params?.action) query.set('action', params.action);
+    if (params?.resource) query.set('resource', params.resource);
+    if (params?.userId) query.set('userId', params.userId);
+    if (params?.from) query.set('from', params.from);
+    if (params?.to) query.set('to', params.to);
+    const qs = query.toString();
+    return apiFetch<AuditLogListResponse>(`/api/v1/audit-logs${qs ? `?${qs}` : ''}`);
+  },
+  createExport: () =>
+    apiFetch<AuditExport>('/api/v1/audit-exports', { method: 'POST' }),
+  listExports: () => apiFetch<AuditExportListResponse>('/api/v1/audit-exports'),
+};
+
+export const securityApi = {
+  listSSO: () => apiFetch<SSOProviderListResponse>('/api/v1/sso-providers'),
+  createSSO: (data: CreateSSOProviderRequest) =>
+    apiFetch<SSOProvider>('/api/v1/sso-providers', { method: 'POST', body: JSON.stringify(data) }),
+  deleteSSO: (id: string) =>
+    apiFetch<void>(`/api/v1/sso-providers/${id}`, { method: 'DELETE' }),
+  listABACPolicies: () => apiFetch<ABACPolicyListResponse>('/api/v1/abac-policies'),
+  createABACPolicy: (data: CreateABACPolicyRequest) =>
+    apiFetch<ABACPolicy>('/api/v1/abac-policies', { method: 'POST', body: JSON.stringify(data) }),
+  deleteABACPolicy: (id: string) =>
+    apiFetch<void>(`/api/v1/abac-policies/${id}`, { method: 'DELETE' }),
+  getMFACodes: () => apiFetch<MFARecoveryCodes>('/api/v1/mfa/recovery-codes'),
+  generateMFACodes: () =>
+    apiFetch<MFARecoveryCodes>('/api/v1/mfa/recovery-codes/generate', { method: 'POST' }),
+  listSessions: () => apiFetch<{ sessions: ActiveSession[] }>('/api/v1/sessions'),
+  revokeSession: (id: string) =>
+    apiFetch<void>(`/api/v1/sessions/${id}`, { method: 'DELETE' }),
+  revokeAllSessions: () =>
+    apiFetch<void>('/api/v1/sessions', { method: 'DELETE' }),
+  requestEmailChange: (newEmail: string) =>
+    apiFetch<void>('/api/v1/account/email-change', { method: 'POST', body: JSON.stringify({ newEmail }) }),
+  requestAccountDeletion: () =>
+    apiFetch<void>('/api/v1/account/deletion-request', { method: 'POST' }),
+};
+
+export const marketplaceApi = {
+  list: (params?: import('./types').MarketplaceListParams) => {
+    const query = new URLSearchParams();
+    if (params?.category) query.set('category', params.category);
+    if (params?.limit) query.set('limit', String(params.limit));
+    if (params?.offset) query.set('offset', String(params.offset));
+    const qs = query.toString();
+    return apiFetch<import('./types').MarketplaceListResponse>(`/api/v1/marketplace${qs ? `?${qs}` : ''}`);
+  },
+  install: (id: string) =>
+    apiFetch<import('./types').MarketplacePlugin>(`/api/v1/marketplace/${id}/install`, { method: 'POST' }),
+  uninstall: (id: string) =>
+    apiFetch<void>(`/api/v1/marketplace/${id}/uninstall`, { method: 'POST' }),
+};
+
+export const federationApi = {
+  list: () => apiFetch<import('./types').FederatedClusterListResponse>('/api/v1/federation/clusters'),
+  register: (data: import('./types').RegisterClusterRequest) =>
+    apiFetch<import('./types').FederatedCluster>('/api/v1/federation/clusters', { method: 'POST', body: JSON.stringify(data) }),
+  remove: (id: string) =>
+    apiFetch<void>(`/api/v1/federation/clusters/${id}`, { method: 'DELETE' }),
+};
+
+export const cicdApi = {
+  list: () => apiFetch<import('./types').CICDIntegrationListResponse>('/api/v1/cicd-integrations'),
+  create: (data: import('./types').CreateCICDIntegrationRequest) =>
+    apiFetch<import('./types').CICDIntegration>('/api/v1/cicd-integrations', { method: 'POST', body: JSON.stringify(data) }),
+  delete: (id: string) =>
+    apiFetch<void>(`/api/v1/cicd-integrations/${id}`, { method: 'DELETE' }),
+};
+
+export const predictionsApi = {
+  list: () => apiFetch<import('./types').PredictionListResponse>('/api/v1/predictions'),
+  run: () => apiFetch<void>('/api/v1/predictions/run', { method: 'POST' }),
+  patchStatus: (id: string, data: import('./types').PatchPredictionStatusRequest) =>
+    apiFetch<import('./types').Prediction>(`/api/v1/predictions/${id}`, { method: 'PATCH', body: JSON.stringify(data) }),
 };

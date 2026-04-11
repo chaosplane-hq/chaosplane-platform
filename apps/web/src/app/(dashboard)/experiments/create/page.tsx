@@ -96,6 +96,97 @@ const ACTION_PARAMS: Partial<Record<ActionType, ParamDef[]>> = {
     { key: 'workers', label: 'Workers', placeholder: '1', defaultValue: '1' },
     { key: 'size', label: 'Memory Size', placeholder: '256MB', defaultValue: '256MB' },
   ],
+  // eBPF
+  'ebpf-network-delay': [
+    { key: 'latency', label: 'Latency', placeholder: '100ms', defaultValue: '100ms' },
+    { key: 'interface', label: 'Network Interface', placeholder: 'eth0', defaultValue: 'eth0' },
+  ],
+  'ebpf-network-loss': [
+    { key: 'loss', label: 'Loss (%)', placeholder: '10', defaultValue: '10' },
+    { key: 'interface', label: 'Network Interface', placeholder: 'eth0', defaultValue: 'eth0' },
+  ],
+  'ebpf-dns-chaos': [
+    { key: 'patterns', label: 'DNS Patterns (comma-separated)', placeholder: 'example.com' },
+    { key: 'action', label: 'Action', placeholder: 'error', defaultValue: 'error' },
+  ],
+  // AWS
+  'aws-ec2-stop': [
+    { key: 'instanceId', label: 'Instance ID', placeholder: 'i-1234567890abcdef0' },
+    { key: 'region', label: 'Region', placeholder: 'us-east-1', defaultValue: 'us-east-1' },
+  ],
+  'aws-ec2-terminate': [
+    { key: 'instanceId', label: 'Instance ID', placeholder: 'i-1234567890abcdef0' },
+    { key: 'region', label: 'Region', placeholder: 'us-east-1', defaultValue: 'us-east-1' },
+  ],
+  'aws-rds-failover': [
+    { key: 'dbClusterIdentifier', label: 'DB Cluster Identifier', placeholder: 'my-aurora-cluster' },
+    { key: 'region', label: 'Region', placeholder: 'us-east-1', defaultValue: 'us-east-1' },
+  ],
+  'aws-ecs-stop-task': [
+    { key: 'cluster', label: 'ECS Cluster', placeholder: 'my-cluster' },
+    { key: 'taskId', label: 'Task ID', placeholder: 'arn:aws:ecs:...' },
+    { key: 'region', label: 'Region', placeholder: 'us-east-1', defaultValue: 'us-east-1' },
+  ],
+  'aws-az-failure': [
+    { key: 'az', label: 'Availability Zone', placeholder: 'us-east-1a' },
+    { key: 'region', label: 'Region', placeholder: 'us-east-1', defaultValue: 'us-east-1' },
+  ],
+  // Azure
+  'azure-vm-stop': [
+    { key: 'resourceGroup', label: 'Resource Group', placeholder: 'my-rg' },
+    { key: 'vmName', label: 'VM Name', placeholder: 'my-vm' },
+  ],
+  'azure-aks-scale': [
+    { key: 'resourceGroup', label: 'Resource Group', placeholder: 'my-rg' },
+    { key: 'clusterName', label: 'Cluster Name', placeholder: 'my-aks' },
+    { key: 'nodeCount', label: 'Node Count', placeholder: '1', defaultValue: '1' },
+  ],
+  'azure-cosmosdb-failover': [
+    { key: 'resourceGroup', label: 'Resource Group', placeholder: 'my-rg' },
+    { key: 'accountName', label: 'Account Name', placeholder: 'my-cosmos' },
+    { key: 'failoverRegion', label: 'Failover Region', placeholder: 'eastus2' },
+  ],
+  // GCP
+  'gcp-gke-scale': [
+    { key: 'project', label: 'Project ID', placeholder: 'my-project' },
+    { key: 'cluster', label: 'Cluster Name', placeholder: 'my-cluster' },
+    { key: 'nodePool', label: 'Node Pool', placeholder: 'default-pool' },
+    { key: 'nodeCount', label: 'Node Count', placeholder: '1', defaultValue: '1' },
+  ],
+  'gcp-cloudsql-failover': [
+    { key: 'project', label: 'Project ID', placeholder: 'my-project' },
+    { key: 'instance', label: 'Instance Name', placeholder: 'my-sql-instance' },
+  ],
+  'gcp-cloudrun-stop': [
+    { key: 'project', label: 'Project ID', placeholder: 'my-project' },
+    { key: 'service', label: 'Service Name', placeholder: 'my-service' },
+    { key: 'region', label: 'Region', placeholder: 'us-central1', defaultValue: 'us-central1' },
+  ],
+  // VM
+  'vm-cpu-stress': [
+    { key: 'workers', label: 'Workers', placeholder: '1', defaultValue: '1' },
+    { key: 'load', label: 'CPU Load (%)', placeholder: '50', defaultValue: '50' },
+  ],
+  'vm-memory-stress': [
+    { key: 'workers', label: 'Workers', placeholder: '1', defaultValue: '1' },
+    { key: 'size', label: 'Memory Size', placeholder: '256MB', defaultValue: '256MB' },
+  ],
+  'vm-disk-stress': [
+    { key: 'workers', label: 'Workers', placeholder: '1', defaultValue: '1' },
+    { key: 'path', label: 'Disk Path', placeholder: '/tmp', defaultValue: '/tmp' },
+    { key: 'size', label: 'Write Size', placeholder: '1GB', defaultValue: '1GB' },
+  ],
+  'vm-network-delay': [
+    { key: 'latency', label: 'Latency', placeholder: '100ms', defaultValue: '100ms' },
+    { key: 'interface', label: 'Network Interface', placeholder: 'eth0', defaultValue: 'eth0' },
+  ],
+  'vm-process-kill': [
+    { key: 'processName', label: 'Process Name', placeholder: 'nginx' },
+    { key: 'signal', label: 'Signal', placeholder: 'SIGKILL', defaultValue: 'SIGKILL' },
+  ],
+  'vm-process-suspend': [
+    { key: 'processName', label: 'Process Name', placeholder: 'nginx' },
+  ],
 };
 
 const ACTION_ITEMS = Object.entries(ACTION_TYPE_GROUPS).flatMap(([group, types]) =>

@@ -16,6 +16,9 @@ import { APIKeysTab } from '@/components/settings/api-keys-tab';
 import { BillingTab } from '@/components/settings/billing-tab';
 import { NotificationsTab } from '@/components/settings/notifications-tab';
 import { GeneralTab } from '@/components/settings/general-tab';
+import { CICDTab } from '@/components/settings/cicd-tab';
+import { AuditLogsTab } from '@/components/settings/audit-logs-tab';
+import { SecurityTab } from '@/components/settings/security-tab';
 
 export default function SettingsPage() {
   return (
@@ -36,6 +39,9 @@ export default function SettingsPage() {
             <Tab>API Keys</Tab>
             <Tab>Billing</Tab>
             <Tab>Notifications</Tab>
+            <Tab>CI/CD</Tab>
+            <Tab>Audit Logs</Tab>
+            <Tab>Security</Tab>
           </TabList>
           <TabPanels>
             <TabPanel>
@@ -52,6 +58,15 @@ export default function SettingsPage() {
             </TabPanel>
             <TabPanel>
               <NotificationsTab />
+            </TabPanel>
+            <TabPanel>
+              <CICDTab />
+            </TabPanel>
+            <TabPanel>
+              <AuditLogsTab />
+            </TabPanel>
+            <TabPanel>
+              <SecurityTab />
             </TabPanel>
           </TabPanels>
         </Tabs>

@@ -2,37 +2,34 @@
 
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { Button, InlineNotification, PasswordInput, TextInput } from '@carbon/react';
-import { LogoGithub } from '@carbon/icons-react';
-import { login, oauthAuthorize } from '@/lib/auth';
+import { Button, Checkbox, InlineNotification, PasswordInput, TextInput } from '@carbon/react';
+import { register } from '@/lib/auth';
 
-export default function LoginPage() {
+export default function RegisterPage() {
   const router = useRouter();
+  const [name, setName] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [tos, setTos] = useState(false);
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
+  const [success, setSuccess] = useState(false);
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
+    if (!tos) {
+      setError('You must accept the Terms of Service to continue.');
+      return;
+    }
     setError('');
     setLoading(true);
     try {
-      await login(email, password);
-      router.push('/experiments');
+      await register(email, password, name);
+      setSuccess(true);
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Login failed');
+      setError(err instanceof Error ? err.message : 'Registration failed');
     } finally {
       setLoading(false);
-    }
-  }
-
-  async function handleOAuth(provider: string) {
-    try {
-      const url = await oauthAuthorize(provider);
-      window.location.href = url;
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'OAuth failed');
     }
   }
 
@@ -46,7 +43,7 @@ export default function LoginPage() {
         </div>
 
         <div className="login-card">
-          <h2 className="login-card__title">Sign in</h2>
+          <h2 className="login-card__title">Create account</h2>
 
           {error && (
             <InlineNotification
@@ -59,51 +56,66 @@ export default function LoginPage() {
             />
           )}
 
-          <div className="login-oauth">
-            <Button kind="tertiary" className="login-oauth__btn" onClick={() => handleOAuth('google')}>
-              Continue with Google
-            </Button>
-            <Button kind="tertiary" renderIcon={LogoGithub} iconDescription="GitHub" className="login-oauth__btn" onClick={() => handleOAuth('github')}>
-              Continue with GitHub
-            </Button>
-            <Button kind="tertiary" className="login-oauth__btn" onClick={() => handleOAuth('microsoft')}>
-              Continue with Microsoft
-            </Button>
-          </div>
-
-          <div className="login-divider">
-            <span>or sign in with email</span>
-          </div>
-
-          <form className="login-form" onSubmit={handleSubmit}>
-            <TextInput
-              id="email"
-              labelText="Email address"
-              type="email"
-              placeholder="you@company.com"
-              autoComplete="email"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
+          {success ? (
+            <InlineNotification
+              kind="success"
+              title="Check your email"
+              subtitle="We sent a verification link to your inbox. Please verify your email to continue."
+              lowContrast
+              hideCloseButton
             />
-            <PasswordInput
-              id="password"
-              labelText="Password"
-              placeholder="••••••••"
-              autoComplete="current-password"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-            />
-            <Button type="submit" className="login-form__submit" disabled={loading}>
-              {loading ? 'Signing in...' : 'Sign in'}
-            </Button>
-            <p className="login-form__forgot">
-              <a href="/forgot-password" className="login-link">Forgot password?</a>
-            </p>
-          </form>
+          ) : (
+            <form className="login-form" onSubmit={handleSubmit}>
+              <TextInput
+                id="name"
+                labelText="Full name"
+                placeholder="Jane Smith"
+                autoComplete="name"
+                value={name}
+                onChange={(e) => setName(e.target.value)}
+                required
+              />
+              <TextInput
+                id="email"
+                labelText="Email address"
+                type="email"
+                placeholder="you@company.com"
+                autoComplete="email"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                required
+              />
+              <PasswordInput
+                id="password"
+                labelText="Password"
+                placeholder="••••••••"
+                autoComplete="new-password"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                required
+              />
+              <Checkbox
+                id="tos"
+                labelText={
+                  <span>
+                    I agree to the{' '}
+                    <a href="/terms" target="_blank" rel="noopener noreferrer" className="login-link">
+                      Terms of Service
+                    </a>
+                  </span>
+                }
+                checked={tos}
+                onChange={(_e, { checked }) => setTos(checked)}
+              />
+              <Button type="submit" className="login-form__submit" disabled={loading}>
+                {loading ? 'Creating account...' : 'Create account'}
+              </Button>
+            </form>
+          )}
 
           <p className="login-footer">
-            Don&apos;t have an account?{' '}
-            <a href="/register" className="login-link">Create account</a>
+            Already have an account?{' '}
+            <a href="/login" className="login-link">Sign in</a>
           </p>
         </div>
       </div>
@@ -165,34 +177,6 @@ export default function LoginPage() {
           margin: 0;
         }
 
-        .login-oauth {
-          display: flex;
-          flex-direction: column;
-          gap: var(--cds-spacing-03);
-        }
-
-        .login-oauth__btn {
-          width: 100%;
-          max-width: 100%;
-          justify-content: center;
-        }
-
-        .login-divider {
-          display: flex;
-          align-items: center;
-          gap: var(--cds-spacing-04);
-          color: var(--cds-text-secondary);
-          font-size: var(--cds-label-01-font-size);
-        }
-
-        .login-divider::before,
-        .login-divider::after {
-          content: '';
-          flex: 1;
-          height: 1px;
-          background-color: var(--cds-border-subtle-01);
-        }
-
         .login-form {
           display: flex;
           flex-direction: column;
@@ -204,11 +188,6 @@ export default function LoginPage() {
           max-width: 100%;
           justify-content: center;
           margin-top: var(--cds-spacing-02);
-        }
-
-        .login-form__forgot {
-          text-align: center;
-          margin: 0;
         }
 
         .login-footer {

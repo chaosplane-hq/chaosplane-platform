@@ -37,13 +37,14 @@ var (
 )
 
 type AuthService struct {
-	pool *database.Pool
-	cfg  *config.Config
-	rdb  *redis.Client
+	pool  *database.Pool
+	cfg   *config.Config
+	rdb   *redis.Client
+	email *EmailService
 }
 
-func NewAuthService(pool *database.Pool, cfg *config.Config, rdb *redis.Client) *AuthService {
-	return &AuthService{pool: pool, cfg: cfg, rdb: rdb}
+func NewAuthService(pool *database.Pool, cfg *config.Config, rdb *redis.Client, email *EmailService) *AuthService {
+	return &AuthService{pool: pool, cfg: cfg, rdb: rdb, email: email}
 }
 
 type RegisterRequest struct {
@@ -291,6 +292,10 @@ func (s *AuthService) Register(ctx context.Context, req *RegisterRequest, ip net
 		return nil, fmt.Errorf("commit register tx: %w", err)
 	}
 
+	if s.email != nil {
+		go s.email.SendVerificationEmail(context.Background(), email, verificationToken)
+	}
+
 	return resp, nil
 }
 
@@ -417,6 +422,10 @@ func (s *AuthService) ForgotPassword(ctx context.Context, req *ForgotPasswordReq
 
 	if err := tx.Commit(ctx); err != nil {
 		return nil, fmt.Errorf("commit forgot-password tx: %w", err)
+	}
+
+	if s.email != nil && userID != "" {
+		go s.email.SendPasswordResetEmail(context.Background(), normalizeEmail(req.Email), plainToken)
 	}
 
 	return &PasswordResetTokenResponse{ResetToken: plainToken, ExpiresAt: expiresAt.Format(time.RFC3339)}, nil
@@ -546,6 +555,10 @@ func (s *AuthService) ResendVerification(ctx context.Context, req *ResendVerific
 
 	if err := tx.Commit(ctx); err != nil {
 		return nil, fmt.Errorf("commit resend-verification tx: %w", err)
+	}
+
+	if s.email != nil {
+		go s.email.SendVerificationEmail(context.Background(), normalizeEmail(req.Email), plain)
 	}
 
 	return &VerificationTokenResponse{VerificationToken: plain, ExpiresAt: expiresAt.Format(time.RFC3339)}, nil

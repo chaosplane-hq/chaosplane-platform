@@ -44,7 +44,7 @@ func newTestExperimentHandler() (*ExperimentHandler, *service.ExperimentService)
 	)
 	k8s := service.NewK8sClientFromDynamic(client)
 	svc := service.NewExperimentService(k8s)
-	return NewExperimentHandler(svc), svc
+	return NewExperimentHandler(svc, nil, nil), svc
 }
 
 func TestExperimentHandler_Create(t *testing.T) {

@@ -20,7 +20,7 @@ func TestJWT_ValidBearerToken(t *testing.T) {
 		JWTSecret:      "test-secret",
 		AccessTokenTTL: 15 * time.Minute,
 		CSRFSecret:     "csrf-secret",
-	}, nil)
+	}, nil, nil)
 
 	claims := &service.AccessTokenClaims{
 		TenantID:  "tenant-1",
@@ -62,7 +62,7 @@ func TestJWT_ValidBearerToken(t *testing.T) {
 
 func TestJWT_MissingAuthorization(t *testing.T) {
 	gin.SetMode(gin.TestMode)
-	auth := service.NewAuthService(&database.Pool{}, &config.Config{JWTSecret: "test-secret", CSRFSecret: "csrf-secret"}, nil)
+	auth := service.NewAuthService(&database.Pool{}, &config.Config{JWTSecret: "test-secret", CSRFSecret: "csrf-secret"}, nil, nil)
 
 	w := httptest.NewRecorder()
 	_, r := gin.CreateTestContext(w)

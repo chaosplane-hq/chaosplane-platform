@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"github.com/chaosplane-hq/chaosplane-platform/apps/api/internal/server"
+	"github.com/chaosplane-hq/chaosplane-platform/apps/api/internal/worker"
 )
 
 func main() {
@@ -21,6 +22,15 @@ func main() {
 		os.Exit(1)
 	}
 	defer srv.Pool.Close()
+
+	workerCtx, workerCancel := context.WithCancel(ctx)
+	defer workerCancel()
+
+	invitationWorker := worker.NewInvitationExpiryWorker(srv.Pool)
+	go invitationWorker.Start(workerCtx)
+
+	deletionWorker := worker.NewAccountDeletionWorker(srv.Pool)
+	go deletionWorker.Start(workerCtx)
 
 	httpServer := &http.Server{
 		Addr:              ":" + srv.Config.Port,

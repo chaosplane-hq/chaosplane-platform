@@ -21,10 +21,11 @@ import (
 type NotificationService struct {
 	pool       *database.Pool
 	httpClient *http.Client
+	email      *EmailService
 }
 
-func NewNotificationService(pool *database.Pool) *NotificationService {
-	return &NotificationService{pool: pool, httpClient: &http.Client{Timeout: 10 * time.Second}}
+func NewNotificationService(pool *database.Pool, email *EmailService) *NotificationService {
+	return &NotificationService{pool: pool, httpClient: &http.Client{Timeout: 10 * time.Second}, email: email}
 }
 
 type NotificationChannel struct {
@@ -228,7 +229,7 @@ func (s *NotificationService) Dispatch(ctx context.Context, tenantID, eventType 
 		case "webhook":
 			sendErr = s.sendWebhook(ctx, configRaw, payloadJSON)
 		case "email":
-			sendErr = nil
+			sendErr = s.sendEmail(ctx, configRaw, payloadJSON)
 		}
 
 		status := "sent"
@@ -308,6 +309,21 @@ func (s *NotificationService) sendWebhook(ctx context.Context, configRaw json.Ra
 		return fmt.Errorf("webhook returned %d", resp.StatusCode)
 	}
 	return nil
+}
+
+func (s *NotificationService) sendEmail(ctx context.Context, configRaw json.RawMessage, payload []byte) error {
+	if s.email == nil {
+		return nil
+	}
+	var cfg struct {
+		To string `json:"to"`
+	}
+	if err := json.Unmarshal(configRaw, &cfg); err != nil || cfg.To == "" {
+		return fmt.Errorf("invalid email notification config")
+	}
+	subject := "ChaosPlane Notification"
+	body := fmt.Sprintf("<pre>%s</pre>", string(payload))
+	return s.email.send(ctx, cfg.To, subject, body)
 }
 
 var _ = errors.Is

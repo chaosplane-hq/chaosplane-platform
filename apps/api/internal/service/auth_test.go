@@ -24,7 +24,7 @@ func TestHashTokenDeterministic(t *testing.T) {
 }
 
 func TestCSRFTokenRoundTrip(t *testing.T) {
-	svc := NewAuthService(nil, &config.Config{CSRFSecret: "csrf-secret"}, nil)
+	svc := NewAuthService(nil, &config.Config{CSRFSecret: "csrf-secret"}, nil, nil)
 	token, err := svc.GenerateCSRFToken("user-1", "tenant-1")
 	if err != nil {
 		t.Fatalf("generate csrf token: %v", err)

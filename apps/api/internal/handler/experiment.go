@@ -1,6 +1,7 @@
 package handler
 
 import (
+	"context"
 	"net/http"
 	"strconv"
 
@@ -10,11 +11,13 @@ import (
 )
 
 type ExperimentHandler struct {
-	svc *service.ExperimentService
+	svc          *service.ExperimentService
+	notification *service.NotificationService
+	billing      *service.BillingService
 }
 
-func NewExperimentHandler(svc *service.ExperimentService) *ExperimentHandler {
-	return &ExperimentHandler{svc: svc}
+func NewExperimentHandler(svc *service.ExperimentService, notification *service.NotificationService, billing *service.BillingService) *ExperimentHandler {
+	return &ExperimentHandler{svc: svc, notification: notification, billing: billing}
 }
 
 func (h *ExperimentHandler) Create(c *gin.Context) {
@@ -28,6 +31,18 @@ func (h *ExperimentHandler) Create(c *gin.Context) {
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
+	}
+
+	if tenantID, ok := c.Get("tenant_id"); ok {
+		tid := tenantID.(string)
+		if h.billing != nil {
+			go h.billing.RecordUsage(context.Background(), tid, "experiments", 1)
+		}
+		if h.notification != nil {
+			go h.notification.Dispatch(context.Background(), tid, "experiment.created", map[string]interface{}{
+				"name": resp.Name, "namespace": resp.Namespace, "action": resp.Action,
+			})
+		}
 	}
 
 	c.JSON(http.StatusCreated, resp)

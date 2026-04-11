@@ -15,11 +15,12 @@ import (
 var ErrInvitationSignupRequired = errors.New("invitation requires signup")
 
 type InvitationService struct {
-	pool *database.Pool
+	pool  *database.Pool
+	email *EmailService
 }
 
-func NewInvitationService(pool *database.Pool) *InvitationService {
-	return &InvitationService{pool: pool}
+func NewInvitationService(pool *database.Pool, email *EmailService) *InvitationService {
+	return &InvitationService{pool: pool, email: email}
 }
 
 type Invitation struct {
@@ -117,6 +118,9 @@ func (s *InvitationService) Create(ctx context.Context, actor ActorContext, req 
 		return nil, err
 	}
 	invitation.InviteToken = plainToken
+	if s.email != nil {
+		go s.email.SendInvitationEmail(context.Background(), invitation.Email, "", "", plainToken)
+	}
 	return invitation, nil
 }
 
@@ -142,6 +146,9 @@ func (s *InvitationService) Resend(ctx context.Context, actor ActorContext, invi
 		return nil, err
 	}
 	invitation.InviteToken = plainToken
+	if s.email != nil {
+		go s.email.SendInvitationEmail(context.Background(), invitation.Email, "", "", plainToken)
+	}
 	return invitation, nil
 }
 

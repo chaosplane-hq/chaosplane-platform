@@ -13,11 +13,12 @@ import (
 )
 
 type EmailChangeService struct {
-	pool *database.Pool
+	pool  *database.Pool
+	email *EmailService
 }
 
-func NewEmailChangeService(pool *database.Pool) *EmailChangeService {
-	return &EmailChangeService{pool: pool}
+func NewEmailChangeService(pool *database.Pool, email *EmailService) *EmailChangeService {
+	return &EmailChangeService{pool: pool, email: email}
 }
 
 type EmailChangeRequest struct {
@@ -57,6 +58,12 @@ func (s *EmailChangeService) Request(ctx context.Context, actor ActorContext, re
 		VALUES ($1::uuid, $2, $3, $4)
 	`, actor.UserID, newEmail, tokenHash, expiresAt); err != nil {
 		return nil, fmt.Errorf("create email change request: %w", err)
+	}
+
+	if s.email != nil {
+		var currentEmail string
+		_ = s.pool.App.QueryRow(ctx, `SELECT email FROM users WHERE id = $1::uuid`, actor.UserID).Scan(&currentEmail)
+		go s.email.SendEmailChangeNotification(context.Background(), currentEmail, newEmail, plain)
 	}
 
 	return &EmailChangeResponse{Token: plain, ExpiresAt: expiresAt.Format(time.RFC3339)}, nil

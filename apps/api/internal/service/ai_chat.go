@@ -208,7 +208,7 @@ func (s *AIChatService) ensureSessionOwner(ctx context.Context, actor ActorConte
 }
 
 func generateAssistantResponse(userMessage string) string {
-	return fmt.Sprintf("I received your message: \"%s\". AI response generation requires LLM API integration (OpenAI/Anthropic). This placeholder will be replaced with actual AI-powered responses that can analyze your topology, suggest experiments, and explain results.", userMessage)
+	return "AI assistant is not configured. Set LLM_API_KEY and LLM_PROVIDER environment variables to enable AI-powered responses. Supported providers: openai (default), anthropic."
 }
 
 func (s *AIChatService) generateResponse(ctx context.Context, sessionID, userMessage string) (string, error) {

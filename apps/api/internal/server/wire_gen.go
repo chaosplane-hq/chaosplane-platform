@@ -73,6 +73,14 @@ func InitializeServer(ctx context.Context) (*Server, error) {
 	wfTemplateHandler := handler.NewWorkflowTemplateHandler(wfTemplateService)
 	cuiService := service.NewCUIService(pool)
 	cuiHandler := handler.NewCUIHandler(cuiService)
+	marketplaceService := service.NewMarketplaceService(pool)
+	marketplaceHandler := handler.NewMarketplaceHandler(marketplaceService)
+	federationService := service.NewFederationService(pool)
+	federationHandler := handler.NewFederationHandler(federationService)
+	cicdService := service.NewCICDService(pool)
+	cicdHandler := handler.NewCICDHandler(cicdService)
+	predictiveService := service.NewPredictiveAnalysisService(pool)
+	predictiveHandler := handler.NewPredictiveHandler(predictiveService)
 
 	k8sClient, err := service.NewK8sClient(cfg)
 	if err != nil {
@@ -86,6 +94,6 @@ func InitializeServer(ctx context.Context) (*Server, error) {
 	policyHandler := handler.NewPolicyHandler(policyService)
 	wsHandler := handler.NewWebSocketHandler(experimentService)
 
-	srv := New(cfg, pool, healthHandler, authHandler, hierarchyHandler, onboardingHandler, invitationHandler, apiKeyHandler, oauthHandler, accountHandler, agentHandler, billingHandler, notificationHandler, auditHandler, topologyHandler, topoAnalysisHandler, vulnerabilityHandler, suggestionHandler, resultAnalysisHandler, aiChatHandler, enterpriseHandler, gamedayHandler, resilienceHandler, wfTemplateHandler, cuiHandler, experimentHandler, policyHandler, wsHandler, rdb, authService)
+	srv := New(cfg, pool, healthHandler, authHandler, hierarchyHandler, onboardingHandler, invitationHandler, apiKeyHandler, oauthHandler, accountHandler, agentHandler, billingHandler, notificationHandler, auditHandler, topologyHandler, topoAnalysisHandler, vulnerabilityHandler, suggestionHandler, resultAnalysisHandler, aiChatHandler, enterpriseHandler, gamedayHandler, resilienceHandler, wfTemplateHandler, cuiHandler, marketplaceHandler, federationHandler, cicdHandler, predictiveHandler, experimentHandler, policyHandler, wsHandler, rdb, authService)
 	return srv, nil
 }

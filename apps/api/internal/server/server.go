@@ -45,6 +45,10 @@ func New(
 	resilience *handler.ResilienceScoreHandler,
 	wfTemplates *handler.WorkflowTemplateHandler,
 	cui *handler.CUIHandler,
+	marketplace *handler.MarketplaceHandler,
+	federation *handler.FederationHandler,
+	cicd *handler.CICDHandler,
+	predictive *handler.PredictiveHandler,
 	experiments *handler.ExperimentHandler,
 	policies *handler.PolicyHandler,
 	ws *handler.WebSocketHandler,
@@ -151,6 +155,10 @@ func New(
 		saas.GET("/resilience-score", resilience.Get)
 		saas.GET("/workflow-templates", wfTemplates.List)
 		saas.GET("/cui-markings", cui.List)
+		saas.GET("/marketplace", marketplace.List)
+		saas.GET("/federation/clusters", federation.List)
+		saas.GET("/cicd-integrations", cicd.List)
+		saas.GET("/predictions", predictive.List)
 
 		manage := saas.Group("")
 		manage.Use(middleware.RequireTenantRole(pool.App, "admin", "editor"))
@@ -213,6 +221,14 @@ func New(
 			manage.DELETE("/workflow-templates/:id", wfTemplates.Delete)
 			manage.POST("/cui-markings", cui.Apply)
 			manage.DELETE("/cui-markings/:id", cui.Remove)
+			manage.POST("/marketplace/install", marketplace.Install)
+			manage.DELETE("/marketplace/:id", marketplace.Uninstall)
+			manage.POST("/federation/clusters", federation.Register)
+			manage.DELETE("/federation/clusters/:id", federation.Remove)
+			manage.POST("/cicd-integrations", cicd.Create)
+			manage.DELETE("/cicd-integrations/:id", cicd.Delete)
+			manage.POST("/predictions/run", predictive.Run)
+			manage.PATCH("/predictions/:id", predictive.UpdateStatus)
 		}
 	}
 

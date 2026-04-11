@@ -30,7 +30,7 @@ func JWT(auth *service.AuthService) gin.HandlerFunc {
 			return
 		}
 
-		blacklisted, err := auth.IsBlacklisted(c.Request.Context(), claims.JTI)
+		blacklisted, err := auth.IsBlacklisted(c.Request.Context(), claims.ID)
 		if err != nil {
 			c.AbortWithStatusJSON(http.StatusInternalServerError, gin.H{"error": "failed to validate access token"})
 			return

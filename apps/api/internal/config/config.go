@@ -27,6 +27,19 @@ type Config struct {
 	GitHubClientSecret    string
 	MicrosoftClientID     string
 	MicrosoftClientSecret string
+
+	SESRegion    string
+	SESAccessKey string
+	SESSecretKey string
+	SESFromEmail string
+
+	LLMProvider string
+	LLMAPIKey   string
+	LLMModel    string
+
+	StripeWebhookSecret string
+	TossWebhookSecret   string
+	DodoWebhookSecret   string
 }
 
 func New() *Config {
@@ -50,6 +63,19 @@ func New() *Config {
 		GitHubClientSecret:    getEnv("GITHUB_CLIENT_SECRET", ""),
 		MicrosoftClientID:     getEnv("MICROSOFT_CLIENT_ID", ""),
 		MicrosoftClientSecret: getEnv("MICROSOFT_CLIENT_SECRET", ""),
+
+		SESRegion:    getEnv("SES_REGION", "us-east-1"),
+		SESAccessKey: getEnv("SES_ACCESS_KEY", ""),
+		SESSecretKey: getEnv("SES_SECRET_KEY", ""),
+		SESFromEmail: getEnv("SES_FROM_EMAIL", ""),
+
+		LLMProvider: getEnv("LLM_PROVIDER", "openai"),
+		LLMAPIKey:   getEnv("LLM_API_KEY", ""),
+		LLMModel:    getEnv("LLM_MODEL", "gpt-4o"),
+
+		StripeWebhookSecret: getEnv("STRIPE_WEBHOOK_SECRET", ""),
+		TossWebhookSecret:   getEnv("TOSS_WEBHOOK_SECRET", ""),
+		DodoWebhookSecret:   getEnv("DODO_WEBHOOK_SECRET", ""),
 	}
 }
 

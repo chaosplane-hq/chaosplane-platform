@@ -2,21 +2,28 @@ package service
 
 import (
 	"context"
+	"crypto/x509"
+	"encoding/pem"
 	"errors"
 	"fmt"
+	"net/http"
+	"net/url"
 	"time"
 
+	"github.com/crewjam/saml"
 	"github.com/jackc/pgx/v5"
 
+	"github.com/chaosplane-hq/chaosplane-platform/apps/api/internal/config"
 	"github.com/chaosplane-hq/chaosplane-platform/apps/api/internal/database"
 )
 
 type SAMLService struct {
 	pool *database.Pool
+	cfg  *config.Config
 }
 
-func NewSAMLService(pool *database.Pool) *SAMLService {
-	return &SAMLService{pool: pool}
+func NewSAMLService(pool *database.Pool, cfg *config.Config) *SAMLService {
+	return &SAMLService{pool: pool, cfg: cfg}
 }
 
 type SAMLProvider struct {
@@ -46,6 +53,18 @@ type CreateSAMLProviderRequest struct {
 	DefaultRole     string  `json:"defaultRole,omitempty"`
 }
 
+type SAMLLoginResponse struct {
+	AuthURL string `json:"authUrl"`
+}
+
+type SAMLAssertionResult struct {
+	Email      string `json:"email"`
+	Name       string `json:"name"`
+	TenantID   string `json:"tenantId"`
+	ProviderID string `json:"providerId"`
+	Role       string `json:"role"`
+}
+
 func (s *SAMLService) List(ctx context.Context, actor ActorContext) (*SAMLProviderListResponse, error) {
 	if err := ensureActorMembership(ctx, s.pool, actor); err != nil {
 		return nil, err
@@ -73,6 +92,11 @@ func (s *SAMLService) Create(ctx context.Context, actor ActorContext, req *Creat
 	if err := ensureActorMembership(ctx, s.pool, actor); err != nil {
 		return nil, err
 	}
+
+	if _, err := parseCertificate(req.Certificate); err != nil {
+		return nil, fmt.Errorf("invalid certificate: %w", err)
+	}
+
 	role := req.DefaultRole
 	if role == "" {
 		role = "viewer"
@@ -104,5 +128,149 @@ func (s *SAMLService) Delete(ctx context.Context, actor ActorContext, providerID
 	return nil
 }
 
-var _ = errors.Is
-var _ = pgx.ErrNoRows
+func (s *SAMLService) InitiateLogin(ctx context.Context, tenantID, providerID string) (*SAMLLoginResponse, error) {
+	var entityID, ssoURL string
+	err := s.pool.App.QueryRow(ctx, `
+		SELECT entity_id, sso_url
+		FROM saml_providers
+		WHERE id = $1::uuid AND tenant_id = $2::uuid AND enabled = true
+	`, providerID, tenantID).Scan(&entityID, &ssoURL)
+	if err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			return nil, ErrHierarchyNotFound
+		}
+		return nil, fmt.Errorf("load saml provider: %w", err)
+	}
+
+	rootURL, _ := url.Parse(s.cfg.FrontendURL)
+	acsURL := *rootURL
+	acsURL.Path = "/auth/saml/acs"
+	idpSSOURL, _ := url.Parse(ssoURL)
+
+	sp := saml.ServiceProvider{
+		EntityID: rootURL.String() + "/saml/metadata",
+		AcsURL:   acsURL,
+		IDPMetadata: &saml.EntityDescriptor{
+			EntityID: entityID,
+			IDPSSODescriptors: []saml.IDPSSODescriptor{
+				{
+					SingleSignOnServices: []saml.Endpoint{
+						{Location: idpSSOURL.String(), Binding: saml.HTTPRedirectBinding},
+					},
+				},
+			},
+		},
+	}
+
+	authReq, _ := sp.MakeAuthenticationRequest(idpSSOURL.String(), saml.HTTPRedirectBinding, saml.HTTPPostBinding)
+	redirectURL, _ := authReq.Redirect("", &sp)
+
+	return &SAMLLoginResponse{AuthURL: redirectURL.String()}, nil
+}
+
+func (s *SAMLService) ProcessAssertion(ctx context.Context, tenantID, providerID string, r *http.Request) (*SAMLAssertionResult, error) {
+	var entityID, ssoURL, certificate, defaultRole string
+	err := s.pool.App.QueryRow(ctx, `
+		SELECT entity_id, sso_url, certificate, default_role
+		FROM saml_providers
+		WHERE id = $1::uuid AND tenant_id = $2::uuid AND enabled = true
+	`, providerID, tenantID).Scan(&entityID, &ssoURL, &certificate, &defaultRole)
+	if err != nil {
+		return nil, fmt.Errorf("load saml provider for assertion: %w", err)
+	}
+
+	cert, err := parseCertificate(certificate)
+	if err != nil {
+		return nil, fmt.Errorf("parse idp certificate: %w", err)
+	}
+
+	rootURL, _ := url.Parse(s.cfg.FrontendURL)
+	acsURL := *rootURL
+	acsURL.Path = "/auth/saml/acs"
+
+	idpMetadata := &saml.EntityDescriptor{
+		EntityID: entityID,
+		IDPSSODescriptors: []saml.IDPSSODescriptor{
+			{
+				SSODescriptor: saml.SSODescriptor{
+					RoleDescriptor: saml.RoleDescriptor{
+						KeyDescriptors: []saml.KeyDescriptor{
+							{
+								Use: "signing",
+								KeyInfo: saml.KeyInfo{
+									X509Data: saml.X509Data{
+										X509Certificates: []saml.X509Certificate{
+											{Data: certificate},
+										},
+									},
+								},
+							},
+						},
+					},
+				},
+				SingleSignOnServices: []saml.Endpoint{
+					{Location: ssoURL, Binding: saml.HTTPRedirectBinding},
+				},
+			},
+		},
+	}
+
+	sp := saml.ServiceProvider{
+		EntityID:    rootURL.String() + "/saml/metadata",
+		AcsURL:      acsURL,
+		IDPMetadata: idpMetadata,
+		Certificate: cert,
+	}
+
+	assertion, err := sp.ParseResponse(r, []string{})
+	if err != nil {
+		return nil, fmt.Errorf("parse saml response: %w", err)
+	}
+
+	email := ""
+	name := ""
+	for _, stmt := range assertion.AttributeStatements {
+		for _, attr := range stmt.Attributes {
+			switch attr.FriendlyName {
+			case "email", "mail":
+				if len(attr.Values) > 0 {
+					email = attr.Values[0].Value
+				}
+			case "displayName", "name":
+				if len(attr.Values) > 0 {
+					name = attr.Values[0].Value
+				}
+			}
+			switch attr.Name {
+			case "http://schemas.xmlsoap.org/ws/2005/05/identity/claims/emailaddress":
+				if len(attr.Values) > 0 && email == "" {
+					email = attr.Values[0].Value
+				}
+			case "http://schemas.xmlsoap.org/ws/2005/05/identity/claims/name":
+				if len(attr.Values) > 0 && name == "" {
+					name = attr.Values[0].Value
+				}
+			}
+		}
+	}
+
+	if email == "" && assertion.Subject != nil && assertion.Subject.NameID != nil {
+		email = assertion.Subject.NameID.Value
+	}
+
+	return &SAMLAssertionResult{
+		Email:      email,
+		Name:       name,
+		TenantID:   tenantID,
+		ProviderID: providerID,
+		Role:       defaultRole,
+	}, nil
+}
+
+func parseCertificate(certData string) (*x509.Certificate, error) {
+	block, _ := pem.Decode([]byte(certData))
+	if block != nil {
+		return x509.ParseCertificate(block.Bytes)
+	}
+	return x509.ParseCertificate([]byte(certData))
+}

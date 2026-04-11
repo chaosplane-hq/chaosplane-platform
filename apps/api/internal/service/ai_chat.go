@@ -13,10 +13,11 @@ import (
 
 type AIChatService struct {
 	pool *database.Pool
+	llm  *LLMClient
 }
 
-func NewAIChatService(pool *database.Pool) *AIChatService {
-	return &AIChatService{pool: pool}
+func NewAIChatService(pool *database.Pool, llm *LLMClient) *AIChatService {
+	return &AIChatService{pool: pool, llm: llm}
 }
 
 type ChatSession struct {
@@ -152,7 +153,10 @@ func (s *AIChatService) SendMessage(ctx context.Context, actor ActorContext, ses
 		return nil, fmt.Errorf("store user message: %w", err)
 	}
 
-	assistantContent := generateAssistantResponse(req.Content)
+	assistantContent, err := s.generateResponse(ctx, sessionID, req.Content)
+	if err != nil {
+		assistantContent = fmt.Sprintf("Error generating response: %v", err)
+	}
 
 	var assistantMsg ChatMessage
 	err = s.pool.App.QueryRow(ctx, `
@@ -205,6 +209,41 @@ func (s *AIChatService) ensureSessionOwner(ctx context.Context, actor ActorConte
 
 func generateAssistantResponse(userMessage string) string {
 	return fmt.Sprintf("I received your message: \"%s\". AI response generation requires LLM API integration (OpenAI/Anthropic). This placeholder will be replaced with actual AI-powered responses that can analyze your topology, suggest experiments, and explain results.", userMessage)
+}
+
+func (s *AIChatService) generateResponse(ctx context.Context, sessionID, userMessage string) (string, error) {
+	if s.llm == nil || !s.llm.IsConfigured() {
+		return generateAssistantResponse(userMessage), nil
+	}
+
+	rows, err := s.pool.App.Query(ctx, `
+		SELECT role, content FROM ai_chat_messages
+		WHERE session_id = $1::uuid
+		ORDER BY created_at ASC
+		LIMIT 20
+	`, sessionID)
+	if err != nil {
+		return generateAssistantResponse(userMessage), nil
+	}
+	defer rows.Close()
+
+	var history []LLMMessage
+	for rows.Next() {
+		var role, content string
+		if rows.Scan(&role, &content) == nil {
+			history = append(history, LLMMessage{Role: role, Content: content})
+		}
+	}
+
+	systemPrompt := `You are ChaosPlane AI Assistant, an expert in chaos engineering, resilience testing, and Kubernetes operations.
+You help users:
+- Analyze their cluster topology and identify vulnerabilities
+- Suggest chaos experiments to test resilience
+- Explain experiment results and recommend improvements
+- Answer questions about chaos engineering best practices
+Be concise, technical, and actionable.`
+
+	return s.llm.Complete(ctx, systemPrompt, history)
 }
 
 var _ = errors.Is

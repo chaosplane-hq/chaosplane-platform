@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/gin-gonic/gin"
+	"github.com/golang-jwt/jwt/v5"
 
 	"github.com/chaosplane-hq/chaosplane-platform/apps/api/internal/config"
 	"github.com/chaosplane-hq/chaosplane-platform/apps/api/internal/database"
@@ -22,13 +23,15 @@ func TestJWT_ValidBearerToken(t *testing.T) {
 	}, nil)
 
 	claims := &service.AccessTokenClaims{
-		JTI:       "11111111-1111-1111-1111-111111111111",
-		Subject:   "user-1",
 		TenantID:  "tenant-1",
 		Email:     "user@example.com",
 		TokenType: "access",
-		ExpiresAt: time.Now().Add(5 * time.Minute).Unix(),
-		IssuedAt:  time.Now().Unix(),
+		RegisteredClaims: jwt.RegisteredClaims{
+			ID:        "11111111-1111-1111-1111-111111111111",
+			Subject:   "user-1",
+			ExpiresAt: jwt.NewNumericDate(time.Now().Add(5 * time.Minute)),
+			IssuedAt:  jwt.NewNumericDate(time.Now()),
+		},
 	}
 	signed, err := service.SignTestAccessToken(claims, "test-secret")
 	if err != nil {

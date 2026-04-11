@@ -4,6 +4,8 @@ import (
 	"testing"
 	"time"
 
+	"github.com/golang-jwt/jwt/v5"
+
 	"github.com/chaosplane-hq/chaosplane-platform/apps/api/internal/config"
 )
 
@@ -34,13 +36,15 @@ func TestCSRFTokenRoundTrip(t *testing.T) {
 
 func TestSignAndParseAccessToken(t *testing.T) {
 	claims := &AccessTokenClaims{
-		JTI:       "11111111-1111-1111-1111-111111111111",
-		Subject:   "user-1",
 		TenantID:  "tenant-1",
 		Email:     "user@example.com",
 		TokenType: "access",
-		IssuedAt:  time.Now().Unix(),
-		ExpiresAt: time.Now().Add(15 * time.Minute).Unix(),
+		RegisteredClaims: jwt.RegisteredClaims{
+			ID:        "11111111-1111-1111-1111-111111111111",
+			Subject:   "user-1",
+			IssuedAt:  jwt.NewNumericDate(time.Now()),
+			ExpiresAt: jwt.NewNumericDate(time.Now().Add(15 * time.Minute)),
+		},
 	}
 
 	token, err := signToken(claims, "jwt-secret")

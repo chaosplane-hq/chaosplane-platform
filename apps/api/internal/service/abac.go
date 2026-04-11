@@ -3,11 +3,8 @@ package service
 import (
 	"context"
 	"encoding/json"
-	"errors"
 	"fmt"
 	"time"
-
-	"github.com/jackc/pgx/v5"
 
 	"github.com/chaosplane-hq/chaosplane-platform/apps/api/internal/database"
 )
@@ -123,8 +120,93 @@ func (s *ABACService) Evaluate(ctx context.Context, actor ActorContext, req *Eva
 	if err := ensureActorMembership(ctx, s.pool, actor); err != nil {
 		return nil, err
 	}
-	return &EvaluateABACResponse{Allowed: true, Reason: "ABAC evaluation requires policy engine integration. Default: allow."}, nil
+
+	rows, err := s.pool.App.Query(ctx, `
+		SELECT effect, subjects, resources, actions, conditions, priority
+		FROM abac_policies
+		WHERE tenant_id = $1::uuid AND enabled = true
+		ORDER BY priority DESC
+	`, actor.TenantID)
+	if err != nil {
+		return nil, fmt.Errorf("load abac policies: %w", err)
+	}
+	defer rows.Close()
+
+	for rows.Next() {
+		var effect string
+		var subjectsRaw, resourcesRaw, actionsRaw, conditionsRaw json.RawMessage
+		var priority int
+		if err := rows.Scan(&effect, &subjectsRaw, &resourcesRaw, &actionsRaw, &conditionsRaw, &priority); err != nil {
+			continue
+		}
+
+		if !matchSubjects(subjectsRaw, req.Subject) {
+			continue
+		}
+		if !matchResource(resourcesRaw, req.Resource) {
+			continue
+		}
+		if !matchAction(actionsRaw, req.Action) {
+			continue
+		}
+
+		if effect == "deny" {
+			return &EvaluateABACResponse{Allowed: false, Reason: fmt.Sprintf("Denied by policy (priority %d)", priority)}, nil
+		}
+		return &EvaluateABACResponse{Allowed: true, Reason: fmt.Sprintf("Allowed by policy (priority %d)", priority)}, nil
+	}
+
+	return &EvaluateABACResponse{Allowed: false, Reason: "No matching policy found, default deny"}, nil
 }
 
-var _ = errors.Is
-var _ = pgx.ErrNoRows
+func matchSubjects(raw json.RawMessage, subject map[string]string) bool {
+	var patterns map[string]string
+	if json.Unmarshal(raw, &patterns) != nil {
+		return true
+	}
+	if len(patterns) == 0 {
+		return true
+	}
+	for k, pattern := range patterns {
+		val, ok := subject[k]
+		if !ok {
+			return false
+		}
+		if pattern != "*" && pattern != val {
+			return false
+		}
+	}
+	return true
+}
+
+func matchResource(raw json.RawMessage, resource string) bool {
+	var patterns map[string]string
+	if json.Unmarshal(raw, &patterns) != nil {
+		return true
+	}
+	if len(patterns) == 0 {
+		return true
+	}
+	for _, pattern := range patterns {
+		if pattern == "*" || pattern == resource {
+			return true
+		}
+	}
+	return false
+}
+
+func matchAction(raw json.RawMessage, action string) bool {
+	var actions []string
+	if json.Unmarshal(raw, &actions) != nil {
+		return true
+	}
+	if len(actions) == 0 {
+		return true
+	}
+	for _, a := range actions {
+		if a == "*" || a == action {
+			return true
+		}
+	}
+	return false
+}

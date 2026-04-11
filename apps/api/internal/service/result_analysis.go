@@ -14,10 +14,11 @@ import (
 
 type ResultAnalysisService struct {
 	pool *database.Pool
+	llm  *LLMClient
 }
 
-func NewResultAnalysisService(pool *database.Pool) *ResultAnalysisService {
-	return &ResultAnalysisService{pool: pool}
+func NewResultAnalysisService(pool *database.Pool, llm *LLMClient) *ResultAnalysisService {
+	return &ResultAnalysisService{pool: pool, llm: llm}
 }
 
 type ResultAnalysis struct {
@@ -101,10 +102,21 @@ func (s *ResultAnalysisService) Get(ctx context.Context, actor ActorContext, ana
 }
 
 func (s *ResultAnalysisService) Analyze(ctx context.Context, tenantID string, req *AnalyzeResultRequest) (*ResultAnalysis, error) {
-	summary := fmt.Sprintf("Experiment '%s' completed. Analysis pending LLM integration.", req.ExperimentName)
-	impact := "Impact analysis will be generated when LLM API is configured."
-	recommendations := "Recommendations will be generated when LLM API is configured."
+	summary := fmt.Sprintf("Experiment '%s' completed.", req.ExperimentName)
+	impact := "Impact analysis pending."
+	recommendations := "Recommendations pending."
 	severity := "low"
+
+	if s.llm != nil && s.llm.IsConfigured() {
+		prompt := fmt.Sprintf("Analyze the chaos experiment '%s'. Provide: 1) A brief summary 2) Impact analysis 3) Recommendations for improvement. Be concise and technical.", req.ExperimentName)
+		resp, err := s.llm.Complete(ctx, "You are a chaos engineering expert analyzing experiment results. Respond in structured format with Summary, Impact, and Recommendations sections.", []LLMMessage{{Role: "user", Content: prompt}})
+		if err == nil && resp != "" {
+			summary = resp
+			impact = "See summary above."
+			recommendations = "See summary above."
+		}
+	}
+
 	affectedServices := "[]"
 	metricsImpact := "{}"
 

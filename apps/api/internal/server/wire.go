@@ -64,6 +64,8 @@ var ProviderSet = wire.NewSet(
 	service.NewExperimentSuggestionService,
 	service.NewResultAnalysisService,
 	service.NewAIChatService,
+	service.NewLLMClient,
+	service.NewEmailService,
 	service.NewSAMLService,
 	service.NewABACService,
 	service.NewMFAService,

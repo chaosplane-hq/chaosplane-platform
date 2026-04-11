@@ -14,10 +14,11 @@ import (
 
 type PredictiveAnalysisService struct {
 	pool *database.Pool
+	llm  *LLMClient
 }
 
-func NewPredictiveAnalysisService(pool *database.Pool) *PredictiveAnalysisService {
-	return &PredictiveAnalysisService{pool: pool}
+func NewPredictiveAnalysisService(pool *database.Pool, llm *LLMClient) *PredictiveAnalysisService {
+	return &PredictiveAnalysisService{pool: pool, llm: llm}
 }
 
 type PredictiveAnalysis struct {

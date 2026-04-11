@@ -7,7 +7,6 @@ import (
 	"crypto/sha256"
 	"encoding/base64"
 	"encoding/hex"
-	"encoding/json"
 	"errors"
 	"fmt"
 	"net"
@@ -15,6 +14,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/golang-jwt/jwt/v5"
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
 	"github.com/redis/go-redis/v9"
@@ -129,13 +129,10 @@ type PasswordResetTokenResponse struct {
 }
 
 type AccessTokenClaims struct {
-	JTI       string `json:"jti"`
-	Subject   string `json:"sub"`
 	TenantID  string `json:"tid"`
 	Email     string `json:"email"`
 	TokenType string `json:"typ"`
-	IssuedAt  int64  `json:"iat"`
-	ExpiresAt int64  `json:"exp"`
+	jwt.RegisteredClaims
 }
 
 type authIdentity struct {
@@ -555,14 +552,14 @@ func (s *AuthService) ResendVerification(ctx context.Context, req *ResendVerific
 }
 
 func (s *AuthService) Logout(ctx context.Context, claims *AccessTokenClaims, req *LogoutRequest) error {
-	if claims != nil && claims.JTI != "" {
-		expiresAt := time.Unix(claims.ExpiresAt, 0)
+	if claims != nil && claims.ID != "" {
+		expiresAt := claims.ExpiresAt.Time
 		if expiresAt.After(time.Now()) {
 			_, err := s.pool.App.Exec(ctx, `
 				INSERT INTO jwt_blacklist (jti, user_id, reason, expires_at)
 				VALUES ($1::uuid, $2::uuid, 'logout', $3)
 				ON CONFLICT (jti) DO NOTHING
-			`, claims.JTI, claims.Subject, expiresAt)
+			`, claims.ID, claims.Subject, expiresAt)
 			if err != nil {
 				return fmt.Errorf("blacklist access token: %w", err)
 			}
@@ -617,7 +614,7 @@ func (s *AuthService) ParseAccessToken(token string) (*AccessTokenClaims, error)
 	if err != nil {
 		return nil, err
 	}
-	if claims.TokenType != "access" || claims.ExpiresAt <= time.Now().Unix() {
+	if claims.TokenType != "access" || claims.ExpiresAt.Before(time.Now()) {
 		return nil, ErrInvalidCredentials
 	}
 	return claims, nil
@@ -774,7 +771,7 @@ func (s *AuthService) issueSession(ctx context.Context, tx pgx.Tx, ident authIde
 	return &AuthResponse{
 		AccessToken:  accessToken,
 		RefreshToken: refreshToken,
-		ExpiresIn:    int64(time.Until(time.Unix(claims.ExpiresAt, 0)).Seconds()),
+		ExpiresIn:    int64(time.Until(claims.ExpiresAt.Time).Seconds()),
 		User:         user,
 		Tenant:       tenant,
 	}, nil
@@ -783,13 +780,15 @@ func (s *AuthService) issueSession(ctx context.Context, tx pgx.Tx, ident authIde
 func (s *AuthService) generateAccessToken(ident authIdentity) (string, *AccessTokenClaims, error) {
 	now := time.Now()
 	claims := &AccessTokenClaims{
-		JTI:       uuid.NewString(),
-		Subject:   ident.UserID,
 		TenantID:  ident.TenantID,
 		Email:     ident.Email,
 		TokenType: "access",
-		IssuedAt:  now.Unix(),
-		ExpiresAt: now.Add(s.cfg.AccessTokenTTL).Unix(),
+		RegisteredClaims: jwt.RegisteredClaims{
+			ID:        uuid.NewString(),
+			Subject:   ident.UserID,
+			IssuedAt:  jwt.NewNumericDate(now),
+			ExpiresAt: jwt.NewNumericDate(now.Add(s.cfg.AccessTokenTTL)),
+		},
 	}
 	signed, err := signToken(claims, s.cfg.JWTSecret)
 	if err != nil {
@@ -959,42 +958,20 @@ func blacklistRedisKey(jti string) string {
 }
 
 func signToken(claims *AccessTokenClaims, secret string) (string, error) {
-	payload, err := json.Marshal(claims)
-	if err != nil {
-		return "", err
-	}
-	encodedPayload := base64.RawURLEncoding.EncodeToString(payload)
-	mac := hmac.New(sha256.New, []byte(secret))
-	if _, err := mac.Write([]byte(encodedPayload)); err != nil {
-		return "", err
-	}
-	signature := hex.EncodeToString(mac.Sum(nil))
-	return encodedPayload + "." + signature, nil
+	token := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
+	return token.SignedString([]byte(secret))
 }
 
-func parseSignedToken(token, secret string) (*AccessTokenClaims, error) {
-	parts := strings.Split(token, ".")
-	if len(parts) != 2 {
+func parseSignedToken(tokenStr, secret string) (*AccessTokenClaims, error) {
+	claims := &AccessTokenClaims{}
+	token, err := jwt.ParseWithClaims(tokenStr, claims, func(t *jwt.Token) (interface{}, error) {
+		if _, ok := t.Method.(*jwt.SigningMethodHMAC); !ok {
+			return nil, fmt.Errorf("unexpected signing method: %v", t.Header["alg"])
+		}
+		return []byte(secret), nil
+	})
+	if err != nil || !token.Valid {
 		return nil, ErrInvalidCredentials
 	}
-
-	mac := hmac.New(sha256.New, []byte(secret))
-	if _, err := mac.Write([]byte(parts[0])); err != nil {
-		return nil, err
-	}
-	expected := hex.EncodeToString(mac.Sum(nil))
-	if !hmac.Equal([]byte(expected), []byte(parts[1])) {
-		return nil, ErrInvalidCredentials
-	}
-
-	payload, err := base64.RawURLEncoding.DecodeString(parts[0])
-	if err != nil {
-		return nil, ErrInvalidCredentials
-	}
-
-	var claims AccessTokenClaims
-	if err := json.Unmarshal(payload, &claims); err != nil {
-		return nil, ErrInvalidCredentials
-	}
-	return &claims, nil
+	return claims, nil
 }

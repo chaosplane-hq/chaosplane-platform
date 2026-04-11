@@ -1,11 +1,15 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { Suspense, useEffect, useState } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { InlineNotification, Loading } from '@carbon/react';
 import { oauthCallback } from '@/lib/auth';
 
 export default function CallbackPage() {
+  return <Suspense fallback={<Loading withOverlay />}><CallbackContent /></Suspense>;
+}
+
+function CallbackContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
 

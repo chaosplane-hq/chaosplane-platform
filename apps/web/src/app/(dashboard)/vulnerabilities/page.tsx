@@ -25,10 +25,10 @@ import { Scan, Checkmark, Close, View } from '@carbon/icons-react';
 import { useVulnerabilities, useUpdateVulnerabilityStatus, useScanVulnerabilities } from '@/lib/hooks/use-vulnerabilities';
 import type { VulnerabilitySeverity, VulnerabilityStatus } from '@/lib/types';
 
-function severityTagType(s: VulnerabilitySeverity): 'red' | 'orange' | 'yellow' | 'blue' {
+function severityTagType(s: VulnerabilitySeverity): 'red' | 'magenta' | 'teal' | 'blue' {
   if (s === 'critical') return 'red';
-  if (s === 'high') return 'orange';
-  if (s === 'medium') return 'yellow';
+  if (s === 'high') return 'magenta';
+  if (s === 'medium') return 'teal';
   return 'blue';
 }
 
@@ -93,7 +93,7 @@ export default function VulnerabilitiesPage() {
 
       {summary && (
         <>
-          {(['critical', 'high', 'medium', 'low'] as VulnerabilitySeverity[]).map((sev) => (
+          {(['critical', 'high', 'medium', 'low'] as const).map((sev) => (
             <Column key={sev} lg={4} md={2} sm={4}>
               <Tile style={{ textAlign: 'center', padding: '1.5rem' }}>
                 <p style={{ fontSize: '2rem', fontWeight: 700, color: sev === 'critical' ? 'var(--cds-support-error)' : sev === 'high' ? 'var(--cds-support-warning)' : 'var(--cds-text-primary)' }}>

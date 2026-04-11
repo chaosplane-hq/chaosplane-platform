@@ -64,7 +64,7 @@ export default function MarketplacePage() {
                 {isLoading && (
                   <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(320px, 1fr))', gap: 'var(--cds-spacing-05)', marginTop: 'var(--cds-spacing-05)' }}>
                     {Array.from({ length: 6 }).map((_, i) => (
-                      <Tile key={i}><SkeletonText paragraph lines={4} /></Tile>
+                      <Tile key={i}><SkeletonText paragraph lineCount={4} /></Tile>
                     ))}
                   </div>
                 )}

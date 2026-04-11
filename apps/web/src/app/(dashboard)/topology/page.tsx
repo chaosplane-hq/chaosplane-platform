@@ -31,10 +31,10 @@ import {
 } from '@/lib/hooks/use-topology';
 import type { DriftSeverity } from '@/lib/types';
 
-function severityType(s: DriftSeverity): 'red' | 'orange' | 'yellow' | 'blue' {
+function severityType(s: DriftSeverity): 'red' | 'magenta' | 'teal' | 'blue' {
   if (s === 'critical') return 'red';
-  if (s === 'high') return 'orange';
-  if (s === 'medium') return 'yellow';
+  if (s === 'high') return 'magenta';
+  if (s === 'medium') return 'teal';
   return 'blue';
 }
 

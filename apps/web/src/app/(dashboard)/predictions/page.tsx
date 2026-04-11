@@ -16,10 +16,10 @@ import { usePredictions, useRunPredictions, usePatchPredictionStatus } from '@/l
 import type { PredictionSeverity, PredictionStatus } from '@/lib/types';
 import styles from '@/components/experiments/experiments.module.scss';
 
-const SEVERITY_TAG: Record<PredictionSeverity, 'red' | 'orange' | 'yellow' | 'blue'> = {
+const SEVERITY_TAG: Record<PredictionSeverity, 'red' | 'magenta' | 'teal' | 'blue'> = {
   critical: 'red',
-  high: 'orange',
-  medium: 'yellow',
+  high: 'magenta',
+  medium: 'teal',
   low: 'blue',
 };
 
@@ -75,7 +75,7 @@ export default function PredictionsPage() {
         {isLoading && (
           <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--cds-spacing-04)' }}>
             {Array.from({ length: 4 }).map((_, i) => (
-              <Tile key={i}><SkeletonText paragraph lines={3} /></Tile>
+              <Tile key={i}><SkeletonText paragraph lineCount={3} /></Tile>
             ))}
           </div>
         )}

@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { Suspense, useEffect, useState } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { Button, InlineNotification, Loading } from '@carbon/react';
 import { verifyEmail } from '@/lib/auth';
@@ -8,6 +8,10 @@ import { verifyEmail } from '@/lib/auth';
 type State = 'verifying' | 'success' | 'expired' | 'error';
 
 export default function VerifyEmailPage() {
+  return <Suspense fallback={<Loading withOverlay />}><VerifyEmailContent /></Suspense>;
+}
+
+function VerifyEmailContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const token = searchParams.get('token') ?? '';

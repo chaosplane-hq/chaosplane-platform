@@ -1,11 +1,15 @@
 'use client';
 
-import { useState } from 'react';
+import { Suspense, useState } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
-import { Button, InlineNotification, PasswordInput } from '@carbon/react';
+import { Button, InlineNotification, Loading, PasswordInput } from '@carbon/react';
 import { resetPassword } from '@/lib/auth';
 
 export default function ResetPasswordPage() {
+  return <Suspense fallback={<Loading withOverlay />}><ResetPasswordContent /></Suspense>;
+}
+
+function ResetPasswordContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const token = searchParams.get('token') ?? '';

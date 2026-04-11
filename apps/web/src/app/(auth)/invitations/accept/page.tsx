@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { Suspense, useEffect, useState } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { Button, InlineNotification, Loading, PasswordInput, TextInput } from '@carbon/react';
 import { lookupInvitation, acceptInvitation, type InvitationDetails } from '@/lib/auth';
@@ -8,6 +8,10 @@ import { lookupInvitation, acceptInvitation, type InvitationDetails } from '@/li
 type LoadState = 'loading' | 'ready' | 'error';
 
 export default function AcceptInvitationPage() {
+  return <Suspense fallback={<Loading withOverlay />}><AcceptInvitationContent /></Suspense>;
+}
+
+function AcceptInvitationContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const token = searchParams.get('token') ?? '';

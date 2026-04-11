@@ -137,7 +137,7 @@ export default function WorkflowsPage() {
                   />
                 </div>
                 <div style={{ display: 'flex', gap: 'var(--cds-spacing-02)', flexWrap: 'wrap' }}>
-                  <Tag type={CATEGORY_TAG[t.category]} size="sm">{t.category}</Tag>
+                  <Tag type={CATEGORY_TAG[t.category ?? 'custom']} size="sm">{t.category ?? 'custom'}</Tag>
                   {t.isPublic && <Tag type="teal" size="sm">public</Tag>}
                 </div>
                 {t.description && (

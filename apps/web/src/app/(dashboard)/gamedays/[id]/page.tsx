@@ -79,7 +79,7 @@ export default function GameDayDetailPage({ params }: { params: Promise<{ id: st
         id,
         data: {
           title: eventTitle.trim(),
-          description: eventDesc.trim() || undefined,
+          description: eventDesc.trim() || '',
           occurredAt: eventOccurredAt || new Date().toISOString(),
         },
       });
@@ -111,8 +111,8 @@ export default function GameDayDetailPage({ params }: { params: Promise<{ id: st
   function openPostmortem() {
     if (gameDay?.postmortem) {
       setPmSummary(gameDay.postmortem.summary);
-      setPmLessons(gameDay.postmortem.lessonsLearned);
-      setPmActions(gameDay.postmortem.actionItems);
+      setPmLessons(gameDay.postmortem.lessonsLearned ?? '');
+      setPmActions(gameDay.postmortem.actionItems ?? '');
     }
     setPostmortemOpen(true);
   }

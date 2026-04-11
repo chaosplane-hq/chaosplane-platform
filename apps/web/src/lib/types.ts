@@ -596,7 +596,7 @@ export interface MarketplaceListParams {
 
 // Federation types
 export type ClusterProvider = 'aws' | 'gcp' | 'azure' | 'on-premise' | 'other';
-export type ClusterStatus = 'active' | 'inactive' | 'pending' | 'error';
+export type ClusterStatus = 'connected' | 'disconnected' | 'pending' | 'error';
 
 export interface FederatedCluster {
   id: string;
@@ -721,16 +721,22 @@ export interface CreateGameDayRequest {
 }
 
 export interface CreateGameDayEventRequest {
+  title: string;
   description: string;
-  type?: string;
-  timestamp?: string;
+  eventType?: string;
+  occurredAt?: string;
 }
 
 export interface CreatePostmortemRequest {
   summary: string;
-  findings: string;
+  whatWentWell?: string;
+  whatWentWrong?: string;
+  lessonsLearned?: string;
+  findings?: string;
   actionItems: string;
 }
+
+export type WorkflowCategory = 'chaos' | 'load' | 'security' | 'custom';
 
 export interface WorkflowTemplate {
   id: string;

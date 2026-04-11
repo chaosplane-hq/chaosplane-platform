@@ -44,6 +44,7 @@ func New(
 	gameday *handler.GameDayHandler,
 	resilience *handler.ResilienceScoreHandler,
 	wfTemplates *handler.WorkflowTemplateHandler,
+	cui *handler.CUIHandler,
 	experiments *handler.ExperimentHandler,
 	policies *handler.PolicyHandler,
 	ws *handler.WebSocketHandler,
@@ -149,6 +150,7 @@ func New(
 		saas.GET("/gamedays/:id", gameday.Get)
 		saas.GET("/resilience-score", resilience.Get)
 		saas.GET("/workflow-templates", wfTemplates.List)
+		saas.GET("/cui-markings", cui.List)
 
 		manage := saas.Group("")
 		manage.Use(middleware.RequireTenantRole(pool.App, "admin", "editor"))
@@ -209,6 +211,8 @@ func New(
 			manage.POST("/resilience-score/calculate", resilience.Calculate)
 			manage.POST("/workflow-templates", wfTemplates.Create)
 			manage.DELETE("/workflow-templates/:id", wfTemplates.Delete)
+			manage.POST("/cui-markings", cui.Apply)
+			manage.DELETE("/cui-markings/:id", cui.Remove)
 		}
 	}
 

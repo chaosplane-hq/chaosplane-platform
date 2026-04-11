@@ -1,0 +1,4873 @@
+openapi: 3.1.0
+info:
+  title: ChaosPlane Platform API
+  version: 1.0.0
+  description: ChaosPlane Platform API provides chaos engineering capabilities including experiment management, topology discovery,
+    vulnerability scanning, resilience scoring, and multi-tenant SaaS features.
+  contact:
+    name: ChaosPlane Engineering
+  license:
+    name: Proprietary
+servers:
+- url: /
+  description: Default server
+tags:
+- name: Health
+  description: Health check endpoints
+- name: Auth
+  description: Authentication and registration
+- name: OAuth
+  description: OAuth provider authentication
+- name: Account
+  description: Account management
+- name: Onboarding
+  description: Onboarding progress and quick setup
+- name: Hierarchy
+  description: Organization, workspace, team, project, and environment management
+- name: Invitations
+  description: Team and organization invitations
+- name: API Keys
+  description: API key management
+- name: Agent
+  description: Agent registration, heartbeat, and token management
+- name: Billing
+  description: Subscription and billing management
+- name: Notifications
+  description: Notification channels and rules
+- name: Audit
+  description: Audit logs and exports
+- name: Topology
+  description: Topology snapshots and submission
+- name: Topology Analysis
+  description: Dependencies, drifts, and metrics
+- name: Vulnerabilities
+  description: Vulnerability scanning and findings
+- name: Suggestions
+  description: AI-generated experiment suggestions
+- name: Result Analysis
+  description: Experiment result analysis
+- name: AI Chat
+  description: AI-powered chat sessions
+- name: Sessions
+  description: Active session management
+- name: MFA
+  description: Multi-factor authentication recovery codes
+- name: SAML
+  description: SAML SSO provider management
+- name: ABAC
+  description: Attribute-based access control policies
+- name: Game Days
+  description: Game day exercises and postmortems
+- name: Resilience Score
+  description: Environment resilience scoring
+- name: Workflow Templates
+  description: Chaos experiment workflow templates
+- name: Experiments
+  description: Chaos experiment CRUD via Kubernetes CRDs
+- name: Policies
+  description: Chaos policy management via Kubernetes CRDs
+- name: Webhooks
+  description: Payment gateway webhooks
+- name: WebSocket
+  description: Real-time experiment status streaming
+security: []
+paths:
+  /healthz:
+    get:
+      operationId: healthz
+      tags:
+      - Health
+      summary: Liveness probe
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StatusResponse'
+  /readyz:
+    get:
+      operationId: readyz
+      tags:
+      - Health
+      summary: Readiness probe (checks DB connectivity)
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StatusResponse'
+        '503':
+          description: Unavailable
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorWithStatus'
+  /auth/register:
+    post:
+      operationId: authRegister
+      tags:
+      - Auth
+      summary: Register a new user
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RegisterRequest'
+      responses:
+        '201':
+          description: User registered
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AuthResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '500':
+          $ref: '#/components/responses/InternalError'
+  /auth/login:
+    post:
+      operationId: authLogin
+      tags:
+      - Auth
+      summary: Login with email and password
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/LoginRequest'
+      responses:
+        '200':
+          description: Login successful
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AuthResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '423':
+          description: Account locked
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+  /auth/refresh:
+    post:
+      operationId: authRefresh
+      tags:
+      - Auth
+      summary: Refresh access token
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RefreshRequest'
+      responses:
+        '200':
+          description: Tokens refreshed
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AuthResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+  /auth/forgot-password:
+    post:
+      operationId: authForgotPassword
+      tags:
+      - Auth
+      summary: Request password reset token
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ForgotPasswordRequest'
+      responses:
+        '200':
+          description: Reset token issued
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PasswordResetTokenResponse'
+  /auth/reset-password:
+    post:
+      operationId: authResetPassword
+      tags:
+      - Auth
+      summary: Reset password using token
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ResetPasswordRequest'
+      responses:
+        '204':
+          description: Password reset successful
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '410':
+          description: Token expired
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+  /auth/verify-email:
+    post:
+      operationId: authVerifyEmail
+      tags:
+      - Auth
+      summary: Verify email address
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/VerifyEmailRequest'
+      responses:
+        '204':
+          description: Email verified
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '410':
+          description: Token expired
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+  /auth/resend-verification:
+    post:
+      operationId: authResendVerification
+      tags:
+      - Auth
+      summary: Resend email verification token
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ResendVerificationRequest'
+      responses:
+        '200':
+          description: Verification token sent
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/VerificationTokenResponse'
+  /auth/invitations/lookup:
+    get:
+      operationId: invitationLookupByToken
+      tags:
+      - Invitations
+      summary: Lookup invitation details by token
+      parameters:
+      - name: token
+        in: query
+        required: true
+        schema:
+          type: string
+      responses:
+        '200':
+          description: Invitation details
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/InvitationByTokenResponse'
+        '404':
+          $ref: '#/components/responses/NotFound'
+  /auth/invitations/accept-by-token:
+    post:
+      operationId: invitationAcceptByToken
+      tags:
+      - Invitations
+      summary: Accept invitation by token (creates user if needed)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AcceptByTokenRequest'
+      responses:
+        '200':
+          description: Invitation accepted
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Invitation'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '410':
+          description: Token expired
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+  /auth/oauth/{provider}/authorize:
+    get:
+      operationId: oauthAuthorize
+      tags:
+      - OAuth
+      summary: Get OAuth authorization URL
+      parameters:
+      - name: provider
+        in: path
+        required: true
+        schema:
+          type: string
+          enum:
+          - google
+          - github
+          - microsoft
+      responses:
+        '200':
+          description: Authorization URL
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/OAuthAuthorizeResponse'
+        '404':
+          $ref: '#/components/responses/NotFound'
+  /auth/oauth/callback:
+    post:
+      operationId: oauthCallback
+      tags:
+      - OAuth
+      summary: Handle OAuth callback
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/OAuthCallbackRequest'
+      responses:
+        '200':
+          description: OAuth login successful
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AuthResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+  /auth/me:
+    get:
+      operationId: authMe
+      tags:
+      - Auth
+      summary: Get current user info
+      security:
+      - BearerAuth: []
+      responses:
+        '200':
+          description: Current user
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CurrentUserResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+  /auth/quick-setup:
+    post:
+      operationId: authQuickSetup
+      tags:
+      - Onboarding
+      summary: Quick setup (creates default org/workspace/team)
+      security:
+      - BearerAuth: []
+      responses:
+        '200':
+          description: Quick setup completed
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/QuickSetupResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+  /auth/accept-tos:
+    post:
+      operationId: authAcceptTOS
+      tags:
+      - Account
+      summary: Accept terms of service
+      security:
+      - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AcceptTOSRequest'
+      responses:
+        '204':
+          description: TOS accepted
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+  /auth/account/export:
+    get:
+      operationId: accountExport
+      tags:
+      - Account
+      summary: Export account data (GDPR)
+      security:
+      - BearerAuth: []
+      responses:
+        '200':
+          description: Account data export
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AccountExportResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+  /auth/account:
+    delete:
+      operationId: accountDelete
+      tags:
+      - Account
+      summary: Delete account
+      security:
+      - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/DeleteAccountRequest'
+      responses:
+        '204':
+          description: Account deleted
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+  /auth/account/cancel-deletion:
+    post:
+      operationId: accountCancelDeletion
+      tags:
+      - Account
+      summary: Cancel pending account deletion
+      security:
+      - BearerAuth: []
+      responses:
+        '204':
+          description: Deletion cancelled
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+  /auth/logout:
+    post:
+      operationId: authLogout
+      tags:
+      - Auth
+      summary: Logout (blacklist access token, revoke refresh token)
+      security:
+      - BearerAuth: []
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/LogoutRequest'
+      responses:
+        '204':
+          description: Logged out
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+  /agent/register:
+    post:
+      operationId: agentRegister
+      tags:
+      - Agent
+      summary: Register agent with environment
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RegisterAgentRequest'
+      responses:
+        '200':
+          description: Agent registered
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RegisterAgentResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+  /agent/heartbeat:
+    post:
+      operationId: agentHeartbeat
+      tags:
+      - Agent
+      summary: Agent heartbeat
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AgentHeartbeatRequest'
+      responses:
+        '200':
+          description: Heartbeat acknowledged
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AgentHeartbeatResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+  /agent/topology:
+    post:
+      operationId: agentTopologySubmit
+      tags:
+      - Topology
+      summary: Submit topology snapshot from agent
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/SubmitTopologyRequest'
+      responses:
+        '201':
+          description: Topology submitted
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TopologySnapshot'
+  /agent/topology/dependencies:
+    post:
+      operationId: agentTopologyDependencies
+      tags:
+      - Topology Analysis
+      summary: Submit service dependencies from agent
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/SubmitDependenciesRequest'
+      responses:
+        '200':
+          description: Dependencies submitted
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CountResponse'
+  /agent/topology/metrics:
+    post:
+      operationId: agentTopologyMetrics
+      tags:
+      - Topology Analysis
+      summary: Submit environment metrics from agent
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/SubmitMetricsRequest'
+      responses:
+        '200':
+          description: Metrics submitted
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CountResponse'
+  /agent/topology/drifts:
+    post:
+      operationId: agentTopologyDrifts
+      tags:
+      - Topology Analysis
+      summary: Submit topology drift from agent
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/SubmitDriftRequest'
+      responses:
+        '201':
+          description: Drift recorded
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TopologyDrift'
+  /webhooks/stripe:
+    post:
+      operationId: webhookStripe
+      tags:
+      - Webhooks
+      summary: Stripe payment webhook
+      parameters:
+      - name: X-Event-Type
+        in: header
+        schema:
+          type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+      responses:
+        '200':
+          description: Webhook processed
+  /webhooks/toss:
+    post:
+      operationId: webhookToss
+      tags:
+      - Webhooks
+      summary: Toss payment webhook
+      parameters:
+      - name: X-Event-Type
+        in: header
+        schema:
+          type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+      responses:
+        '200':
+          description: Webhook processed
+  /webhooks/dodo:
+    post:
+      operationId: webhookDodo
+      tags:
+      - Webhooks
+      summary: Dodo payment webhook
+      parameters:
+      - name: X-Event-Type
+        in: header
+        schema:
+          type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+      responses:
+        '200':
+          description: Webhook processed
+  /api/v1/hierarchy:
+    get:
+      operationId: hierarchyList
+      tags:
+      - Hierarchy
+      summary: List full tenant hierarchy
+      security:
+      - BearerAuth: []
+      responses:
+        '200':
+          description: Hierarchy tree
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HierarchyResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+  /api/v1/organizations:
+    post:
+      operationId: createOrganization
+      tags:
+      - Hierarchy
+      summary: Create organization
+      security:
+      - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateOrganizationRequest'
+      responses:
+        '201':
+          description: Create organization
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Organization'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+  /api/v1/organizations/{id}:
+    patch:
+      operationId: updateOrganization
+      tags:
+      - Hierarchy
+      summary: Update organization
+      security:
+      - BearerAuth: []
+      parameters:
+      - $ref: '#/components/parameters/PathId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateOrganizationRequest'
+      responses:
+        '200':
+          description: Organization updated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Organization'
+        '404':
+          $ref: '#/components/responses/NotFound'
+  /api/v1/workspaces:
+    post:
+      operationId: createWorkspace
+      tags:
+      - Hierarchy
+      summary: Create workspace
+      security:
+      - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateWorkspaceRequest'
+      responses:
+        '201':
+          description: Create workspace
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Workspace'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+  /api/v1/workspaces/{id}:
+    patch:
+      operationId: updateWorkspace
+      tags:
+      - Hierarchy
+      summary: Update workspace
+      security:
+      - BearerAuth: []
+      parameters:
+      - $ref: '#/components/parameters/PathId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateWorkspaceRequest'
+      responses:
+        '200':
+          description: Workspace updated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Workspace'
+        '404':
+          $ref: '#/components/responses/NotFound'
+  /api/v1/teams:
+    post:
+      operationId: createTeam
+      tags:
+      - Hierarchy
+      summary: Create team
+      security:
+      - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateTeamRequest'
+      responses:
+        '201':
+          description: Create team
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Team'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+  /api/v1/teams/{id}:
+    patch:
+      operationId: updateTeam
+      tags:
+      - Hierarchy
+      summary: Update team
+      security:
+      - BearerAuth: []
+      parameters:
+      - $ref: '#/components/parameters/PathId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateTeamRequest'
+      responses:
+        '200':
+          description: Team updated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Team'
+        '404':
+          $ref: '#/components/responses/NotFound'
+  /api/v1/projects:
+    post:
+      operationId: createProject
+      tags:
+      - Hierarchy
+      summary: Create project
+      security:
+      - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateProjectRequest'
+      responses:
+        '201':
+          description: Create project
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Project'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+  /api/v1/projects/{id}:
+    patch:
+      operationId: updateProject
+      tags:
+      - Hierarchy
+      summary: Update project
+      security:
+      - BearerAuth: []
+      parameters:
+      - $ref: '#/components/parameters/PathId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateProjectRequest'
+      responses:
+        '200':
+          description: Project updated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Project'
+        '404':
+          $ref: '#/components/responses/NotFound'
+  /api/v1/environments:
+    post:
+      operationId: createEnvironment
+      tags:
+      - Hierarchy
+      summary: Create environment
+      security:
+      - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateEnvironmentRequest'
+      responses:
+        '201':
+          description: Create environment
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Environment'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+  /api/v1/environments/{id}:
+    patch:
+      operationId: updateEnvironment
+      tags:
+      - Hierarchy
+      summary: Update environment
+      security:
+      - BearerAuth: []
+      parameters:
+      - $ref: '#/components/parameters/PathId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateEnvironmentRequest'
+      responses:
+        '200':
+          description: Environment updated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Environment'
+        '404':
+          $ref: '#/components/responses/NotFound'
+  /api/v1/onboarding:
+    get:
+      operationId: onboardingGet
+      tags:
+      - Onboarding
+      summary: Get onboarding progress
+      security:
+      - BearerAuth: []
+      responses:
+        '200':
+          description: Onboarding progress
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/OnboardingProgress'
+    patch:
+      operationId: onboardingUpdate
+      tags:
+      - Onboarding
+      summary: Update onboarding steps
+      security:
+      - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateOnboardingRequest'
+      responses:
+        '200':
+          description: Progress updated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/OnboardingProgress'
+  /api/v1/onboarding/skip:
+    post:
+      operationId: onboardingSkip
+      tags:
+      - Onboarding
+      summary: Skip onboarding
+      security:
+      - BearerAuth: []
+      responses:
+        '200':
+          description: Onboarding skipped
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/OnboardingProgress'
+  /api/v1/onboarding/complete:
+    post:
+      operationId: onboardingComplete
+      tags:
+      - Onboarding
+      summary: Mark onboarding complete
+      security:
+      - BearerAuth: []
+      responses:
+        '200':
+          description: Onboarding completed
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/OnboardingProgress'
+  /api/v1/agents/test-connection:
+    post:
+      operationId: testAgentConnection
+      tags:
+      - Onboarding
+      summary: Test agent connection
+      security:
+      - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/TestAgentConnectionRequest'
+      responses:
+        '200':
+          description: Test agent connection
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TestAgentConnectionResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+  /api/v1/invitations:
+    get:
+      operationId: invitationsList
+      tags:
+      - Invitations
+      summary: List invitations
+      security:
+      - BearerAuth: []
+      responses:
+        '200':
+          description: Invitations
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ListInvitationsResponse'
+    post:
+      operationId: invitationsCreate
+      tags:
+      - Invitations
+      summary: Create invitation
+      security:
+      - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateInvitationRequest'
+      responses:
+        '201':
+          description: Create invitation
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Invitation'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+  /api/v1/invitations/accept:
+    post:
+      operationId: invitationsAccept
+      tags:
+      - Invitations
+      summary: Accept invitation
+      security:
+      - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AcceptInvitationRequest'
+      responses:
+        '200':
+          description: Invitation accepted
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Invitation'
+  /api/v1/invitations/decline:
+    post:
+      operationId: invitationsDecline
+      tags:
+      - Invitations
+      summary: Decline invitation
+      security:
+      - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/DeclineInvitationRequest'
+      responses:
+        '200':
+          description: Invitation declined
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Invitation'
+  /api/v1/invitations/{id}/resend:
+    post:
+      operationId: invitationsResend
+      tags:
+      - Invitations
+      summary: Resend invitation
+      security:
+      - BearerAuth: []
+      parameters:
+      - $ref: '#/components/parameters/PathId'
+      responses:
+        '200':
+          description: Invitation resent
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Invitation'
+  /api/v1/invitations/{id}:
+    delete:
+      operationId: invitationsRevoke
+      tags:
+      - Invitations
+      summary: Revoke invitation
+      security:
+      - BearerAuth: []
+      parameters:
+      - $ref: '#/components/parameters/PathId'
+      responses:
+        '204':
+          description: Revoke invitation
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+  /api/v1/api-keys:
+    get:
+      operationId: apiKeysList
+      tags:
+      - API Keys
+      summary: List API keys
+      security:
+      - BearerAuth: []
+      responses:
+        '200':
+          description: API keys
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ListAPIKeysResponse'
+    post:
+      operationId: apiKeysCreate
+      tags:
+      - API Keys
+      summary: Create API key
+      security:
+      - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateAPIKeyRequest'
+      responses:
+        '201':
+          description: Create API key
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/APIKey'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+  /api/v1/api-keys/{id}/rotate:
+    post:
+      operationId: apiKeysRotate
+      tags:
+      - API Keys
+      summary: Rotate API key
+      security:
+      - BearerAuth: []
+      parameters:
+      - $ref: '#/components/parameters/PathId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RotateAPIKeyRequest'
+      responses:
+        '200':
+          description: API key rotated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/APIKey'
+  /api/v1/api-keys/{id}:
+    delete:
+      operationId: apiKeysRevoke
+      tags:
+      - API Keys
+      summary: Revoke API key
+      security:
+      - BearerAuth: []
+      parameters:
+      - $ref: '#/components/parameters/PathId'
+      responses:
+        '204':
+          description: Revoke API key
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+  /api/v1/agent-tokens:
+    get:
+      operationId: agentTokensList
+      tags:
+      - Agent
+      summary: List agent tokens
+      security:
+      - BearerAuth: []
+      parameters:
+      - name: environmentId
+        in: query
+        required: true
+        schema:
+          type: string
+          format: uuid
+      responses:
+        '200':
+          description: Agent tokens
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ListAgentTokensResponse'
+    post:
+      operationId: agentTokensCreate
+      tags:
+      - Agent
+      summary: Create agent token
+      security:
+      - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateAgentTokenRequest'
+      responses:
+        '201':
+          description: Create agent token
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AgentToken'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+  /api/v1/agent-tokens/{id}:
+    delete:
+      operationId: agentTokensRevoke
+      tags:
+      - Agent
+      summary: Revoke agent token
+      security:
+      - BearerAuth: []
+      parameters:
+      - $ref: '#/components/parameters/PathId'
+      responses:
+        '204':
+          description: Revoke agent token
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+  /api/v1/billing:
+    get:
+      operationId: billingGetStatus
+      tags:
+      - Billing
+      summary: Get billing status
+      security:
+      - BearerAuth: []
+      responses:
+        '200':
+          description: Billing status
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BillingStatusResponse'
+  /api/v1/billing/upgrade:
+    post:
+      operationId: billingUpgrade
+      tags:
+      - Billing
+      summary: Upgrade plan
+      security:
+      - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpgradeRequest'
+      responses:
+        '200':
+          description: Upgrade plan
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UpgradeResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+  /api/v1/billing/cancel:
+    post:
+      operationId: billingCancel
+      tags:
+      - Billing
+      summary: Cancel subscription
+      security:
+      - BearerAuth: []
+      responses:
+        '200':
+          description: Subscription cancelled
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Subscription'
+  /api/v1/billing/reactivate:
+    post:
+      operationId: billingReactivate
+      tags:
+      - Billing
+      summary: Reactivate subscription
+      security:
+      - BearerAuth: []
+      responses:
+        '200':
+          description: Subscription reactivated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Subscription'
+  /api/v1/notification-channels:
+    get:
+      operationId: notificationChannelsList
+      tags:
+      - Notifications
+      summary: List notification channels
+      security:
+      - BearerAuth: []
+      responses:
+        '200':
+          description: Channels
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ListChannelsResponse'
+    post:
+      operationId: notificationChannelsCreate
+      tags:
+      - Notifications
+      summary: Create channel
+      security:
+      - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateChannelRequest'
+      responses:
+        '201':
+          description: Create channel
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/NotificationChannel'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+  /api/v1/notification-channels/{id}:
+    delete:
+      operationId: notificationChannelsDelete
+      tags:
+      - Notifications
+      summary: Delete channel
+      security:
+      - BearerAuth: []
+      parameters:
+      - $ref: '#/components/parameters/PathId'
+      responses:
+        '204':
+          description: Delete channel
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+  /api/v1/notification-rules:
+    get:
+      operationId: notificationRulesList
+      tags:
+      - Notifications
+      summary: List notification rules
+      security:
+      - BearerAuth: []
+      responses:
+        '200':
+          description: Rules
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ListRulesResponse'
+    post:
+      operationId: notificationRulesCreate
+      tags:
+      - Notifications
+      summary: Create rule
+      security:
+      - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateRuleRequest'
+      responses:
+        '201':
+          description: Create rule
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/NotificationRule'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+  /api/v1/notification-rules/{id}:
+    delete:
+      operationId: notificationRulesDelete
+      tags:
+      - Notifications
+      summary: Delete rule
+      security:
+      - BearerAuth: []
+      parameters:
+      - $ref: '#/components/parameters/PathId'
+      responses:
+        '204':
+          description: Delete rule
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+  /api/v1/audit-logs:
+    get:
+      operationId: auditLogsList
+      tags:
+      - Audit
+      summary: List audit logs
+      security:
+      - BearerAuth: []
+      parameters:
+      - name: action
+        in: query
+        schema:
+          type: string
+      - name: resourceType
+        in: query
+        schema:
+          type: string
+      - name: userId
+        in: query
+        schema:
+          type: string
+      - name: limit
+        in: query
+        schema:
+          type: integer
+          default: 50
+          maximum: 200
+      - name: offset
+        in: query
+        schema:
+          type: integer
+          default: 0
+      responses:
+        '200':
+          description: Audit logs
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ListAuditLogsResponse'
+  /api/v1/audit-exports:
+    get:
+      operationId: auditExportsList
+      tags:
+      - Audit
+      summary: List audit exports
+      security:
+      - BearerAuth: []
+      responses:
+        '200':
+          description: Audit exports
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AuditExportListResponse'
+    post:
+      operationId: auditExportsCreate
+      tags:
+      - Audit
+      summary: Create audit export
+      security:
+      - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateAuditExportRequest'
+      responses:
+        '201':
+          description: Create audit export
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AuditExport'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+  /api/v1/topology/latest:
+    get:
+      operationId: topologyLatest
+      tags:
+      - Topology
+      summary: Get latest topology snapshot
+      security:
+      - BearerAuth: []
+      parameters:
+      - $ref: '#/components/parameters/EnvironmentIdQuery'
+      responses:
+        '200':
+          description: Latest topology
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TopologySnapshot'
+        '404':
+          $ref: '#/components/responses/NotFound'
+  /api/v1/topology/history:
+    get:
+      operationId: topologyHistory
+      tags:
+      - Topology
+      summary: List topology history
+      security:
+      - BearerAuth: []
+      parameters:
+      - $ref: '#/components/parameters/EnvironmentIdQuery'
+      - name: limit
+        in: query
+        schema:
+          type: integer
+          default: 10
+      responses:
+        '200':
+          description: Topology history
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ListTopologyResponse'
+  /api/v1/topology/dependencies:
+    get:
+      operationId: topologyDependencies
+      tags:
+      - Topology Analysis
+      summary: Get dependency map
+      security:
+      - BearerAuth: []
+      parameters:
+      - $ref: '#/components/parameters/EnvironmentIdQuery'
+      responses:
+        '200':
+          description: Dependency map
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DependencyMapResponse'
+  /api/v1/topology/drifts:
+    get:
+      operationId: topologyDrifts
+      tags:
+      - Topology Analysis
+      summary: List topology drifts
+      security:
+      - BearerAuth: []
+      parameters:
+      - $ref: '#/components/parameters/EnvironmentIdQuery'
+      - name: unackedOnly
+        in: query
+        schema:
+          type: string
+          enum:
+          - 'true'
+          - 'false'
+      - name: limit
+        in: query
+        schema:
+          type: integer
+          default: 50
+      responses:
+        '200':
+          description: Drifts
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DriftListResponse'
+  /api/v1/topology/drifts/{id}/acknowledge:
+    post:
+      operationId: topologyDriftAcknowledge
+      tags:
+      - Topology Analysis
+      summary: Acknowledge drift
+      security:
+      - BearerAuth: []
+      parameters:
+      - $ref: '#/components/parameters/PathId'
+      responses:
+        '204':
+          description: Drift acknowledged
+        '404':
+          $ref: '#/components/responses/NotFound'
+  /api/v1/topology/metrics:
+    get:
+      operationId: topologyMetrics
+      tags:
+      - Topology Analysis
+      summary: Get environment metrics
+      security:
+      - BearerAuth: []
+      parameters:
+      - $ref: '#/components/parameters/EnvironmentIdQuery'
+      - name: metricName
+        in: query
+        schema:
+          type: string
+      - name: limit
+        in: query
+        schema:
+          type: integer
+          default: 100
+      responses:
+        '200':
+          description: Metrics
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MetricsResponse'
+  /api/v1/vulnerabilities:
+    get:
+      operationId: vulnerabilitiesList
+      tags:
+      - Vulnerabilities
+      summary: List vulnerability findings
+      security:
+      - BearerAuth: []
+      parameters:
+      - $ref: '#/components/parameters/EnvironmentIdQuery'
+      - name: status
+        in: query
+        schema:
+          type: string
+      - name: severity
+        in: query
+        schema:
+          type: string
+      - name: limit
+        in: query
+        schema:
+          type: integer
+          default: 50
+      responses:
+        '200':
+          description: Findings
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/VulnerabilityListResponse'
+  /api/v1/vulnerabilities/{id}:
+    patch:
+      operationId: vulnerabilitiesUpdateStatus
+      tags:
+      - Vulnerabilities
+      summary: Update vulnerability status
+      security:
+      - BearerAuth: []
+      parameters:
+      - $ref: '#/components/parameters/PathId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+              - status
+              properties:
+                status:
+                  type: string
+      responses:
+        '204':
+          description: Status updated
+        '404':
+          $ref: '#/components/responses/NotFound'
+  /api/v1/vulnerabilities/scan:
+    post:
+      operationId: vulnerabilitiesScan
+      tags:
+      - Vulnerabilities
+      summary: Trigger vulnerability scan
+      security:
+      - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/VulnerabilityScanRequest'
+      responses:
+        '200':
+          description: Trigger vulnerability scan
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/VulnerabilityScanResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+  /api/v1/suggestions:
+    get:
+      operationId: suggestionsList
+      tags:
+      - Suggestions
+      summary: List experiment suggestions
+      security:
+      - BearerAuth: []
+      parameters:
+      - $ref: '#/components/parameters/EnvironmentIdQuery'
+      responses:
+        '200':
+          description: Suggestions
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SuggestionListResponse'
+  /api/v1/suggestions/generate:
+    post:
+      operationId: suggestionsGenerate
+      tags:
+      - Suggestions
+      summary: Generate suggestions
+      security:
+      - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/GenerateSuggestionsRequest'
+      responses:
+        '200':
+          description: Generate suggestions
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/GenerateSuggestionsResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+  /api/v1/suggestions/{id}:
+    delete:
+      operationId: suggestionsDelete
+      tags:
+      - Suggestions
+      summary: Delete suggestion
+      security:
+      - BearerAuth: []
+      parameters:
+      - $ref: '#/components/parameters/PathId'
+      responses:
+        '204':
+          description: Delete suggestion
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+  /api/v1/result-analysis:
+    get:
+      operationId: resultAnalysisList
+      tags:
+      - Result Analysis
+      summary: List result analyses
+      security:
+      - BearerAuth: []
+      parameters:
+      - name: environmentId
+        in: query
+        schema:
+          type: string
+          format: uuid
+      responses:
+        '200':
+          description: Result analyses
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ResultAnalysisListResponse'
+    post:
+      operationId: resultAnalysisAnalyze
+      tags:
+      - Result Analysis
+      summary: Analyze experiment result
+      security:
+      - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AnalyzeResultRequest'
+      responses:
+        '201':
+          description: Analyze experiment result
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ResultAnalysis'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+  /api/v1/result-analysis/{id}:
+    get:
+      operationId: resultAnalysisGet
+      tags:
+      - Result Analysis
+      summary: Get result analysis
+      security:
+      - BearerAuth: []
+      parameters:
+      - $ref: '#/components/parameters/PathId'
+      responses:
+        '200':
+          description: Result analysis
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ResultAnalysis'
+        '404':
+          $ref: '#/components/responses/NotFound'
+  /api/v1/ai/chat/sessions:
+    get:
+      operationId: aiChatSessionsList
+      tags:
+      - AI Chat
+      summary: List chat sessions
+      security:
+      - BearerAuth: []
+      responses:
+        '200':
+          description: Chat sessions
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ChatSessionListResponse'
+    post:
+      operationId: aiChatSessionsCreate
+      tags:
+      - AI Chat
+      summary: Create chat session
+      security:
+      - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateChatSessionRequest'
+      responses:
+        '201':
+          description: Create chat session
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ChatSession'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+  /api/v1/ai/chat/sessions/{id}/messages:
+    get:
+      operationId: aiChatMessagesGet
+      tags:
+      - AI Chat
+      summary: Get chat messages
+      security:
+      - BearerAuth: []
+      parameters:
+      - $ref: '#/components/parameters/PathId'
+      responses:
+        '200':
+          description: Messages
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ChatMessageListResponse'
+    post:
+      operationId: aiChatMessagesSend
+      tags:
+      - AI Chat
+      summary: Send message
+      security:
+      - BearerAuth: []
+      parameters:
+      - $ref: '#/components/parameters/PathId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/SendMessageRequest'
+      responses:
+        '200':
+          description: Message sent
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SendMessageResponse'
+  /api/v1/ai/chat/sessions/{id}:
+    delete:
+      operationId: aiChatSessionsDelete
+      tags:
+      - AI Chat
+      summary: Delete chat session
+      security:
+      - BearerAuth: []
+      parameters:
+      - $ref: '#/components/parameters/PathId'
+      responses:
+        '204':
+          description: Delete chat session
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+  /api/v1/sessions:
+    get:
+      operationId: sessionsList
+      tags:
+      - Sessions
+      summary: List active sessions
+      security:
+      - BearerAuth: []
+      responses:
+        '200':
+          description: Active sessions
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ActiveSessionListResponse'
+  /api/v1/sessions/{id}:
+    delete:
+      operationId: sessionsRevoke
+      tags:
+      - Sessions
+      summary: Revoke session
+      security:
+      - BearerAuth: []
+      parameters:
+      - $ref: '#/components/parameters/PathId'
+      responses:
+        '204':
+          description: Revoke session
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+  /api/v1/sessions/revoke-all:
+    post:
+      operationId: sessionsRevokeAll
+      tags:
+      - Sessions
+      summary: Revoke all sessions
+      security:
+      - BearerAuth: []
+      responses:
+        '200':
+          description: Sessions revoked
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  revoked:
+                    type: integer
+  /api/v1/mfa/recovery-codes/count:
+    get:
+      operationId: mfaRecoveryCodesCount
+      tags:
+      - MFA
+      summary: Get remaining recovery code count
+      security:
+      - BearerAuth: []
+      responses:
+        '200':
+          description: Count
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  remaining:
+                    type: integer
+  /api/v1/mfa/recovery-codes:
+    post:
+      operationId: mfaRecoveryCodesGenerate
+      tags:
+      - MFA
+      summary: Generate recovery codes
+      security:
+      - BearerAuth: []
+      responses:
+        '200':
+          description: Recovery codes
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RecoveryCodesResponse'
+  /api/v1/saml-providers:
+    get:
+      operationId: samlProvidersList
+      tags:
+      - SAML
+      summary: List SAML providers
+      security:
+      - BearerAuth: []
+      responses:
+        '200':
+          description: SAML providers
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SAMLProviderListResponse'
+    post:
+      operationId: samlProvidersCreate
+      tags:
+      - SAML
+      summary: Create SAML provider
+      security:
+      - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateSAMLProviderRequest'
+      responses:
+        '201':
+          description: Create SAML provider
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SAMLProvider'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+  /api/v1/saml-providers/{id}:
+    delete:
+      operationId: samlProvidersDelete
+      tags:
+      - SAML
+      summary: Delete SAML provider
+      security:
+      - BearerAuth: []
+      parameters:
+      - $ref: '#/components/parameters/PathId'
+      responses:
+        '204':
+          description: Delete SAML provider
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+  /api/v1/abac-policies:
+    get:
+      operationId: abacPoliciesList
+      tags:
+      - ABAC
+      summary: List ABAC policies
+      security:
+      - BearerAuth: []
+      responses:
+        '200':
+          description: ABAC policies
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ABACPolicyListResponse'
+    post:
+      operationId: abacPoliciesCreate
+      tags:
+      - ABAC
+      summary: Create ABAC policy
+      security:
+      - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateABACPolicyRequest'
+      responses:
+        '201':
+          description: Create ABAC policy
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ABACPolicy'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+  /api/v1/abac-policies/{id}:
+    delete:
+      operationId: abacPoliciesDelete
+      tags:
+      - ABAC
+      summary: Delete ABAC policy
+      security:
+      - BearerAuth: []
+      parameters:
+      - $ref: '#/components/parameters/PathId'
+      responses:
+        '204':
+          description: Delete ABAC policy
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+  /api/v1/abac-policies/evaluate:
+    post:
+      operationId: abacPoliciesEvaluate
+      tags:
+      - ABAC
+      summary: Evaluate ABAC policy
+      security:
+      - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/EvaluateABACRequest'
+      responses:
+        '200':
+          description: Evaluate ABAC policy
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/EvaluateABACResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+  /api/v1/account/request-deletion:
+    post:
+      operationId: accountRequestDeletion
+      tags:
+      - Account
+      summary: Request account deletion
+      security:
+      - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RequestDeletionRequest'
+      responses:
+        '200':
+          description: Request account deletion
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DeletionRequest'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+  /api/v1/account/cancel-deletion:
+    post:
+      operationId: accountCancelDeletionEnterprise
+      tags:
+      - Account
+      summary: Cancel deletion (enterprise)
+      security:
+      - BearerAuth: []
+      responses:
+        '204':
+          description: Cancelled
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+  /api/v1/account/change-email:
+    post:
+      operationId: accountChangeEmail
+      tags:
+      - Account
+      summary: Request email change
+      security:
+      - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/EmailChangeRequest'
+      responses:
+        '200':
+          description: Request email change
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/EmailChangeResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+  /api/v1/account/confirm-email-change:
+    post:
+      operationId: accountConfirmEmailChange
+      tags:
+      - Account
+      summary: Confirm email change
+      security:
+      - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+              - token
+              properties:
+                token:
+                  type: string
+      responses:
+        '204':
+          description: Email changed
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+  /api/v1/gamedays:
+    get:
+      operationId: gamedaysList
+      tags:
+      - Game Days
+      summary: List game days
+      security:
+      - BearerAuth: []
+      responses:
+        '200':
+          description: Game days
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/GameDayListResponse'
+    post:
+      operationId: gamedaysCreate
+      tags:
+      - Game Days
+      summary: Create game day
+      security:
+      - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateGameDayRequest'
+      responses:
+        '201':
+          description: Create game day
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/GameDay'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+  /api/v1/gamedays/{id}:
+    get:
+      operationId: gamedaysGet
+      tags:
+      - Game Days
+      summary: Get game day detail
+      security:
+      - BearerAuth: []
+      parameters:
+      - $ref: '#/components/parameters/PathId'
+      responses:
+        '200':
+          description: Game day
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/GameDayDetailResponse'
+        '404':
+          $ref: '#/components/responses/NotFound'
+  /api/v1/gamedays/{id}/status:
+    patch:
+      operationId: gamedaysUpdateStatus
+      tags:
+      - Game Days
+      summary: Update game day status
+      security:
+      - BearerAuth: []
+      parameters:
+      - $ref: '#/components/parameters/PathId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateGameDayStatusRequest'
+      responses:
+        '200':
+          description: Status updated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/GameDay'
+  /api/v1/gamedays/{id}/events:
+    post:
+      operationId: gamedaysAddEvent
+      tags:
+      - Game Days
+      summary: Add event
+      security:
+      - BearerAuth: []
+      parameters:
+      - $ref: '#/components/parameters/PathId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AddGameDayEventRequest'
+      responses:
+        '201':
+          description: Event added
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/GameDayEvent'
+  /api/v1/gamedays/{id}/postmortem:
+    post:
+      operationId: gamedaysCreatePostmortem
+      tags:
+      - Game Days
+      summary: Create postmortem
+      security:
+      - BearerAuth: []
+      parameters:
+      - $ref: '#/components/parameters/PathId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreatePostmortemRequest'
+      responses:
+        '201':
+          description: Postmortem created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/GameDayPostmortem'
+  /api/v1/resilience-score:
+    get:
+      operationId: resilienceScoreGet
+      tags:
+      - Resilience Score
+      summary: Get resilience score
+      security:
+      - BearerAuth: []
+      parameters:
+      - $ref: '#/components/parameters/EnvironmentIdQuery'
+      responses:
+        '200':
+          description: Resilience score
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ResilienceScoreResponse'
+  /api/v1/resilience-score/calculate:
+    post:
+      operationId: resilienceScoreCalculate
+      tags:
+      - Resilience Score
+      summary: Calculate score
+      security:
+      - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CalculateScoreRequest'
+      responses:
+        '200':
+          description: Calculate score
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ResilienceScore'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+  /api/v1/workflow-templates:
+    get:
+      operationId: workflowTemplatesList
+      tags:
+      - Workflow Templates
+      summary: List workflow templates
+      security:
+      - BearerAuth: []
+      responses:
+        '200':
+          description: Templates
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/WorkflowTemplateListResponse'
+    post:
+      operationId: workflowTemplatesCreate
+      tags:
+      - Workflow Templates
+      summary: Create template
+      security:
+      - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateWorkflowTemplateRequest'
+      responses:
+        '201':
+          description: Create template
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/WorkflowTemplate'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+  /api/v1/workflow-templates/{id}:
+    delete:
+      operationId: workflowTemplatesDelete
+      tags:
+      - Workflow Templates
+      summary: Delete template
+      security:
+      - BearerAuth: []
+      parameters:
+      - $ref: '#/components/parameters/PathId'
+      responses:
+        '204':
+          description: Delete template
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+  /api/v1/experiments:
+    post:
+      operationId: experimentsCreate
+      tags:
+      - Experiments
+      summary: Create chaos experiment
+      security:
+      - ApiKeyAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateExperimentRequest'
+      responses:
+        '201':
+          description: Experiment created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ExperimentResponse'
+    get:
+      operationId: experimentsList
+      tags:
+      - Experiments
+      summary: List experiments
+      security:
+      - ApiKeyAuth: []
+      parameters:
+      - name: namespace
+        in: query
+        schema:
+          type: string
+      - name: limit
+        in: query
+        schema:
+          type: integer
+          default: 20
+          maximum: 100
+      - name: offset
+        in: query
+        schema:
+          type: integer
+          default: 0
+      responses:
+        '200':
+          description: Experiments
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PaginatedExperimentResponse'
+  /api/v1/experiments/{name}:
+    get:
+      operationId: experimentsGet
+      tags:
+      - Experiments
+      summary: Get experiment
+      security:
+      - ApiKeyAuth: []
+      parameters:
+      - name: name
+        in: path
+        required: true
+        schema:
+          type: string
+      - name: namespace
+        in: query
+        schema:
+          type: string
+          default: default
+      responses:
+        '200':
+          description: Experiment
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ExperimentResponse'
+        '404':
+          $ref: '#/components/responses/NotFound'
+    delete:
+      operationId: experimentsDelete
+      tags:
+      - Experiments
+      summary: Delete experiment
+      security:
+      - ApiKeyAuth: []
+      parameters:
+      - name: name
+        in: path
+        required: true
+        schema:
+          type: string
+      - name: namespace
+        in: query
+        schema:
+          type: string
+          default: default
+      responses:
+        '204':
+          description: Experiment deleted
+  /api/v1/experiments/{name}/abort:
+    post:
+      operationId: experimentsAbort
+      tags:
+      - Experiments
+      summary: Abort experiment
+      security:
+      - ApiKeyAuth: []
+      parameters:
+      - name: name
+        in: path
+        required: true
+        schema:
+          type: string
+      - name: namespace
+        in: query
+        schema:
+          type: string
+          default: default
+      responses:
+        '200':
+          description: Experiment aborted
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ExperimentResponse'
+  /api/v1/policies:
+    get:
+      operationId: policiesList
+      tags:
+      - Policies
+      summary: List policies
+      security:
+      - ApiKeyAuth: []
+      parameters:
+      - name: namespace
+        in: query
+        schema:
+          type: string
+      - name: limit
+        in: query
+        schema:
+          type: integer
+          default: 20
+          maximum: 100
+      - name: offset
+        in: query
+        schema:
+          type: integer
+          default: 0
+      responses:
+        '200':
+          description: Policies
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PaginatedPolicyResponse'
+  /api/v1/policies/{name}:
+    get:
+      operationId: policiesGet
+      tags:
+      - Policies
+      summary: Get policy
+      security:
+      - ApiKeyAuth: []
+      parameters:
+      - name: name
+        in: path
+        required: true
+        schema:
+          type: string
+      - name: namespace
+        in: query
+        schema:
+          type: string
+          default: default
+      responses:
+        '200':
+          description: Policy
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PolicyResponse'
+        '404':
+          $ref: '#/components/responses/NotFound'
+  /ws/experiments/{name}:
+    get:
+      operationId: wsExperimentStatus
+      tags:
+      - WebSocket
+      summary: Stream experiment status via WebSocket
+      parameters:
+      - name: name
+        in: path
+        required: true
+        schema:
+          type: string
+      - name: namespace
+        in: query
+        schema:
+          type: string
+          default: default
+      - name: token
+        in: query
+        required: true
+        schema:
+          type: string
+      responses:
+        '101':
+          description: WebSocket upgrade - streams ExperimentResponse JSON
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+components:
+  securitySchemes:
+    BearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+      description: JWT access token from /auth/login or /auth/register
+    ApiKeyAuth:
+      type: apiKey
+      in: header
+      name: X-API-Key
+      description: API key created via /api/v1/api-keys
+  parameters:
+    PathId:
+      name: id
+      in: path
+      required: true
+      schema:
+        type: string
+        format: uuid
+    EnvironmentIdQuery:
+      name: environmentId
+      in: query
+      required: true
+      schema:
+        type: string
+        format: uuid
+  responses:
+    BadRequest:
+      description: Bad request
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+    Unauthorized:
+      description: Unauthorized
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+    Forbidden:
+      description: Forbidden
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+    NotFound:
+      description: Resource not found
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+    InternalError:
+      description: Internal server error
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+  schemas:
+    Error:
+      type: object
+      properties:
+        error:
+          type: string
+      required:
+      - error
+    ErrorWithStatus:
+      type: object
+      properties:
+        status:
+          type: string
+        error:
+          type: string
+    StatusResponse:
+      type: object
+      properties:
+        status:
+          type: string
+    CountResponse:
+      type: object
+      properties:
+        count:
+          type: integer
+    RegisterRequest:
+      type: object
+      properties:
+        email:
+          type: string
+          format: email
+        password:
+          type: string
+          minLength: 8
+        name:
+          type: string
+          minLength: 2
+        acceptedTosVersion:
+          type: string
+      required:
+      - email
+      - password
+      - name
+    LoginRequest:
+      type: object
+      properties:
+        email:
+          type: string
+          format: email
+        password:
+          type: string
+      required:
+      - email
+      - password
+    RefreshRequest:
+      type: object
+      properties:
+        refreshToken:
+          type: string
+      required:
+      - refreshToken
+    LogoutRequest:
+      type: object
+      properties:
+        refreshToken:
+          type: string
+    ForgotPasswordRequest:
+      type: object
+      properties:
+        email:
+          type: string
+          format: email
+      required:
+      - email
+    ResetPasswordRequest:
+      type: object
+      properties:
+        token:
+          type: string
+        newPassword:
+          type: string
+          minLength: 8
+      required:
+      - token
+      - newPassword
+    VerifyEmailRequest:
+      type: object
+      properties:
+        token:
+          type: string
+      required:
+      - token
+    ResendVerificationRequest:
+      type: object
+      properties:
+        email:
+          type: string
+          format: email
+      required:
+      - email
+    AuthUser:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        email:
+          type: string
+          format: email
+        name:
+          type: string
+        emailVerified:
+          type: boolean
+        lastLoginAt:
+          type: string
+          format: date-time
+    AuthTenant:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        name:
+          type: string
+        slug:
+          type: string
+    AuthResponse:
+      type: object
+      properties:
+        accessToken:
+          type: string
+        refreshToken:
+          type: string
+        expiresIn:
+          type: integer
+        user:
+          $ref: '#/components/schemas/AuthUser'
+        tenant:
+          $ref: '#/components/schemas/AuthTenant'
+        verificationToken:
+          type: string
+        verificationExpiresAt:
+          type: string
+          format: date-time
+    CurrentUserResponse:
+      type: object
+      properties:
+        user:
+          $ref: '#/components/schemas/AuthUser'
+        tenant:
+          $ref: '#/components/schemas/AuthTenant'
+        csrfToken:
+          type: string
+    VerificationTokenResponse:
+      type: object
+      properties:
+        verificationToken:
+          type: string
+        expiresAt:
+          type: string
+          format: date-time
+    PasswordResetTokenResponse:
+      type: object
+      properties:
+        resetToken:
+          type: string
+        expiresAt:
+          type: string
+          format: date-time
+    OAuthAuthorizeResponse:
+      type: object
+      properties:
+        authUrl:
+          type: string
+          format: uri
+        state:
+          type: string
+    OAuthCallbackRequest:
+      type: object
+      properties:
+        provider:
+          type: string
+        code:
+          type: string
+        state:
+          type: string
+      required:
+      - provider
+      - code
+      - state
+    AcceptTOSRequest:
+      type: object
+      properties:
+        version:
+          type: string
+      required:
+      - version
+    AccountExportResponse:
+      type: object
+      properties:
+        user:
+          type: object
+        tenants:
+          type: array
+          items:
+            type: object
+        teams:
+          type: array
+          items:
+            type: object
+        invitations:
+          type: array
+          items:
+            type: object
+        apiKeys:
+          type: array
+          items:
+            type: object
+        onboarding:
+          type: array
+          items:
+            type: object
+        exportedAt:
+          type: string
+          format: date-time
+    DeleteAccountRequest:
+      type: object
+      properties:
+        confirmation:
+          type: string
+      required:
+      - confirmation
+    RequestDeletionRequest:
+      type: object
+      properties:
+        reason:
+          type: string
+    DeletionRequest:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        userId:
+          type: string
+          format: uuid
+        reason:
+          type: string
+        gracePeriodEnds:
+          type: string
+          format: date-time
+        cancelledAt:
+          type: string
+          format: date-time
+        executedAt:
+          type: string
+          format: date-time
+        createdAt:
+          type: string
+          format: date-time
+    EmailChangeRequest:
+      type: object
+      properties:
+        newEmail:
+          type: string
+          format: email
+      required:
+      - newEmail
+    EmailChangeResponse:
+      type: object
+      properties:
+        token:
+          type: string
+        expiresAt:
+          type: string
+          format: date-time
+    Organization:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        tenantId:
+          type: string
+          format: uuid
+        name:
+          type: string
+        slug:
+          type: string
+        description:
+          type: string
+    Workspace:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        tenantId:
+          type: string
+          format: uuid
+        organizationId:
+          type: string
+          format: uuid
+        name:
+          type: string
+        slug:
+          type: string
+        description:
+          type: string
+    Team:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        tenantId:
+          type: string
+          format: uuid
+        workspaceId:
+          type: string
+          format: uuid
+        name:
+          type: string
+        slug:
+          type: string
+        description:
+          type: string
+    Project:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        tenantId:
+          type: string
+          format: uuid
+        workspaceId:
+          type: string
+          format: uuid
+        name:
+          type: string
+        slug:
+          type: string
+        description:
+          type: string
+    Environment:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        tenantId:
+          type: string
+          format: uuid
+        projectId:
+          type: string
+          format: uuid
+        name:
+          type: string
+        slug:
+          type: string
+        type:
+          type: string
+        agentStatus:
+          type: string
+    HierarchyResponse:
+      type: object
+      properties:
+        organizations:
+          type: array
+          items:
+            $ref: '#/components/schemas/Organization'
+        workspaces:
+          type: array
+          items:
+            $ref: '#/components/schemas/Workspace'
+        teams:
+          type: array
+          items:
+            $ref: '#/components/schemas/Team'
+        projects:
+          type: array
+          items:
+            $ref: '#/components/schemas/Project'
+        environments:
+          type: array
+          items:
+            $ref: '#/components/schemas/Environment'
+    CreateOrganizationRequest:
+      type: object
+      required:
+      - name
+      properties:
+        name: &id001
+          type: string
+          minLength: 2
+        slug: &id002
+          type: string
+        description: &id003
+          type: string
+    UpdateOrganizationRequest:
+      type: object
+      required:
+      - name
+      properties:
+        name: *id001
+        slug: *id002
+        description: *id003
+    CreateWorkspaceRequest:
+      type: object
+      required:
+      - organizationId
+      - name
+      properties:
+        organizationId:
+          type: string
+          format: uuid
+        name: &id004
+          type: string
+          minLength: 2
+        slug: &id005
+          type: string
+        description: &id006
+          type: string
+    UpdateWorkspaceRequest:
+      type: object
+      required:
+      - name
+      properties:
+        name: *id004
+        slug: *id005
+        description: *id006
+    CreateTeamRequest:
+      type: object
+      required:
+      - workspaceId
+      - name
+      properties:
+        workspaceId:
+          type: string
+          format: uuid
+        name: &id007
+          type: string
+          minLength: 2
+        slug: &id008
+          type: string
+        description: &id009
+          type: string
+    UpdateTeamRequest:
+      type: object
+      required:
+      - name
+      properties:
+        name: *id007
+        slug: *id008
+        description: *id009
+    CreateProjectRequest:
+      type: object
+      required:
+      - workspaceId
+      - name
+      properties:
+        workspaceId:
+          type: string
+          format: uuid
+        name: &id010
+          type: string
+          minLength: 2
+        slug: &id011
+          type: string
+        description: &id012
+          type: string
+    UpdateProjectRequest:
+      type: object
+      required:
+      - name
+      properties:
+        name: *id010
+        slug: *id011
+        description: *id012
+    CreateEnvironmentRequest:
+      type: object
+      required:
+      - projectId
+      - name
+      properties:
+        projectId:
+          type: string
+          format: uuid
+        name: &id013
+          type: string
+          minLength: 2
+        slug: &id014
+          type: string
+        type: &id015
+          type: string
+    UpdateEnvironmentRequest:
+      type: object
+      required:
+      - name
+      properties:
+        name: *id013
+        slug: *id014
+        type: *id015
+    OnboardingProgress:
+      type: object
+      properties:
+        userId:
+          type: string
+          format: uuid
+        tenantId:
+          type: string
+          format: uuid
+        stepOrgCreated:
+          type: boolean
+        stepWorkspaceCreated:
+          type: boolean
+        stepTeamCreated:
+          type: boolean
+        stepMemberInvited:
+          type: boolean
+        stepClusterConnected:
+          type: boolean
+        stepFirstExperiment:
+          type: boolean
+        stepResultViewed:
+          type: boolean
+        completedAt:
+          type: string
+          format: date-time
+        skippedAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+    UpdateOnboardingRequest:
+      type: object
+      properties:
+        stepOrgCreated:
+          type: boolean
+        stepWorkspaceCreated:
+          type: boolean
+        stepTeamCreated:
+          type: boolean
+        stepMemberInvited:
+          type: boolean
+        stepClusterConnected:
+          type: boolean
+        stepFirstExperiment:
+          type: boolean
+        stepResultViewed:
+          type: boolean
+    QuickSetupResponse:
+      type: object
+      properties:
+        organizationId:
+          type: string
+          format: uuid
+        workspaceId:
+          type: string
+          format: uuid
+        teamId:
+          type: string
+          format: uuid
+        progress:
+          $ref: '#/components/schemas/OnboardingProgress'
+    TestAgentConnectionRequest:
+      type: object
+      properties:
+        environmentId:
+          type: string
+          format: uuid
+      required:
+      - environmentId
+    TestAgentConnectionResponse:
+      type: object
+      properties:
+        environmentId:
+          type: string
+          format: uuid
+        agentStatus:
+          type: string
+        connected:
+          type: boolean
+    Invitation:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        tenantId:
+          type: string
+          format: uuid
+        organizationId:
+          type: string
+          format: uuid
+        teamId:
+          type: string
+          format: uuid
+        email:
+          type: string
+          format: email
+        role:
+          type: string
+        status:
+          type: string
+          enum:
+          - pending
+          - accepted
+          - declined
+          - revoked
+          - expired
+        expiresAt:
+          type: string
+          format: date-time
+        acceptedAt:
+          type: string
+          format: date-time
+        createdAt:
+          type: string
+          format: date-time
+        inviteToken:
+          type: string
+    ListInvitationsResponse:
+      type: object
+      properties:
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/Invitation'
+    CreateInvitationRequest:
+      type: object
+      properties:
+        email:
+          type: string
+          format: email
+        organizationId:
+          type: string
+          format: uuid
+        teamId:
+          type: string
+          format: uuid
+        role:
+          type: string
+      required:
+      - email
+      - organizationId
+    AcceptInvitationRequest:
+      type: object
+      properties:
+        invitationId:
+          type: string
+          format: uuid
+      required:
+      - invitationId
+    DeclineInvitationRequest:
+      type: object
+      properties:
+        invitationId:
+          type: string
+          format: uuid
+      required:
+      - invitationId
+    InvitationByTokenResponse:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        tenantName:
+          type: string
+        organizationName:
+          type: string
+        teamName:
+          type: string
+        email:
+          type: string
+          format: email
+        role:
+          type: string
+        status:
+          type: string
+        expiresAt:
+          type: string
+          format: date-time
+    AcceptByTokenRequest:
+      type: object
+      properties:
+        token:
+          type: string
+        email:
+          type: string
+          format: email
+        name:
+          type: string
+          minLength: 2
+        password:
+          type: string
+          minLength: 8
+      required:
+      - token
+      - email
+      - name
+      - password
+    APIKey:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        name:
+          type: string
+        lastUsedAt:
+          type: string
+          format: date-time
+        expiresAt:
+          type: string
+          format: date-time
+        revokedAt:
+          type: string
+          format: date-time
+        createdAt:
+          type: string
+          format: date-time
+        plaintext:
+          type: string
+    ListAPIKeysResponse:
+      type: object
+      properties:
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/APIKey'
+    CreateAPIKeyRequest:
+      type: object
+      properties:
+        name:
+          type: string
+          minLength: 2
+        expiresIn:
+          type: string
+      required:
+      - name
+    RotateAPIKeyRequest:
+      type: object
+      properties:
+        name:
+          type: string
+        expiresIn:
+          type: string
+    AgentToken:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        environmentId:
+          type: string
+          format: uuid
+        name:
+          type: string
+        plaintext:
+          type: string
+        lastUsedAt:
+          type: string
+          format: date-time
+        createdAt:
+          type: string
+          format: date-time
+    ListAgentTokensResponse:
+      type: object
+      properties:
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/AgentToken'
+    CreateAgentTokenRequest:
+      type: object
+      properties:
+        environmentId:
+          type: string
+          format: uuid
+        name:
+          type: string
+          minLength: 2
+      required:
+      - environmentId
+      - name
+    RegisterAgentRequest:
+      type: object
+      properties:
+        token:
+          type: string
+        agentVersion:
+          type: string
+        clusterInfo:
+          type: string
+      required:
+      - token
+      - agentVersion
+    RegisterAgentResponse:
+      type: object
+      properties:
+        environmentId:
+          type: string
+          format: uuid
+        tenantId:
+          type: string
+          format: uuid
+        registered:
+          type: boolean
+    AgentHeartbeatRequest:
+      type: object
+      properties:
+        token:
+          type: string
+        agentVersion:
+          type: string
+        status:
+          type: string
+      required:
+      - token
+    AgentHeartbeatResponse:
+      type: object
+      properties:
+        environmentId:
+          type: string
+          format: uuid
+        acknowledged:
+          type: boolean
+    Subscription:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        tenantId:
+          type: string
+          format: uuid
+        plan:
+          type: string
+          enum:
+          - free
+          - team
+          - business
+          - enterprise
+          - government
+        status:
+          type: string
+          enum:
+          - trialing
+          - active
+          - past_due
+          - cancelled
+          - suspended
+        gateway:
+          type: string
+        currentPeriodStart:
+          type: string
+          format: date-time
+        currentPeriodEnd:
+          type: string
+          format: date-time
+        trialEndsAt:
+          type: string
+          format: date-time
+        cancelledAt:
+          type: string
+          format: date-time
+        suspendedAt:
+          type: string
+          format: date-time
+        createdAt:
+          type: string
+          format: date-time
+    UsageStats:
+      type: object
+      properties:
+        experiments:
+          type: integer
+          format: int64
+        agents:
+          type: integer
+          format: int64
+        apiCalls:
+          type: integer
+          format: int64
+    PlanLimits:
+      type: object
+      properties:
+        maxExperiments:
+          type: integer
+          format: int64
+        maxAgents:
+          type: integer
+          format: int64
+        maxApiCalls:
+          type: integer
+          format: int64
+    BillingStatusResponse:
+      type: object
+      properties:
+        subscription:
+          $ref: '#/components/schemas/Subscription'
+        usage:
+          $ref: '#/components/schemas/UsageStats'
+        limits:
+          $ref: '#/components/schemas/PlanLimits'
+    UpgradeRequest:
+      type: object
+      properties:
+        plan:
+          type: string
+        gateway:
+          type: string
+      required:
+      - plan
+    UpgradeResponse:
+      type: object
+      properties:
+        checkoutUrl:
+          type: string
+          format: uri
+        subscription:
+          $ref: '#/components/schemas/Subscription'
+    NotificationChannel:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        tenantId:
+          type: string
+          format: uuid
+        type:
+          type: string
+          enum:
+          - slack
+          - webhook
+          - email
+        name:
+          type: string
+        config:
+          type: object
+        enabled:
+          type: boolean
+        createdAt:
+          type: string
+          format: date-time
+    NotificationRule:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        tenantId:
+          type: string
+          format: uuid
+        channelId:
+          type: string
+          format: uuid
+        eventType:
+          type: string
+        filters:
+          type: object
+        enabled:
+          type: boolean
+        createdAt:
+          type: string
+          format: date-time
+    ListChannelsResponse:
+      type: object
+      properties:
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/NotificationChannel'
+    ListRulesResponse:
+      type: object
+      properties:
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/NotificationRule'
+    CreateChannelRequest:
+      type: object
+      properties:
+        type:
+          type: string
+        name:
+          type: string
+          minLength: 2
+        config:
+          type: object
+      required:
+      - type
+      - name
+      - config
+    CreateRuleRequest:
+      type: object
+      properties:
+        channelId:
+          type: string
+          format: uuid
+        eventType:
+          type: string
+        filters:
+          type: object
+      required:
+      - channelId
+      - eventType
+    AuditLogEntry:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        tenantId:
+          type: string
+          format: uuid
+        userId:
+          type: string
+          format: uuid
+        action:
+          type: string
+        resourceType:
+          type: string
+        resourceId:
+          type: string
+        ipAddress:
+          type: string
+        requestMethod:
+          type: string
+        requestPath:
+          type: string
+        responseStatus:
+          type: integer
+        createdAt:
+          type: string
+          format: date-time
+    ListAuditLogsResponse:
+      type: object
+      properties:
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/AuditLogEntry'
+        totalCount:
+          type: integer
+    AuditExport:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        destination:
+          type: string
+        config:
+          type: object
+        status:
+          type: string
+        recordsExported:
+          type: integer
+          format: int64
+        errorMessage:
+          type: string
+        createdAt:
+          type: string
+          format: date-time
+    AuditExportListResponse:
+      type: object
+      properties:
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/AuditExport'
+    CreateAuditExportRequest:
+      type: object
+      properties:
+        destination:
+          type: string
+        config:
+          type: object
+      required:
+      - destination
+      - config
+    TopologySnapshot:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        environmentId:
+          type: string
+          format: uuid
+        nodes:
+          type: array
+          items:
+            type: object
+        namespaces:
+          type: array
+          items:
+            type: object
+        services:
+          type: array
+          items:
+            type: object
+        deployments:
+          type: array
+          items:
+            type: object
+        pods:
+          type: array
+          items:
+            type: object
+        collectedAt:
+          type: string
+          format: date-time
+    SubmitTopologyRequest:
+      type: object
+      properties:
+        environmentId:
+          type: string
+          format: uuid
+        nodes:
+          type: array
+          items:
+            type: object
+        namespaces:
+          type: array
+          items:
+            type: object
+        services:
+          type: array
+          items:
+            type: object
+        deployments:
+          type: array
+          items:
+            type: object
+        pods:
+          type: array
+          items:
+            type: object
+      required:
+      - environmentId
+    ListTopologyResponse:
+      type: object
+      properties:
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/TopologySnapshot'
+    ServiceDependency:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        sourceKind:
+          type: string
+        sourceName:
+          type: string
+        sourceNamespace:
+          type: string
+        targetKind:
+          type: string
+        targetName:
+          type: string
+        targetNamespace:
+          type: string
+        protocol:
+          type: string
+        port:
+          type: integer
+        lastSeenAt:
+          type: string
+          format: date-time
+    DependencyMapResponse:
+      type: object
+      properties:
+        dependencies:
+          type: array
+          items:
+            $ref: '#/components/schemas/ServiceDependency'
+        nodeCount:
+          type: integer
+        edgeCount:
+          type: integer
+    TopologyDrift:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        driftType:
+          type: string
+        resourceKind:
+          type: string
+        resourceName:
+          type: string
+        resourceNamespace:
+          type: string
+        previousState:
+          type: object
+        currentState:
+          type: object
+        detectedAt:
+          type: string
+          format: date-time
+        acknowledgedAt:
+          type: string
+          format: date-time
+    DriftListResponse:
+      type: object
+      properties:
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/TopologyDrift'
+        totalCount:
+          type: integer
+    EnvironmentMetric:
+      type: object
+      properties:
+        metricName:
+          type: string
+        metricValue:
+          type: number
+          format: double
+        labels:
+          type: object
+        collectedAt:
+          type: string
+          format: date-time
+    MetricsResponse:
+      type: object
+      properties:
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/EnvironmentMetric'
+    DependencyInput:
+      type: object
+      properties:
+        sourceKind:
+          type: string
+        sourceName:
+          type: string
+        sourceNamespace:
+          type: string
+        targetKind:
+          type: string
+        targetName:
+          type: string
+        targetNamespace:
+          type: string
+        protocol:
+          type: string
+        port:
+          type: integer
+      required:
+      - sourceKind
+      - sourceName
+      - sourceNamespace
+      - targetKind
+      - targetName
+      - targetNamespace
+    SubmitDependenciesRequest:
+      type: object
+      properties:
+        environmentId:
+          type: string
+          format: uuid
+        dependencies:
+          type: array
+          items:
+            $ref: '#/components/schemas/DependencyInput'
+      required:
+      - environmentId
+      - dependencies
+    MetricInput:
+      type: object
+      properties:
+        name:
+          type: string
+        value:
+          type: number
+          format: double
+        labels:
+          type: object
+      required:
+      - name
+      - value
+    SubmitMetricsRequest:
+      type: object
+      properties:
+        environmentId:
+          type: string
+          format: uuid
+        metrics:
+          type: array
+          items:
+            $ref: '#/components/schemas/MetricInput'
+      required:
+      - environmentId
+      - metrics
+    SubmitDriftRequest:
+      type: object
+      properties:
+        environmentId:
+          type: string
+          format: uuid
+        driftType:
+          type: string
+        resourceKind:
+          type: string
+        resourceName:
+          type: string
+        resourceNamespace:
+          type: string
+        previousState:
+          type: object
+        currentState:
+          type: object
+      required:
+      - environmentId
+      - driftType
+      - resourceKind
+      - resourceName
+      - resourceNamespace
+    VulnerabilityFinding:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        environmentId:
+          type: string
+          format: uuid
+        category:
+          type: string
+        severity:
+          type: string
+          enum:
+          - critical
+          - high
+          - medium
+          - low
+        title:
+          type: string
+        description:
+          type: string
+        resourceKind:
+          type: string
+        resourceName:
+          type: string
+        resourceNamespace:
+          type: string
+        remediation:
+          type: string
+        suggestedExperiment:
+          type: object
+        status:
+          type: string
+          enum:
+          - open
+          - resolved
+          - ignored
+        detectedAt:
+          type: string
+          format: date-time
+        resolvedAt:
+          type: string
+          format: date-time
+    VulnerabilityListResponse:
+      type: object
+      properties:
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/VulnerabilityFinding'
+        totalCount:
+          type: integer
+        bySeverity:
+          type: object
+          additionalProperties:
+            type: integer
+        byCategory:
+          type: object
+          additionalProperties:
+            type: integer
+    VulnerabilityScanRequest:
+      type: object
+      properties:
+        environmentId:
+          type: string
+          format: uuid
+      required:
+      - environmentId
+    VulnerabilityScanResponse:
+      type: object
+      properties:
+        findingsCreated:
+          type: integer
+        findingsUpdated:
+          type: integer
+    ExperimentSuggestion:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        environmentId:
+          type: string
+          format: uuid
+        findingId:
+          type: string
+          format: uuid
+        source:
+          type: string
+        title:
+          type: string
+        description:
+          type: string
+        actionType:
+          type: string
+        targetNamespace:
+          type: string
+        targetName:
+          type: string
+        duration:
+          type: string
+        parameters:
+          type: object
+        confidence:
+          type: number
+          format: double
+        createdAt:
+          type: string
+          format: date-time
+    SuggestionListResponse:
+      type: object
+      properties:
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/ExperimentSuggestion'
+    GenerateSuggestionsRequest:
+      type: object
+      properties:
+        environmentId:
+          type: string
+          format: uuid
+      required:
+      - environmentId
+    GenerateSuggestionsResponse:
+      type: object
+      properties:
+        generated:
+          type: integer
+    ResultAnalysis:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        experimentName:
+          type: string
+        environmentId:
+          type: string
+          format: uuid
+        summary:
+          type: string
+        impactAnalysis:
+          type: string
+        recommendations:
+          type: string
+        severityAssessment:
+          type: string
+        affectedServices:
+          type: array
+          items:
+            type: object
+        metricsImpact:
+          type: object
+        analyzedAt:
+          type: string
+          format: date-time
+    ResultAnalysisListResponse:
+      type: object
+      properties:
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/ResultAnalysis'
+    AnalyzeResultRequest:
+      type: object
+      properties:
+        experimentName:
+          type: string
+        environmentId:
+          type: string
+          format: uuid
+      required:
+      - experimentName
+    ChatSession:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        title:
+          type: string
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+    ChatMessage:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        role:
+          type: string
+          enum:
+          - user
+          - assistant
+        content:
+          type: string
+        createdAt:
+          type: string
+          format: date-time
+    ChatSessionListResponse:
+      type: object
+      properties:
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/ChatSession'
+    ChatMessageListResponse:
+      type: object
+      properties:
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/ChatMessage'
+    CreateChatSessionRequest:
+      type: object
+      properties:
+        title:
+          type: string
+    SendMessageRequest:
+      type: object
+      properties:
+        content:
+          type: string
+      required:
+      - content
+    SendMessageResponse:
+      type: object
+      properties:
+        userMessage:
+          $ref: '#/components/schemas/ChatMessage'
+        assistantMessage:
+          $ref: '#/components/schemas/ChatMessage'
+    ActiveSession:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        ipAddress:
+          type: string
+        userAgent:
+          type: string
+        lastActivity:
+          type: string
+          format: date-time
+        createdAt:
+          type: string
+          format: date-time
+    ActiveSessionListResponse:
+      type: object
+      properties:
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/ActiveSession'
+    RecoveryCode:
+      type: object
+      properties:
+        code:
+          type: string
+    RecoveryCodesResponse:
+      type: object
+      properties:
+        codes:
+          type: array
+          items:
+            $ref: '#/components/schemas/RecoveryCode'
+        remaining:
+          type: integer
+    SAMLProvider:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        tenantId:
+          type: string
+          format: uuid
+        name:
+          type: string
+        entityId:
+          type: string
+        ssoUrl:
+          type: string
+          format: uri
+        metadataUrl:
+          type: string
+          format: uri
+        enabled:
+          type: boolean
+        jitProvisioning:
+          type: boolean
+        defaultRole:
+          type: string
+        createdAt:
+          type: string
+          format: date-time
+    SAMLProviderListResponse:
+      type: object
+      properties:
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/SAMLProvider'
+    CreateSAMLProviderRequest:
+      type: object
+      properties:
+        name:
+          type: string
+        entityId:
+          type: string
+        ssoUrl:
+          type: string
+          format: uri
+        certificate:
+          type: string
+        metadataUrl:
+          type: string
+          format: uri
+        jitProvisioning:
+          type: boolean
+        defaultRole:
+          type: string
+      required:
+      - name
+      - entityId
+      - ssoUrl
+      - certificate
+    ABACPolicy:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        tenantId:
+          type: string
+          format: uuid
+        name:
+          type: string
+        description:
+          type: string
+        effect:
+          type: string
+          enum:
+          - allow
+          - deny
+        subjects:
+          type: object
+        resources:
+          type: object
+        actions:
+          type: object
+        conditions:
+          type: object
+        priority:
+          type: integer
+        enabled:
+          type: boolean
+        createdAt:
+          type: string
+          format: date-time
+    ABACPolicyListResponse:
+      type: object
+      properties:
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/ABACPolicy'
+    CreateABACPolicyRequest:
+      type: object
+      properties:
+        name:
+          type: string
+        description:
+          type: string
+        effect:
+          type: string
+          enum:
+          - allow
+          - deny
+        subjects:
+          type: object
+        resources:
+          type: object
+        actions:
+          type: object
+        conditions:
+          type: object
+        priority:
+          type: integer
+      required:
+      - name
+      - effect
+      - subjects
+      - resources
+      - actions
+    EvaluateABACRequest:
+      type: object
+      properties:
+        subject:
+          type: object
+          additionalProperties:
+            type: string
+        resource:
+          type: string
+        action:
+          type: string
+      required:
+      - subject
+      - resource
+      - action
+    EvaluateABACResponse:
+      type: object
+      properties:
+        allowed:
+          type: boolean
+        reason:
+          type: string
+    GameDay:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        environmentId:
+          type: string
+          format: uuid
+        title:
+          type: string
+        description:
+          type: string
+        status:
+          type: string
+          enum:
+          - planned
+          - running
+          - completed
+          - cancelled
+        scheduledAt:
+          type: string
+          format: date-time
+        startedAt:
+          type: string
+          format: date-time
+        endedAt:
+          type: string
+          format: date-time
+        createdBy:
+          type: string
+          format: uuid
+        createdAt:
+          type: string
+          format: date-time
+    GameDayEvent:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        eventType:
+          type: string
+        title:
+          type: string
+        description:
+          type: string
+        userId:
+          type: string
+          format: uuid
+        metadata:
+          type: object
+        createdAt:
+          type: string
+          format: date-time
+    GameDayPostmortem:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        summary:
+          type: string
+        whatWentWell:
+          type: string
+        whatWentWrong:
+          type: string
+        actionItems:
+          type: array
+          items:
+            type: object
+        createdBy:
+          type: string
+          format: uuid
+        createdAt:
+          type: string
+          format: date-time
+    GameDayListResponse:
+      type: object
+      properties:
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/GameDay'
+    GameDayDetailResponse:
+      type: object
+      properties:
+        gameday:
+          $ref: '#/components/schemas/GameDay'
+        events:
+          type: array
+          items:
+            $ref: '#/components/schemas/GameDayEvent'
+        postmortem:
+          $ref: '#/components/schemas/GameDayPostmortem'
+    CreateGameDayRequest:
+      type: object
+      properties:
+        environmentId:
+          type: string
+          format: uuid
+        title:
+          type: string
+        description:
+          type: string
+        scheduledAt:
+          type: string
+          format: date-time
+      required:
+      - environmentId
+      - title
+    UpdateGameDayStatusRequest:
+      type: object
+      properties:
+        status:
+          type: string
+          enum:
+          - planned
+          - running
+          - completed
+          - cancelled
+      required:
+      - status
+    AddGameDayEventRequest:
+      type: object
+      properties:
+        eventType:
+          type: string
+        title:
+          type: string
+        description:
+          type: string
+        metadata:
+          type: object
+      required:
+      - eventType
+      - title
+    CreatePostmortemRequest:
+      type: object
+      properties:
+        summary:
+          type: string
+        whatWentWell:
+          type: string
+        whatWentWrong:
+          type: string
+        actionItems:
+          type: array
+          items:
+            type: object
+      required:
+      - summary
+    ResilienceScore:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        environmentId:
+          type: string
+          format: uuid
+        overallGrade:
+          type: string
+          enum:
+          - A
+          - B
+          - C
+          - D
+          - F
+        overallScore:
+          type: number
+          format: double
+        availability:
+          type: number
+          format: double
+        faultTolerance:
+          type: number
+          format: double
+        recoverability:
+          type: number
+          format: double
+        details:
+          type: object
+        calculatedAt:
+          type: string
+          format: date-time
+    ResilienceScoreResponse:
+      type: object
+      properties:
+        current:
+          $ref: '#/components/schemas/ResilienceScore'
+        history:
+          type: array
+          items:
+            $ref: '#/components/schemas/ResilienceScore'
+    CalculateScoreRequest:
+      type: object
+      properties:
+        environmentId:
+          type: string
+          format: uuid
+      required:
+      - environmentId
+    WorkflowTemplate:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        tenantId:
+          type: string
+          format: uuid
+        name:
+          type: string
+        description:
+          type: string
+        category:
+          type: string
+        isPublic:
+          type: boolean
+        spec:
+          type: object
+        createdBy:
+          type: string
+          format: uuid
+        createdAt:
+          type: string
+          format: date-time
+    WorkflowTemplateListResponse:
+      type: object
+      properties:
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/WorkflowTemplate'
+    CreateWorkflowTemplateRequest:
+      type: object
+      properties:
+        name:
+          type: string
+        description:
+          type: string
+        category:
+          type: string
+        spec:
+          type: object
+      required:
+      - name
+      - spec
+    ActionRequest:
+      type: object
+      properties:
+        type:
+          type: string
+        parameters:
+          type: object
+      required:
+      - type
+    TargetRequest:
+      type: object
+      properties:
+        kind:
+          type: string
+        namespace:
+          type: string
+        labelSelector:
+          type: object
+          additionalProperties:
+            type: string
+        names:
+          type: array
+          items:
+            type: string
+      required:
+      - kind
+    CreateExperimentRequest:
+      type: object
+      properties:
+        name:
+          type: string
+        namespace:
+          type: string
+        action:
+          $ref: '#/components/schemas/ActionRequest'
+        target:
+          $ref: '#/components/schemas/TargetRequest'
+        duration:
+          type: string
+      required:
+      - name
+      - namespace
+      - action
+      - target
+      - duration
+    ExperimentResponse:
+      type: object
+      properties:
+        name:
+          type: string
+        namespace:
+          type: string
+        action:
+          type: string
+        phase:
+          type: string
+          enum:
+          - Pending
+          - Running
+          - Completed
+          - Failed
+          - Aborted
+        startTime:
+          type: string
+          format: date-time
+        endTime:
+          type: string
+          format: date-time
+    PaginatedExperimentResponse:
+      type: object
+      properties:
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/ExperimentResponse'
+        totalCount:
+          type: integer
+        limit:
+          type: integer
+        offset:
+          type: integer
+    PolicyResponse:
+      type: object
+      properties:
+        name:
+          type: string
+        namespace:
+          type: string
+        enforcement:
+          type: string
+        maxTargets:
+          type: integer
+          format: int64
+    PaginatedPolicyResponse:
+      type: object
+      properties:
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/PolicyResponse'
+        totalCount:
+          type: integer
+        limit:
+          type: integer
+        offset:
+          type: integer

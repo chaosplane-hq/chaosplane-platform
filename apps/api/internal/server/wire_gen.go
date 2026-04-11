@@ -71,6 +71,8 @@ func InitializeServer(ctx context.Context) (*Server, error) {
 	resilienceHandler := handler.NewResilienceScoreHandler(resilienceService)
 	wfTemplateService := service.NewWorkflowTemplateService(pool)
 	wfTemplateHandler := handler.NewWorkflowTemplateHandler(wfTemplateService)
+	cuiService := service.NewCUIService(pool)
+	cuiHandler := handler.NewCUIHandler(cuiService)
 
 	k8sClient, err := service.NewK8sClient(cfg)
 	if err != nil {
@@ -84,6 +86,6 @@ func InitializeServer(ctx context.Context) (*Server, error) {
 	policyHandler := handler.NewPolicyHandler(policyService)
 	wsHandler := handler.NewWebSocketHandler(experimentService)
 
-	srv := New(cfg, pool, healthHandler, authHandler, hierarchyHandler, onboardingHandler, invitationHandler, apiKeyHandler, oauthHandler, accountHandler, agentHandler, billingHandler, notificationHandler, auditHandler, topologyHandler, topoAnalysisHandler, vulnerabilityHandler, suggestionHandler, resultAnalysisHandler, aiChatHandler, enterpriseHandler, gamedayHandler, resilienceHandler, wfTemplateHandler, experimentHandler, policyHandler, wsHandler, rdb, authService)
+	srv := New(cfg, pool, healthHandler, authHandler, hierarchyHandler, onboardingHandler, invitationHandler, apiKeyHandler, oauthHandler, accountHandler, agentHandler, billingHandler, notificationHandler, auditHandler, topologyHandler, topoAnalysisHandler, vulnerabilityHandler, suggestionHandler, resultAnalysisHandler, aiChatHandler, enterpriseHandler, gamedayHandler, resilienceHandler, wfTemplateHandler, cuiHandler, experimentHandler, policyHandler, wsHandler, rdb, authService)
 	return srv, nil
 }

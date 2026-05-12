@@ -14,7 +14,7 @@ func TestPolicyService_Get(t *testing.T) {
 
 	obj := &unstructured.Unstructured{
 		Object: map[string]interface{}{
-			"apiVersion": "chaos.chaosplane.io/v1alpha1",
+			"apiVersion": "chaos.chaosplane.dev/v1alpha1",
 			"kind":       "BlastRadiusPolicy",
 			"metadata": map[string]interface{}{
 				"name":      "test-policy",
@@ -55,7 +55,7 @@ func TestPolicyService_List(t *testing.T) {
 	for _, name := range []string{"pol-a", "pol-b"} {
 		obj := &unstructured.Unstructured{
 			Object: map[string]interface{}{
-				"apiVersion": "chaos.chaosplane.io/v1alpha1",
+				"apiVersion": "chaos.chaosplane.dev/v1alpha1",
 				"kind":       "BlastRadiusPolicy",
 				"metadata": map[string]interface{}{
 					"name":      name,

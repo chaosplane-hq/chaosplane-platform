@@ -14,7 +14,7 @@
 | Current status | CNCF Sandbox |
 | Applying for | CNCF Incubation |
 | Primary sponsor | TOC sponsor (to be identified) |
-| Project website | https://chaosplane.io |
+| Project website | https://chaosplane.dev |
 | GitHub | https://github.com/chaosplane-hq/chaosplane |
 | License | Apache 2.0 |
 | CNCF SIG | SIG Runtime / SIG Security |
@@ -158,7 +158,7 @@ ChaosPlane's security posture for CNCF Incubation:
 - Dependency scanning: Dependabot + Trivy on every PR and scheduled daily
 
 Vulnerability disclosure process:
-1. Reporter emails security@chaosplane.io (GPG key published in SECURITY.md)
+1. Reporter emails security@chaosplane.dev (GPG key published in SECURITY.md)
 2. ChaosPlane acknowledges within 48 hours
 3. Fix developed in private fork
 4. Coordinated disclosure: reporter notified 7 days before public release
@@ -175,7 +175,7 @@ Vulnerability disclosure process:
 
 ### Documentation
 
-ChaosPlane documentation site (https://docs.chaosplane.io) built with Docusaurus:
+ChaosPlane documentation site (https://docs.chaosplane.dev) built with Docusaurus:
 
 | Section | Pages |
 |---|---|
@@ -210,12 +210,12 @@ Documentation is versioned alongside the software. Each release branch has its o
 | Resource | URL / Details |
 |---|---|
 | GitHub | https://github.com/chaosplane-hq/chaosplane |
-| Documentation | https://docs.chaosplane.io |
+| Documentation | https://docs.chaosplane.dev |
 | Slack | CNCF Slack #chaosplane channel |
 | Community meetings | Bi-weekly, Thursdays 9am PT (recorded, notes published) |
 | Mailing list | chaosplane-dev@lists.cncf.io (post-Sandbox) |
 | Twitter/X | @chaosplane_io |
-| Blog | https://chaosplane.io/blog |
+| Blog | https://chaosplane.dev/blog |
 | YouTube | ChaosPlane channel (community meeting recordings) |
 
 Community meeting notes and recordings are published within 48 hours of each meeting. All project decisions made in community meetings are documented in GitHub issues or discussions for async participation.

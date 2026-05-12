@@ -167,7 +167,7 @@ export function StepConnectCluster({ onNext, onSkip }: StepProps) {
       <Tile className={styles.codeTile}>
         <p className={styles.codeLabel}>Install via Helm</p>
         <pre className={styles.code}>
-          {`helm repo add chaosplane https://charts.chaosplane.io\nhelm install chaosplane-agent chaosplane/agent \\\n  --namespace chaosplane-system --create-namespace`}
+          {`helm repo add chaosplane https://charts.chaosplane.dev\nhelm install chaosplane-agent chaosplane/agent \\\n  --namespace chaosplane-system --create-namespace`}
         </pre>
       </Tile>
       {data && (

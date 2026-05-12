@@ -13,8 +13,8 @@
 | Category | Developer Tools > Testing |
 | Sub-category | Chaos Engineering / Resilience Testing |
 | Delivery method | SaaS subscription |
-| Fulfillment URL | https://app.chaosplane.io/marketplace/aws/activate |
-| Support URL | https://docs.chaosplane.io / support@chaosplane.io |
+| Fulfillment URL | https://app.chaosplane.dev/marketplace/aws/activate |
+| Support URL | https://docs.chaosplane.dev / support@chaosplane.dev |
 | EULA | ChaosPlane SaaS Terms of Service (custom EULA uploaded to Marketplace) |
 | Refund policy | 30-day money-back guarantee on annual plans |
 
@@ -157,7 +157,7 @@ When a customer subscribes via AWS Marketplace:
 [Customer clicks Subscribe on Marketplace]
         |
         v
-[AWS Marketplace] → POST https://app.chaosplane.io/marketplace/aws/activate
+[AWS Marketplace] → POST https://app.chaosplane.dev/marketplace/aws/activate
                     (with x-amzn-marketplace-token)
         |
         v

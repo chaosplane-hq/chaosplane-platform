@@ -220,7 +220,7 @@ function buildYaml(fields: {
     .map(([k, v]) => `    ${k}: ${v}`)
     .join('\n');
 
-  return `apiVersion: chaos.chaosplane.io/v1alpha1
+  return `apiVersion: chaos.chaosplane.dev/v1alpha1
 kind: Experiment
 metadata:
   name: ${fields.name || '<name>'}

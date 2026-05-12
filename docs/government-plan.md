@@ -78,10 +78,10 @@ In an air-gap deployment, all external dependencies are eliminated:
 |---|---|---|
 | Container registry | AWS ECR / Docker Hub | Local registry (Harbor or plain registry) loaded from bundle |
 | TLS certificates | Let's Encrypt (ACME) | Customer-provided certificates or internal CA |
-| License validation | chaosplane.io/license API | Offline license file (signed JWT, validated locally) |
+| License validation | chaosplane.dev/license API | Offline license file (signed JWT, validated locally) |
 | AI Assistant LLM | OpenAI / Anthropic API | Optional: customer-provided local LLM endpoint, or AI features disabled |
 | Email notifications | SendGrid | Customer-provided SMTP relay, or notifications disabled |
-| Telemetry / analytics | chaosplane.io telemetry | Disabled entirely |
+| Telemetry / analytics | chaosplane.dev telemetry | Disabled entirely |
 | Software updates | Pull from registry | Manual bundle update process |
 | Time sync | AWS Time Sync / NTP | Customer-provided NTP server |
 

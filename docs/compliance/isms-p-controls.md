@@ -238,7 +238,7 @@ The ISMS-P framework consists of three domains:
 
 | Control | Title | ChaosPlane Implementation |
 |---|---|---|
-| 3.5.1 | 개인정보 처리방침 공개 (Privacy policy publication) | Privacy policy published at chaosplane.io/privacy. Korean-language version available. Reviewed annually. |
+| 3.5.1 | 개인정보 처리방침 공개 (Privacy policy publication) | Privacy policy published at chaosplane.dev/privacy. Korean-language version available. Reviewed annually. |
 | 3.5.2 | 정보주체 권리보장 (Data subject rights) | Rights supported: access, correction, deletion, processing suspension. Requests handled within 10 business days per PIPA. Automated via account settings where possible. |
 | 3.5.3 | 이용자의 권리 보장 (User rights) | Users can access, export, correct, and delete their personal data via account settings. Written requests handled by DPO / Compliance Manager. |
 | 3.5.4 | 개인정보 유출 통지 (Breach notification) | Personal information breach notification to KISA within 24 hours of discovery (per PIPA Article 34). Notification to affected individuals without undue delay. |

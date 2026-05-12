@@ -87,7 +87,7 @@ Security policies, runbooks, and procedures are maintained in the internal wiki 
 Security incidents, policy changes, and compliance findings are communicated via internal channels. A dedicated security reporting channel is available to all staff.
 
 **CC2.3 — External communication**
-Security commitments are published in the Terms of Service and Privacy Policy. Enterprise customers receive security documentation on request. The status page (status.chaosplane.io) communicates incidents and maintenance in real time.
+Security commitments are published in the Terms of Service and Privacy Policy. Enterprise customers receive security documentation on request. The status page (status.chaosplane.dev) communicates incidents and maintenance in real time.
 
 #### CC3 — Risk Assessment
 
@@ -219,7 +219,7 @@ Customer data deletion automated via 30-day grace period pipeline. Anonymization
 ### P — Privacy
 
 **P1.1 — Privacy notice**
-Privacy Policy published at chaosplane.io/privacy. Describes what personal data is collected, how it is used, and customer rights.
+Privacy Policy published at chaosplane.dev/privacy. Describes what personal data is collected, how it is used, and customer rights.
 
 **P2.1 — Choice and consent**
 Users provide consent at registration. Marketing communications require explicit opt-in. Consent records maintained.

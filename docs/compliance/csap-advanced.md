@@ -55,7 +55,7 @@
 | NS-E-01 | 망 분리 강화 (Enhanced network segmentation) | Korea-region production network segmented into 5 zones: DMZ, application, data, management, monitoring. No direct routing between non-adjacent zones. |
 | NS-E-02 | 마이크로 세그멘테이션 (Micro-segmentation) | Kubernetes NetworkPolicy enforces pod-level network isolation. Each service allows only necessary inbound connections from specific source pods. |
 | NS-E-03 | 동서 트래픽 검사 (East-west traffic inspection) | Internal service traffic inspected via service mesh (Istio). Anomalous internal traffic patterns trigger alerts. |
-| NS-E-04 | DNS 보안 (DNS security) | DNSSEC enabled for chaosplane.io Korea subdomain. DNS queries from Korea-region pods resolved via internal resolver only. |
+| NS-E-04 | DNS 보안 (DNS security) | DNSSEC enabled for chaosplane.dev Korea subdomain. DNS queries from Korea-region pods resolved via internal resolver only. |
 | NS-E-05 | 네트워크 포렌식 (Network forensics) | Full packet capture capability available for incident investigation. Captures stored encrypted, accessible only to CISO and authorized security engineers. |
 
 ### Enhanced Data Security (데이터 보안 강화)

@@ -20,7 +20,7 @@ ChaosPlane acts as a **data controller** for data collected directly from custom
 
 ## Article 13/14 — Transparency and Privacy Notice
 
-ChaosPlane's Privacy Policy (chaosplane.io/privacy) discloses:
+ChaosPlane's Privacy Policy (chaosplane.dev/privacy) discloses:
 
 - Categories of personal data collected
 - Purposes and legal bases for processing
@@ -63,7 +63,7 @@ Consent records capture:
 Users can withdraw marketing consent at any time via:
 - Account settings (Privacy tab)
 - Unsubscribe link in every marketing email
-- Written request to privacy@chaosplane.io
+- Written request to privacy@chaosplane.dev
 
 Withdrawal is processed within 24 hours. Withdrawal does not affect the lawfulness of processing prior to withdrawal.
 
@@ -116,7 +116,7 @@ The RoPA is reviewed quarterly and updated when new processing activities are in
 
 ChaosPlane has implemented an automated Right to Erasure pipeline. The process is:
 
-1. **Request intake** — User submits deletion request via account settings ("Delete my account") or via written request to privacy@chaosplane.io. Enterprise customers can also trigger deletion via the SCIM deprovisioning API.
+1. **Request intake** — User submits deletion request via account settings ("Delete my account") or via written request to privacy@chaosplane.dev. Enterprise customers can also trigger deletion via the SCIM deprovisioning API.
 
 2. **30-day grace period** — Account enters a soft-deleted state. The user can cancel deletion during this period. The account is inaccessible but data is retained for recovery. A confirmation email is sent immediately, and a reminder is sent at day 25.
 
@@ -183,13 +183,13 @@ Users can view and update their personal data via account settings at any time. 
 
 For data held in audit logs (which are append-only and cannot be modified), ChaosPlane provides read access via the audit log export feature. Corrections to audit log entries are not possible by design (tamper-evident logs), but supplementary notes can be added.
 
-Data subject access requests submitted via privacy@chaosplane.io are fulfilled within 30 days.
+Data subject access requests submitted via privacy@chaosplane.dev are fulfilled within 30 days.
 
 ---
 
 ## Article 21 — Right to Object
 
-Users can object to processing based on legitimate interests (e.g., product analytics) via account settings or by contacting privacy@chaosplane.io. Objections are reviewed within 30 days. Where the objection is upheld, processing ceases and data is deleted or anonymized.
+Users can object to processing based on legitimate interests (e.g., product analytics) via account settings or by contacting privacy@chaosplane.dev. Objections are reviewed within 30 days. Where the objection is upheld, processing ceases and data is deleted or anonymized.
 
 ---
 
@@ -199,7 +199,7 @@ ChaosPlane enters into DPAs with:
 - All enterprise customers where ChaosPlane processes personal data on their behalf (ChaosPlane as processor)
 - All subprocessors that handle personal data on ChaosPlane's behalf
 
-ChaosPlane's standard DPA is available at chaosplane.io/dpa. It covers:
+ChaosPlane's standard DPA is available at chaosplane.dev/dpa. It covers:
 - Subject matter and duration of processing
 - Nature and purpose of processing
 - Type of personal data and categories of data subjects
@@ -222,7 +222,7 @@ ChaosPlane's standard DPA is available at chaosplane.io/dpa. It covers:
 | Anthropic | AI Assistant (LLM API) | US | SCCs / Anthropic DPA |
 | Zendesk | Customer support | US | SCCs / Zendesk DPA |
 
-Customers are notified of subprocessor changes with 30 days' notice via email and the changelog at chaosplane.io/subprocessors.
+Customers are notified of subprocessor changes with 30 days' notice via email and the changelog at chaosplane.dev/subprocessors.
 
 ---
 
@@ -266,9 +266,9 @@ ChaosPlane is designating a DPO as part of Phase 4 (Month 18). The DPO will:
 - Handle data subject requests escalated from the support team
 - Conduct annual reviews of the RoPA and consent management processes
 
-DPO contact: dpo@chaosplane.io (to be activated upon appointment)
+DPO contact: dpo@chaosplane.dev (to be activated upon appointment)
 
-Until DPO appointment, data protection queries are handled by the Compliance Manager at compliance@chaosplane.io.
+Until DPO appointment, data protection queries are handled by the Compliance Manager at compliance@chaosplane.dev.
 
 ---
 

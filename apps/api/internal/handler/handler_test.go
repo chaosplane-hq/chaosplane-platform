@@ -23,12 +23,12 @@ func init() {
 
 var (
 	experimentGVR = schema.GroupVersionResource{
-		Group:    "chaos.chaosplane.io",
+		Group:    "chaos.chaosplane.dev",
 		Version:  "v1alpha1",
 		Resource: "chaosexperiments",
 	}
 	policyGVR = schema.GroupVersionResource{
-		Group:    "chaos.chaosplane.io",
+		Group:    "chaos.chaosplane.dev",
 		Version:  "v1alpha1",
 		Resource: "blastradiuspolicies",
 	}
@@ -229,7 +229,7 @@ func newTestPolicyHandler() *PolicyHandler {
 		},
 		&unstructured.Unstructured{
 			Object: map[string]interface{}{
-				"apiVersion": "chaos.chaosplane.io/v1alpha1",
+				"apiVersion": "chaos.chaosplane.dev/v1alpha1",
 				"kind":       "BlastRadiusPolicy",
 				"metadata": map[string]interface{}{
 					"name":      "test-policy",

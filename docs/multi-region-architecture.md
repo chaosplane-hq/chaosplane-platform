@@ -242,7 +242,7 @@ compliance:
 
 ingress:
   annotations:
-    external-dns.alpha.kubernetes.io/hostname: api.eu.chaosplane.io
+    external-dns.alpha.kubernetes.io/hostname: api.eu.chaosplane.dev
 ```
 
 ```yaml

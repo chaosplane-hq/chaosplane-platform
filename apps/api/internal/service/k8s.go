@@ -19,12 +19,12 @@ import (
 
 var (
 	experimentGVR = schema.GroupVersionResource{
-		Group:    "chaos.chaosplane.io",
+		Group:    "chaos.chaosplane.dev",
 		Version:  "v1alpha1",
 		Resource: "chaosexperiments",
 	}
 	policyGVR = schema.GroupVersionResource{
-		Group:    "chaos.chaosplane.io",
+		Group:    "chaos.chaosplane.dev",
 		Version:  "v1alpha1",
 		Resource: "blastradiuspolicies",
 	}
@@ -106,7 +106,7 @@ func (k *K8sClient) AbortExperiment(ctx context.Context, namespace, name string)
 	patch, _ := json.Marshal(map[string]interface{}{
 		"metadata": map[string]interface{}{
 			"annotations": map[string]string{
-				"chaosplane.io/abort": "true",
+				"chaosplane.dev/abort": "true",
 			},
 		},
 	})

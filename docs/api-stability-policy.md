@@ -35,7 +35,7 @@ The API version (`v1`, `v2`, ...) is separate from the platform release version 
 ### URL Structure
 
 ```
-https://api.chaosplane.io/v1/{resource}
+https://api.chaosplane.dev/v1/{resource}
 ```
 
 All v1 endpoints are prefixed with `/v1/`. When v2 is introduced, both versions will be served simultaneously during the overlap period.
@@ -115,7 +115,7 @@ When something is deprecated:
    ```
    Deprecation: true
    Sunset: Sat, 01 Apr 2028 00:00:00 GMT
-   Link: <https://docs.chaosplane.io/migration/v1-to-v2>; rel="successor-version"
+   Link: <https://docs.chaosplane.dev/migration/v1-to-v2>; rel="successor-version"
    ```
 4. Enterprise customers receive direct notification via their Customer Success Manager.
 5. SDK releases mark deprecated methods with language-native deprecation annotations (`@deprecated` in TypeScript, `// Deprecated:` in Go, `warnings.warn` in Python).
@@ -133,7 +133,7 @@ When a breaking change is unavoidable:
 1. A new API version (`v2`) is introduced alongside `v1`. Both are served simultaneously.
 2. The breaking change ships only in `v2`. `v1` is unchanged.
 3. `v1` enters a deprecation period of at least 24 months from the `v2` GA date.
-4. Migration guide published at `docs.chaosplane.io/migration/v1-to-v2`.
+4. Migration guide published at `docs.chaosplane.dev/migration/v1-to-v2`.
 5. SDKs ship a new major version with the breaking change. The previous major version receives security patches only during the overlap period.
 6. `v1` is sunset on the announced date. After sunset, `v1` endpoints return `410 Gone`.
 
@@ -197,7 +197,7 @@ Every release includes a changelog entry categorized as:
 - `fixed` — bug fixes
 - `security` — security patches
 
-The changelog is published at `docs.chaosplane.io/changelog` and as GitHub releases.
+The changelog is published at `docs.chaosplane.dev/changelog` and as GitHub releases.
 
 ---
 
@@ -260,7 +260,7 @@ Error responses follow a stable structure:
 
 If a change we've classified as non-breaking causes a real problem for your integration, reach out. We take compatibility seriously and will work with you on a solution.
 
-Enterprise customers can raise API stability concerns directly with their Customer Success Manager. All customers can open an issue at github.com/chaosplane/chaosplane or email api-feedback@chaosplane.io.
+Enterprise customers can raise API stability concerns directly with their Customer Success Manager. All customers can open an issue at github.com/chaosplane/chaosplane or email api-feedback@chaosplane.dev.
 
 ---
 

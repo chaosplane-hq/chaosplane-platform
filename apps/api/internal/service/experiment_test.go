@@ -14,7 +14,7 @@ import (
 func newFakeK8sClient() *K8sClient {
 	scheme := runtime.NewScheme()
 	gvr := schema.GroupVersionResource{
-		Group:    "chaos.chaosplane.io",
+		Group:    "chaos.chaosplane.dev",
 		Version:  "v1alpha1",
 		Resource: "chaosexperiments",
 	}
@@ -69,7 +69,7 @@ func TestExperimentService_Get(t *testing.T) {
 
 	obj := &unstructured.Unstructured{
 		Object: map[string]interface{}{
-			"apiVersion": "chaos.chaosplane.io/v1alpha1",
+			"apiVersion": "chaos.chaosplane.dev/v1alpha1",
 			"kind":       "ChaosExperiment",
 			"metadata": map[string]interface{}{
 				"name":      "test-exp",
@@ -104,7 +104,7 @@ func TestExperimentService_List(t *testing.T) {
 	for i := 0; i < 3; i++ {
 		obj := &unstructured.Unstructured{
 			Object: map[string]interface{}{
-				"apiVersion": "chaos.chaosplane.io/v1alpha1",
+				"apiVersion": "chaos.chaosplane.dev/v1alpha1",
 				"kind":       "ChaosExperiment",
 				"metadata": map[string]interface{}{
 					"name":      "exp-" + string(rune('a'+i)),
@@ -152,7 +152,7 @@ func TestExperimentService_Delete(t *testing.T) {
 
 	obj := &unstructured.Unstructured{
 		Object: map[string]interface{}{
-			"apiVersion": "chaos.chaosplane.io/v1alpha1",
+			"apiVersion": "chaos.chaosplane.dev/v1alpha1",
 			"kind":       "ChaosExperiment",
 			"metadata": map[string]interface{}{
 				"name":      "to-delete",
@@ -180,7 +180,7 @@ func TestExperimentService_Abort(t *testing.T) {
 
 	obj := &unstructured.Unstructured{
 		Object: map[string]interface{}{
-			"apiVersion": "chaos.chaosplane.io/v1alpha1",
+			"apiVersion": "chaos.chaosplane.dev/v1alpha1",
 			"kind":       "ChaosExperiment",
 			"metadata": map[string]interface{}{
 				"name":      "to-abort",
@@ -203,7 +203,7 @@ func TestExperimentService_Abort(t *testing.T) {
 
 	updated, _ := k8s.GetExperiment(context.Background(), "default", "to-abort")
 	annotations := updated.GetAnnotations()
-	if annotations["chaosplane.io/abort"] != "true" {
+	if annotations["chaosplane.dev/abort"] != "true" {
 		t.Errorf("expected abort annotation, got %v", annotations)
 	}
 }
@@ -231,7 +231,7 @@ func TestK8sClient_ListPolicies(t *testing.T) {
 
 	obj := &unstructured.Unstructured{
 		Object: map[string]interface{}{
-			"apiVersion": "chaos.chaosplane.io/v1alpha1",
+			"apiVersion": "chaos.chaosplane.dev/v1alpha1",
 			"kind":       "BlastRadiusPolicy",
 			"metadata": map[string]interface{}{
 				"name":      "test-policy",

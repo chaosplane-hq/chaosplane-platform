@@ -68,7 +68,7 @@ func (s *ExperimentService) Create(ctx context.Context, req *CreateExperimentReq
 
 	obj := &unstructured.Unstructured{
 		Object: map[string]interface{}{
-			"apiVersion": "chaos.chaosplane.io/v1alpha1",
+			"apiVersion": "chaos.chaosplane.dev/v1alpha1",
 			"kind":       "ChaosExperiment",
 			"metadata": map[string]interface{}{
 				"name":      req.Name,

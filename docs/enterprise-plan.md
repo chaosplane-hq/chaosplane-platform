@@ -200,7 +200,7 @@ Credits are applied to the next billing cycle. Credits are the sole remedy for S
 | Tier | Channel | Hours |
 |---|---|---|
 | Free | GitHub Discussions | Community-driven |
-| Team | Email (support@chaosplane.io) | Business hours |
+| Team | Email (support@chaosplane.dev) | Business hours |
 | Business | Email + dedicated Slack channel | Business hours |
 | Enterprise | Dedicated Slack + CSM + escalation path | 24/7 for P0/P1 |
 | Government | Named security contact + dedicated Slack | 24/7 for P0/P1 |

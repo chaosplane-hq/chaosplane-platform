@@ -165,7 +165,7 @@ Each IL5 customer receives a dedicated ChaosPlane deployment:
 
 ```yaml
 # IL5 deployment — dedicated per agency
-apiVersion: chaosplane.io/v1
+apiVersion: chaosplane.dev/v1
 kind: TenantDeployment
 metadata:
   name: agency-dod-il5

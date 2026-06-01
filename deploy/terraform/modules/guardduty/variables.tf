@@ -1,0 +1,13 @@
+variable "name" {
+  type = string
+}
+
+variable "alert_emails" {
+  type    = list(string)
+  default = []
+}
+
+variable "tags" {
+  type    = map(string)
+  default = {}
+}

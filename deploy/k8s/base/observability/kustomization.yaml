@@ -1,0 +1,3 @@
+resources:
+  - ../../../../argocd/app-fluent-bit.yaml
+  - ../../../../argocd/app-prometheus.yaml

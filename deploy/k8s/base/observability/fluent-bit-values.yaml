@@ -1,0 +1,17 @@
+serviceAccount:
+  create: true
+  name: fluent-bit
+cloudWatchLogs:
+  enabled: true
+  region: ap-northeast-2
+  logGroupName: /aws/eks/chaosplane-prod/application
+  logStreamPrefix: pod-
+  autoCreateGroup: true
+input:
+  memBufLimit: 5MB
+filter:
+  mergeLog: true
+  keepLog: false
+tolerations:
+  - key: CriticalAddonsOnly
+    operator: Exists

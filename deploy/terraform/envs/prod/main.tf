@@ -43,3 +43,200 @@ provider "aws" {
     }
   }
 }
+
+variable "domain" {
+  type    = string
+  default = "chaosplane.com"
+}
+
+variable "alb_arn" {
+  type        = string
+  default     = ""
+  description = "ALB ARN created by the AWS Load Balancer Controller after Kubernetes ingress is applied."
+}
+
+variable "alert_emails" {
+  type    = list(string)
+  default = []
+}
+
+locals {
+  name = "${var.project}-${var.environment}"
+}
+
+module "kms" {
+  source = "../../modules/kms"
+
+  name = local.name
+  tags = {}
+}
+
+module "vpc" {
+  source = "../../modules/vpc"
+
+  name = local.name
+  tags = {}
+}
+
+module "vpc_endpoints" {
+  source = "../../modules/vpc-endpoints"
+
+  name                    = local.name
+  vpc_id                  = module.vpc.vpc_id
+  vpc_cidr                = module.vpc.vpc_cidr_block
+  private_subnet_ids      = module.vpc.private_subnet_ids
+  private_route_table_ids = module.vpc.private_route_table_ids
+  tags                    = {}
+
+  depends_on = [module.vpc]
+}
+
+module "ecr" {
+  source = "../../modules/ecr"
+
+  repositories = ["chaosplane/api", "chaosplane/web"]
+  kms_key_arn  = module.kms.key_arn
+  tags         = {}
+
+  depends_on = [module.kms]
+}
+
+module "eks" {
+  source = "../../modules/eks"
+
+  name        = local.name
+  vpc_id      = module.vpc.vpc_id
+  subnet_ids  = module.vpc.private_subnet_ids
+  kms_key_arn = module.kms.key_arn
+  tags        = {}
+
+  depends_on = [module.vpc, module.kms]
+}
+
+module "karpenter" {
+  source = "../../modules/karpenter"
+
+  name                   = local.name
+  cluster_name           = module.eks.cluster_name
+  cluster_endpoint       = module.eks.cluster_endpoint
+  node_security_group_id = module.eks.node_security_group_id
+  tags                   = {}
+
+  depends_on = [module.eks]
+}
+
+module "rds" {
+  source = "../../modules/rds"
+
+  name                       = local.name
+  vpc_id                     = module.vpc.vpc_id
+  subnet_ids                 = module.vpc.private_subnet_ids
+  allowed_security_group_ids = [module.eks.node_security_group_id]
+  kms_key_arn                = module.kms.key_arn
+  tags                       = {}
+
+  depends_on = [module.vpc, module.kms]
+}
+
+module "elasticache" {
+  source = "../../modules/elasticache"
+
+  name                       = local.name
+  vpc_id                     = module.vpc.vpc_id
+  subnet_ids                 = module.vpc.private_subnet_ids
+  allowed_security_group_ids = [module.eks.node_security_group_id]
+  kms_key_arn                = module.kms.key_arn
+  tags                       = {}
+
+  depends_on = [module.vpc]
+}
+
+module "s3" {
+  source = "../../modules/s3"
+
+  name = local.name
+  buckets = {
+    reports = { versioning = true }
+    logs    = { versioning = false }
+    ai      = { versioning = false }
+  }
+  kms_key_arn = module.kms.key_arn
+  tags        = {}
+
+  depends_on = [module.kms]
+}
+
+module "dns" {
+  source = "../../modules/dns"
+
+  providers = {
+    aws.us_east_1 = aws.us_east_1
+  }
+
+  domain = var.domain
+  tags   = {}
+}
+
+module "ses" {
+  source = "../../modules/ses"
+
+  domain  = var.domain
+  zone_id = module.dns.zone_id
+  tags    = {}
+
+  depends_on = [module.dns]
+}
+
+module "secrets" {
+  source = "../../modules/secrets"
+
+  name = local.name
+  secrets = {
+    "db-url"      = ""
+    "redis-url"   = ""
+    "jwt-secret"  = ""
+    "csrf-secret" = ""
+  }
+  kms_key_arn = module.kms.key_arn
+  tags        = {}
+
+  depends_on = [module.kms]
+}
+
+module "pod_identity" {
+  source = "../../modules/pod-identity"
+
+  name                  = local.name
+  cluster_name          = module.eks.cluster_name
+  rds_proxy_resource_id = module.rds.proxy_id
+  s3_bucket_arns        = values(module.s3.bucket_arns)
+  tags                  = {}
+
+  depends_on = [module.eks, module.rds, module.s3]
+}
+
+module "waf" {
+  source = "../../modules/waf"
+
+  name    = local.name
+  alb_arn = var.alb_arn
+  tags    = {}
+}
+
+module "guardduty" {
+  source = "../../modules/guardduty"
+
+  name         = local.name
+  alert_emails = var.alert_emails
+  tags         = {}
+}
+
+module "cloudtrail" {
+  source = "../../modules/cloudtrail"
+
+  name        = local.name
+  kms_key_arn = module.kms.key_arn
+  tags        = {}
+
+  depends_on = [module.kms]
+}

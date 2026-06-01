@@ -128,3 +128,21 @@ module "chaosplane_api" {
 
   tags = var.tags
 }
+
+module "external_dns" {
+  source = "terraform-aws-modules/eks-pod-identity/aws"
+
+  name                          = "${var.name}-external-dns"
+  attach_external_dns_policy    = true
+  external_dns_hosted_zone_arns = var.hosted_zone_arns
+
+  associations = {
+    this = {
+      cluster_name    = var.cluster_name
+      namespace       = "kube-system"
+      service_account = "external-dns"
+    }
+  }
+
+  tags = var.tags
+}

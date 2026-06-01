@@ -207,9 +207,10 @@ module "pod_identity" {
   cluster_name          = module.eks.cluster_name
   rds_proxy_resource_id = module.rds.proxy_id
   s3_bucket_arns        = values(module.s3.bucket_arns)
+  hosted_zone_arns      = ["arn:aws:route53:::hostedzone/${module.dns.zone_id}"]
   tags                  = {}
 
-  depends_on = [module.eks, module.rds, module.s3]
+  depends_on = [module.eks, module.rds, module.s3, module.dns]
 }
 
 module "waf" {

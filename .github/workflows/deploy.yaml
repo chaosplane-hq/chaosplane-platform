@@ -1,0 +1,76 @@
+name: Deploy
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "apps/**"
+      - "Dockerfile*"
+
+permissions:
+  id-token: write
+  contents: write
+
+env:
+  AWS_REGION: ap-northeast-2
+  ECR_REGISTRY: ""
+
+jobs:
+  build-push:
+    name: Build and Push
+    runs-on: ubuntu-latest
+    outputs:
+      image_tag: ${{ steps.meta.outputs.tag }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - id: meta
+        run: echo "tag=${GITHUB_SHA::7}" >> "$GITHUB_OUTPUT"
+
+      - uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ vars.AWS_DEPLOY_ROLE_ARN }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - id: ecr-login
+        uses: aws-actions/amazon-ecr-login@v2
+
+      - name: Build and push API
+        env:
+          REGISTRY: ${{ steps.ecr-login.outputs.registry }}
+          TAG: ${{ steps.meta.outputs.tag }}
+        run: |
+          docker build -t $REGISTRY/chaosplane/api:$TAG -f apps/api/Dockerfile apps/api
+          docker push $REGISTRY/chaosplane/api:$TAG
+
+      - name: Build and push Web
+        env:
+          REGISTRY: ${{ steps.ecr-login.outputs.registry }}
+          TAG: ${{ steps.meta.outputs.tag }}
+        run: |
+          docker build -t $REGISTRY/chaosplane/web:$TAG -f apps/web/Dockerfile apps/web
+          docker push $REGISTRY/chaosplane/web:$TAG
+
+  update-manifests:
+    name: Update K8s Manifests
+    needs: build-push
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Update image tags
+        env:
+          TAG: ${{ needs.build-push.outputs.image_tag }}
+        run: |
+          cd deploy/k8s/overlays/prod
+          sed -i "s|newTag:.*|newTag: $TAG|g" kustomization.yaml
+
+      - name: Commit and push
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add deploy/k8s/overlays/prod/kustomization.yaml
+          git diff --cached --quiet || git commit -m "deploy: update image tag to ${GITHUB_SHA::7}"
+          git push

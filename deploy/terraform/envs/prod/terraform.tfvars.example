@@ -3,7 +3,6 @@ environment = "prod"
 region      = "ap-northeast-2"
 aws_profile = "chaosplane"
 domain      = "chaosplane.dev"
-alb_arn     = ""
 alert_emails = [
   "oncall@chaosplane.dev"
 ]

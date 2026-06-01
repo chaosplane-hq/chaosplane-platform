@@ -52,12 +52,6 @@ variable "domain" {
   default = "chaosplane.com"
 }
 
-variable "alb_arn" {
-  type        = string
-  default     = ""
-  description = "ALB ARN created by the AWS Load Balancer Controller after Kubernetes ingress is applied."
-}
-
 variable "alert_emails" {
   type    = list(string)
   default = []
@@ -221,9 +215,8 @@ module "pod_identity" {
 module "waf" {
   source = "../../modules/waf"
 
-  name    = local.name
-  alb_arn = var.alb_arn
-  tags    = {}
+  name = local.name
+  tags = {}
 }
 
 module "guardduty" {

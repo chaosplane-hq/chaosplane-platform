@@ -59,8 +59,8 @@ module "fluent_bit" {
   name                 = "${var.name}-fluent-bit"
   attach_custom_policy = true
 
-  policy_statements = {
-    logs = {
+  policy_statements = [
+    {
       effect = "Allow"
       actions = [
         "logs:CreateLogGroup",
@@ -71,7 +71,7 @@ module "fluent_bit" {
       ]
       resources = ["*"]
     }
-  }
+  ]
 
   associations = {
     this = {
@@ -89,34 +89,34 @@ module "chaosplane_api" {
 
   name                 = "${var.name}-chaosplane-api"
   attach_custom_policy = true
-  policy_statements = {
-    ses = {
+  policy_statements = [
+    {
       effect = "Allow"
       actions = [
         "ses:SendEmail",
         "ses:SendRawEmail"
       ]
       resources = ["*"]
-    }
-    s3_bucket = {
+    },
+    {
       effect    = "Allow"
       actions   = ["s3:ListBucket"]
       resources = var.s3_bucket_arns
-    }
-    s3_object = {
+    },
+    {
       effect = "Allow"
       actions = [
         "s3:PutObject",
         "s3:GetObject"
       ]
       resources = [for arn in var.s3_bucket_arns : "${arn}/*"]
-    }
-    rds = {
+    },
+    {
       effect    = "Allow"
       actions   = ["rds-db:connect"]
-      resources = ["arn:aws:rds-db:${data.aws_region.current.name}:${data.aws_caller_identity.current.account_id}:dbuser:${var.rds_proxy_resource_id}/*"]
+      resources = ["arn:aws:rds-db:${data.aws_region.current.region}:${data.aws_caller_identity.current.account_id}:dbuser:${var.rds_proxy_resource_id}/*"]
     }
-  }
+  ]
 
   associations = {
     this = {

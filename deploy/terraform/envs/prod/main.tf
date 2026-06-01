@@ -12,13 +12,15 @@ terraform {
     bucket       = "chaosplane-prod-terraform-state"
     key          = "prod/terraform.tfstate"
     region       = "ap-northeast-2"
+    profile      = "chaosplane"
     encrypt      = true
     use_lockfile = true
   }
 }
 
 provider "aws" {
-  region = var.region
+  region  = var.region
+  profile = var.aws_profile
 
   default_tags {
     tags = {
@@ -31,8 +33,9 @@ provider "aws" {
 }
 
 provider "aws" {
-  alias  = "us_east_1"
-  region = "us-east-1"
+  alias   = "us_east_1"
+  region  = "us-east-1"
+  profile = var.aws_profile
 
   default_tags {
     tags = {

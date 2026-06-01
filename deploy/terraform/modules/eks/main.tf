@@ -34,12 +34,12 @@ module "eks" {
         nodepool = "system"
       }
 
-      taints = [
-        {
+      taints = {
+        critical_addons_only = {
           key    = "CriticalAddonsOnly"
           effect = "NO_SCHEDULE"
         }
-      ]
+      }
 
       block_device_mappings = {
         xvda = {

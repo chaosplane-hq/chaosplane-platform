@@ -36,7 +36,7 @@ resource "aws_security_group" "this" {
 
 resource "aws_vpc_endpoint" "gateway" {
   vpc_id            = var.vpc_id
-  service_name      = "com.amazonaws.${data.aws_region.current.name}.s3"
+  service_name      = "com.amazonaws.${data.aws_region.current.region}.s3"
   vpc_endpoint_type = "Gateway"
   route_table_ids   = var.private_route_table_ids
 
@@ -49,7 +49,7 @@ resource "aws_vpc_endpoint" "interface" {
   for_each = local.interface_endpoints
 
   vpc_id              = var.vpc_id
-  service_name        = "com.amazonaws.${data.aws_region.current.name}.${each.key}"
+  service_name        = "com.amazonaws.${data.aws_region.current.region}.${each.key}"
   vpc_endpoint_type   = "Interface"
   subnet_ids          = var.private_subnet_ids
   security_group_ids  = [aws_security_group.this.id]

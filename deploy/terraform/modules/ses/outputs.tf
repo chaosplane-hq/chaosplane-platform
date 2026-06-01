@@ -3,5 +3,5 @@ output "ses_domain_identity_arn" {
 }
 
 output "smtp_endpoint" {
-  value = "email-smtp.${data.aws_region.current.name}.amazonaws.com"
+  value = "email-smtp.${data.aws_region.current.region}.amazonaws.com"
 }

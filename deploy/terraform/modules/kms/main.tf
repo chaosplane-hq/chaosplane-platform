@@ -43,7 +43,7 @@ data "aws_iam_policy_document" "this" {
       type = "Service"
       identifiers = [
         "ec2.amazonaws.com",
-        "logs.${data.aws_region.current.name}.amazonaws.com",
+        "logs.${data.aws_region.current.region}.amazonaws.com",
         "rds.amazonaws.com",
         "s3.amazonaws.com",
         "secretsmanager.amazonaws.com",

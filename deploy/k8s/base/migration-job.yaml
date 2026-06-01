@@ -1,0 +1,24 @@
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: migrate
+  namespace: chaosplane-system
+  annotations:
+    argocd.argoproj.io/hook: PreSync
+    argocd.argoproj.io/hook-delete-policy: BeforeHookCreation
+    argocd.argoproj.io/sync-wave: "-1"
+spec:
+  backoffLimit: 0
+  activeDeadlineSeconds: 300
+  template:
+    spec:
+      serviceAccountName: chaosplane-api
+      restartPolicy: Never
+      containers:
+        - name: migrate
+          image: chaosplane-api:placeholder
+          command:
+            - migrate
+          envFrom:
+            - secretRef:
+                name: chaosplane-secrets

@@ -125,12 +125,12 @@ module "karpenter" {
 module "rds" {
   source = "../../modules/rds"
 
-  name                       = local.name
-  vpc_id                     = module.vpc.vpc_id
-  subnet_ids                 = module.vpc.private_subnet_ids
-  allowed_security_group_ids = [module.eks.node_security_group_id]
-  kms_key_arn                = module.kms.key_arn
-  tags                       = {}
+  name        = local.name
+  vpc_id      = module.vpc.vpc_id
+  subnet_ids  = module.vpc.private_subnet_ids
+  vpc_cidr    = module.vpc.vpc_cidr_block
+  kms_key_arn = module.kms.key_arn
+  tags        = {}
 
   depends_on = [module.vpc, module.kms]
 }
@@ -138,12 +138,12 @@ module "rds" {
 module "elasticache" {
   source = "../../modules/elasticache"
 
-  name                       = local.name
-  vpc_id                     = module.vpc.vpc_id
-  subnet_ids                 = module.vpc.private_subnet_ids
-  allowed_security_group_ids = [module.eks.node_security_group_id]
-  kms_key_arn                = module.kms.key_arn
-  tags                       = {}
+  name        = local.name
+  vpc_id      = module.vpc.vpc_id
+  subnet_ids  = module.vpc.private_subnet_ids
+  vpc_cidr    = module.vpc.vpc_cidr_block
+  kms_key_arn = module.kms.key_arn
+  tags        = {}
 
   depends_on = [module.vpc]
 }
@@ -189,15 +189,15 @@ module "secrets" {
 
   name = local.name
   secrets = {
-    "db-url"      = ""
-    "redis-url"   = ""
+    "db-url"      = "postgres://${module.rds.master_username}:${module.rds.master_password}@${module.rds.proxy_endpoint}:5432/chaosplane?sslmode=require"
+    "redis-url"   = "rediss://${module.elasticache.endpoint}:${module.elasticache.port}"
     "jwt-secret"  = ""
     "csrf-secret" = ""
   }
   kms_key_arn = module.kms.key_arn
   tags        = {}
 
-  depends_on = [module.kms]
+  depends_on = [module.kms, module.elasticache, module.rds]
 }
 
 module "pod_identity" {

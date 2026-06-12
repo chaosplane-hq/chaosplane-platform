@@ -10,8 +10,8 @@ variable "subnet_ids" {
   type = list(string)
 }
 
-variable "allowed_security_group_ids" {
-  type = list(string)
+variable "vpc_cidr" {
+  type = string
 }
 
 variable "kms_key_arn" {

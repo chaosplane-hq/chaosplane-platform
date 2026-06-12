@@ -5,7 +5,7 @@ data "aws_region" "current" {}
 module "lb_controller" {
   source = "terraform-aws-modules/eks-pod-identity/aws"
 
-  name                            = "${var.name}-aws-load-balancer-controller"
+  name                            = "${var.name}-lbc"
   attach_aws_lb_controller_policy = true
 
   associations = {

@@ -1,3 +1,22 @@
+resource "random_password" "master" {
+  length  = 32
+  special = false
+}
+
+resource "aws_secretsmanager_secret" "db_credentials" {
+  name       = "${var.name}/rds-credentials"
+  kms_key_id = var.kms_key_arn
+  tags       = var.tags
+}
+
+resource "aws_secretsmanager_secret_version" "db_credentials" {
+  secret_id = aws_secretsmanager_secret.db_credentials.id
+  secret_string = jsonencode({
+    username = "chaosplane_admin"
+    password = random_password.master.result
+  })
+}
+
 module "db" {
   source  = "terraform-aws-modules/rds/aws"
   version = "7.2.0"
@@ -15,11 +34,13 @@ module "db" {
   storage_encrypted = true
   kms_key_id        = var.kms_key_arn
 
-  db_name  = "chaosplane"
-  username = "chaosplane_admin"
-  port     = 5432
+  db_name             = "chaosplane"
+  username            = "chaosplane_admin"
+  password_wo         = random_password.master.result
+  password_wo_version = 1
+  port                = 5432
 
-  manage_master_user_password = true
+  manage_master_user_password = false
 
   multi_az                = false
   deletion_protection     = true
@@ -37,45 +58,43 @@ module "db" {
 resource "aws_security_group" "db" {
   name_prefix = "${var.name}-db-"
   vpc_id      = var.vpc_id
-  tags        = var.tags
-}
 
-resource "aws_vpc_security_group_ingress_rule" "db_postgres" {
-  for_each = toset(var.allowed_security_group_ids)
+  ingress {
+    from_port   = 5432
+    to_port     = 5432
+    protocol    = "tcp"
+    cidr_blocks = [var.vpc_cidr]
+  }
 
-  security_group_id            = aws_security_group.db.id
-  referenced_security_group_id = each.value
-  from_port                    = 5432
-  to_port                      = 5432
-  ip_protocol                  = "tcp"
-}
+  egress {
+    from_port   = 0
+    to_port     = 0
+    protocol    = "-1"
+    cidr_blocks = ["0.0.0.0/0"]
+  }
 
-resource "aws_vpc_security_group_egress_rule" "db_all" {
-  security_group_id = aws_security_group.db.id
-  cidr_ipv4         = "0.0.0.0/0"
-  ip_protocol       = "-1"
+  tags = var.tags
 }
 
 resource "aws_security_group" "proxy" {
   name_prefix = "${var.name}-proxy-"
   vpc_id      = var.vpc_id
-  tags        = var.tags
-}
 
-resource "aws_vpc_security_group_ingress_rule" "proxy_postgres" {
-  for_each = toset(var.allowed_security_group_ids)
+  ingress {
+    from_port   = 5432
+    to_port     = 5432
+    protocol    = "tcp"
+    cidr_blocks = [var.vpc_cidr]
+  }
 
-  security_group_id            = aws_security_group.proxy.id
-  referenced_security_group_id = each.value
-  from_port                    = 5432
-  to_port                      = 5432
-  ip_protocol                  = "tcp"
-}
+  egress {
+    from_port   = 0
+    to_port     = 0
+    protocol    = "-1"
+    cidr_blocks = ["0.0.0.0/0"]
+  }
 
-resource "aws_vpc_security_group_egress_rule" "proxy_all" {
-  security_group_id = aws_security_group.proxy.id
-  cidr_ipv4         = "0.0.0.0/0"
-  ip_protocol       = "-1"
+  tags = var.tags
 }
 
 resource "aws_iam_role" "proxy" {
@@ -108,7 +127,7 @@ resource "aws_iam_role_policy" "proxy" {
           "secretsmanager:GetSecretValue",
           "secretsmanager:DescribeSecret"
         ]
-        Resource = module.db.db_instance_master_user_secret_arn
+        Resource = aws_secretsmanager_secret.db_credentials.arn
       },
       {
         Effect = "Allow"
@@ -133,7 +152,7 @@ resource "aws_db_proxy" "this" {
   auth {
     auth_scheme = "SECRETS"
     iam_auth    = "REQUIRED"
-    secret_arn  = module.db.db_instance_master_user_secret_arn
+    secret_arn  = aws_secretsmanager_secret.db_credentials.arn
   }
 
   tags = var.tags

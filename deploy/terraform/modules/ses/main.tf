@@ -22,13 +22,13 @@ resource "aws_route53_record" "ses_verification" {
 }
 
 resource "aws_route53_record" "dkim" {
-  for_each = toset(aws_ses_domain_dkim.this.dkim_tokens)
+  count = 3
 
   zone_id = var.zone_id
-  name    = "${each.value}._domainkey.${var.domain}"
+  name    = "${aws_ses_domain_dkim.this.dkim_tokens[count.index]}._domainkey.${var.domain}"
   type    = "CNAME"
   ttl     = 300
-  records = ["${each.value}.dkim.amazonses.com"]
+  records = ["${aws_ses_domain_dkim.this.dkim_tokens[count.index]}.dkim.amazonses.com"]
 }
 
 resource "aws_route53_record" "mail_from_mx" {

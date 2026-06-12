@@ -58,10 +58,9 @@ Go to your domain registrar and set the NS records to these 4 values. DNS propag
 ```bash
 aws secretsmanager put-secret-value --secret-id chaosplane/prod/jwt-secret --secret-string "<generate-random-32-char>" --profile chaosplane
 aws secretsmanager put-secret-value --secret-id chaosplane/prod/csrf-secret --secret-string "<generate-random-32-char>" --profile chaosplane
-aws secretsmanager put-secret-value --secret-id chaosplane/prod/redis-url --secret-string "rediss://<elasticache-endpoint>:6379" --profile chaosplane
 ```
 
-Note: db-url is handled via RDS Proxy IAM auth, no password needed in secrets.
+Note: `redis-url` is automatically populated by Terraform from the ElastiCache endpoint. `db-url` is handled via RDS Proxy IAM auth, no password needed in secrets.
 
 ### 6. Configure kubeconfig
 

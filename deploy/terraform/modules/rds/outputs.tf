@@ -18,6 +18,11 @@ output "db_security_group_id" {
   value = aws_security_group.db.id
 }
 
-output "master_secret_arn" {
-  value = module.db.db_instance_master_user_secret_arn
+output "master_username" {
+  value = "chaosplane_admin"
+}
+
+output "master_password" {
+  value     = random_password.master.result
+  sensitive = true
 }

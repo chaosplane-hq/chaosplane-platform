@@ -9,6 +9,7 @@ resources:
   - web/service.yaml
   - ingress.yaml
   - external-secrets.yaml
+  - migration-job.yaml
   - keda.yaml
   - network-policy.yaml
   - karpenter-nodepools.yaml

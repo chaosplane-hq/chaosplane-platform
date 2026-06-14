@@ -25,6 +25,17 @@ module "external_secrets" {
   name                           = "${var.name}-external-secrets"
   attach_external_secrets_policy = true
 
+  attach_custom_policy = true
+  policy_statements = [
+    {
+      effect  = "Allow"
+      actions = ["secretsmanager:GetSecretValue", "secretsmanager:DescribeSecret"]
+      resources = [
+        "arn:aws:secretsmanager:${data.aws_region.current.region}:${data.aws_caller_identity.current.account_id}:secret:${var.name}/*",
+      ]
+    }
+  ]
+
   associations = {
     this = {
       cluster_name    = var.cluster_name

@@ -5,7 +5,7 @@ resources:
 images:
   - name: chaosplane-api
     newName: <account>.dkr.ecr.ap-northeast-2.amazonaws.com/chaosplane/api
-    newTag: <api-tag>
+    newTag: 54ec4e4
   - name: chaosplane-web
     newName: <account>.dkr.ecr.ap-northeast-2.amazonaws.com/chaosplane/web
-    newTag: <web-tag>
+    newTag: 54ec4e4

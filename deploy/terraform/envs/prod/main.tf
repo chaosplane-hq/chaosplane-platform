@@ -6,6 +6,14 @@ terraform {
       source  = "hashicorp/aws"
       version = "~> 6.47"
     }
+    helm = {
+      source  = "hashicorp/helm"
+      version = "~> 3.0"
+    }
+    kubernetes = {
+      source  = "hashicorp/kubernetes"
+      version = "~> 2.0"
+    }
   }
 
   backend "s3" {
@@ -44,6 +52,30 @@ provider "aws" {
       ManagedBy   = "terraform"
       Owner       = "chaosplane-hq"
     }
+  }
+}
+
+provider "helm" {
+  kubernetes = {
+    host                   = module.eks.cluster_endpoint
+    cluster_ca_certificate = base64decode(module.eks.cluster_certificate_authority_data)
+
+    exec = {
+      api_version = "client.authentication.k8s.io/v1beta1"
+      command     = "aws"
+      args        = ["eks", "get-token", "--cluster-name", module.eks.cluster_name, "--region", var.region, "--profile", var.aws_profile]
+    }
+  }
+}
+
+provider "kubernetes" {
+  host                   = module.eks.cluster_endpoint
+  cluster_ca_certificate = base64decode(module.eks.cluster_certificate_authority_data)
+
+  exec {
+    api_version = "client.authentication.k8s.io/v1beta1"
+    command     = "aws"
+    args        = ["eks", "get-token", "--cluster-name", module.eks.cluster_name, "--region", var.region, "--profile", var.aws_profile]
   }
 }
 
@@ -117,6 +149,7 @@ module "karpenter" {
   cluster_name           = module.eks.cluster_name
   cluster_endpoint       = module.eks.cluster_endpoint
   node_security_group_id = module.eks.node_security_group_id
+  region                 = var.region
   tags                   = {}
 
   depends_on = [module.eks]
@@ -189,13 +222,12 @@ module "secrets" {
 
   name = local.name
   secrets = {
-    "db-url"      = "postgres://${module.rds.master_username}:${module.rds.master_password}@${module.rds.proxy_endpoint}:5432/chaosplane?sslmode=require"
-    "redis-url"   = "rediss://${module.elasticache.endpoint}:${module.elasticache.port}"
-    "jwt-secret"  = ""
-    "csrf-secret" = ""
+    "db-url"    = "postgres://${module.rds.master_username}:${module.rds.master_password}@${module.rds.proxy_endpoint}:5432/chaosplane?sslmode=require"
+    "redis-url" = "rediss://${module.elasticache.endpoint}:${module.elasticache.port}"
   }
-  kms_key_arn = module.kms.key_arn
-  tags        = {}
+  generated_secrets = ["jwt-secret", "csrf-secret"]
+  kms_key_arn       = module.kms.key_arn
+  tags              = {}
 
   depends_on = [module.kms, module.elasticache, module.rds]
 }

@@ -39,8 +39,9 @@ module "external_secrets" {
 module "cert_manager" {
   source = "terraform-aws-modules/eks-pod-identity/aws"
 
-  name                       = "${var.name}-cert-manager"
-  attach_cert_manager_policy = true
+  name                          = "${var.name}-cert-manager"
+  attach_cert_manager_policy    = true
+  cert_manager_hosted_zone_arns = var.hosted_zone_arns
 
   associations = {
     this = {

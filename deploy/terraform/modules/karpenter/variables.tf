@@ -10,6 +10,10 @@ variable "cluster_endpoint" {
   type = string
 }
 
+variable "region" {
+  type = string
+}
+
 variable "node_security_group_id" {
   type = string
 }

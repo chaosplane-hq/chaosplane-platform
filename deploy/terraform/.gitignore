@@ -1,3 +1,10 @@
 .terraform/
 *.tfvars
 !*.tfvars.example
+*.tfstate
+*.tfstate.*
+tfplan
+tfplan*
+*.tfplan
+crash.log
+crash.*.log

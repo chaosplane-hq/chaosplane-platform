@@ -2,6 +2,7 @@ data "aws_region" "current" {}
 
 locals {
   interface_endpoints = toset([
+    "ec2",
     "ecr.api",
     "ecr.dkr",
     "sts",

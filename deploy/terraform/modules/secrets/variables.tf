@@ -6,6 +6,11 @@ variable "secrets" {
   type = map(string)
 }
 
+variable "generated_secrets" {
+  type    = set(string)
+  default = []
+}
+
 variable "kms_key_arn" {
   type = string
 }

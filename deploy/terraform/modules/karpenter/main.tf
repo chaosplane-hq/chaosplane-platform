@@ -8,6 +8,29 @@ terraform {
     helm = {
       source = "hashicorp/helm"
     }
+
+    kubernetes = {
+      source = "hashicorp/kubernetes"
+    }
+  }
+}
+
+resource "kubernetes_network_policy" "karpenter" {
+  metadata {
+    name      = "${var.name}-karpenter-allow-egress"
+    namespace = "kube-system"
+  }
+
+  spec {
+    pod_selector {
+      match_labels = {
+        "app.kubernetes.io/name" = "karpenter"
+      }
+    }
+
+    policy_types = ["Egress"]
+
+    egress {}
   }
 }
 
@@ -20,6 +43,7 @@ module "karpenter" {
   create_pod_identity_association = true
   create_node_iam_role            = true
   node_iam_role_name              = var.name
+  enable_inline_policy            = true
 
   node_iam_role_additional_policies = {
     AmazonSSMManagedInstanceCore = "arn:aws:iam::aws:policy/AmazonSSMManagedInstanceCore"
@@ -33,8 +57,10 @@ resource "helm_release" "karpenter" {
   repository       = "oci://public.ecr.aws/karpenter"
   chart            = "karpenter"
   version          = "1.12.1"
-  namespace        = "karpenter"
-  create_namespace = true
+  namespace        = "kube-system"
+  create_namespace = false
+
+  depends_on = [kubernetes_network_policy.karpenter]
 
   set = [
     {
@@ -44,11 +70,33 @@ resource "helm_release" "karpenter" {
     {
       name  = "settings.clusterEndpoint"
       value = var.cluster_endpoint
+    },
+    {
+      name  = "serviceAccount.name"
+      value = "karpenter"
     }
   ]
 
   values = [
     yamlencode({
+      dnsConfig = {
+        options = [
+          {
+            name  = "ndots"
+            value = "1"
+          }
+        ]
+      }
+
+      controller = {
+        env = [
+          {
+            name  = "AWS_REGION"
+            value = var.region
+          }
+        ]
+      }
+
       tolerations = [
         {
           key      = "CriticalAddonsOnly"

@@ -34,10 +34,13 @@ module "system_node_group" {
   version = "21.23.0"
 
   name                 = "${var.name}-system"
+  kubernetes_version   = "1.35"
   cluster_name         = module.eks.cluster_name
   cluster_service_cidr = module.eks.cluster_service_cidr
 
   subnet_ids = var.subnet_ids
+
+  vpc_security_group_ids = [module.eks.node_security_group_id]
 
   instance_types = ["t3.medium"]
   min_size       = 2

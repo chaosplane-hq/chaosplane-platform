@@ -72,11 +72,13 @@ resource "aws_route53_record" "validation_us_east_1" {
 }
 
 resource "aws_acm_certificate_validation" "this" {
+  count                   = var.wait_for_validation ? 1 : 0
   certificate_arn         = aws_acm_certificate.this.arn
   validation_record_fqdns = [for record in aws_route53_record.validation : record.fqdn]
 }
 
 resource "aws_acm_certificate_validation" "us_east_1" {
+  count    = var.wait_for_validation ? 1 : 0
   provider = aws.us_east_1
 
   certificate_arn         = aws_acm_certificate.us_east_1.arn

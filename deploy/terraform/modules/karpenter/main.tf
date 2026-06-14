@@ -43,6 +43,7 @@ module "karpenter" {
   create_pod_identity_association = true
   create_node_iam_role            = true
   node_iam_role_name              = var.name
+  node_iam_role_use_name_prefix   = false
   enable_inline_policy            = true
 
   node_iam_role_additional_policies = {

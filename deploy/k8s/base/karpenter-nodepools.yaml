@@ -40,14 +40,15 @@ kind: EC2NodeClass
 metadata:
   name: system
 spec:
+  role: chaosplane-prod
   amiSelectorTerms:
     - alias: al2023@latest
   subnetSelectorTerms:
     - tags:
-        karpenter.sh/discovery: chaosplane
+        karpenter.sh/discovery: chaosplane-prod
   securityGroupSelectorTerms:
     - tags:
-        karpenter.sh/discovery: chaosplane
+        karpenter.sh/discovery: chaosplane-prod
   blockDeviceMappings:
     - deviceName: /dev/xvda
       ebs:
@@ -98,14 +99,15 @@ kind: EC2NodeClass
 metadata:
   name: workload
 spec:
+  role: chaosplane-prod
   amiSelectorTerms:
     - alias: al2023@latest
   subnetSelectorTerms:
     - tags:
-        karpenter.sh/discovery: chaosplane
+        karpenter.sh/discovery: chaosplane-prod
   securityGroupSelectorTerms:
     - tags:
-        karpenter.sh/discovery: chaosplane
+        karpenter.sh/discovery: chaosplane-prod
   blockDeviceMappings:
     - deviceName: /dev/xvda
       ebs:
@@ -146,14 +148,15 @@ kind: EC2NodeClass
 metadata:
   name: jobs
 spec:
+  role: chaosplane-prod
   amiSelectorTerms:
     - alias: al2023@latest
   subnetSelectorTerms:
     - tags:
-        karpenter.sh/discovery: chaosplane
+        karpenter.sh/discovery: chaosplane-prod
   securityGroupSelectorTerms:
     - tags:
-        karpenter.sh/discovery: chaosplane
+        karpenter.sh/discovery: chaosplane-prod
   blockDeviceMappings:
     - deviceName: /dev/xvda
       ebs:

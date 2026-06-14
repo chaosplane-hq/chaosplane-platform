@@ -5,3 +5,8 @@ output "web_acl_arn" {
 output "web_acl_id" {
   value = aws_wafv2_web_acl.this.id
 }
+
+output "origin_verify_secret" {
+  value     = random_password.origin_verify.result
+  sensitive = true
+}

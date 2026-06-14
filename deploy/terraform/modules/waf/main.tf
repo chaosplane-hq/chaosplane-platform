@@ -1,3 +1,8 @@
+resource "random_password" "origin_verify" {
+  length  = 48
+  special = false
+}
+
 resource "aws_wafv2_web_acl" "this" {
   name  = var.name
   scope = "REGIONAL"
@@ -5,6 +10,42 @@ resource "aws_wafv2_web_acl" "this" {
 
   default_action {
     allow {}
+  }
+
+  rule {
+    name     = "BlockNonCloudFrontOrigin"
+    priority = 5
+
+    action {
+      block {}
+    }
+
+    statement {
+      not_statement {
+        statement {
+          byte_match_statement {
+            field_to_match {
+              single_header {
+                name = "x-origin-verify"
+              }
+            }
+            positional_constraint = "EXACTLY"
+            search_string         = random_password.origin_verify.result
+
+            text_transformation {
+              priority = 0
+              type     = "NONE"
+            }
+          }
+        }
+      }
+    }
+
+    visibility_config {
+      cloudwatch_metrics_enabled = true
+      metric_name                = "${var.name}-origin-verify"
+      sampled_requests_enabled   = true
+    }
   }
 
   rule {

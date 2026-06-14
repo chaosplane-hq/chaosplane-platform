@@ -17,3 +17,8 @@ variable "aws_profile" {
   type    = string
   default = "chaosplane"
 }
+
+variable "enable_edge" {
+  type    = bool
+  default = false
+}

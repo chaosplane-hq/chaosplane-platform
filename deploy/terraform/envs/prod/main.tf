@@ -271,6 +271,26 @@ module "waf" {
   tags = {}
 }
 
+data "aws_lb" "alb" {
+  count = var.enable_edge ? 1 : 0
+  name  = local.name
+}
+
+resource "aws_wafv2_web_acl_association" "alb" {
+  count        = var.enable_edge ? 1 : 0
+  resource_arn = data.aws_lb.alb[0].arn
+  web_acl_arn  = module.waf.web_acl_arn
+}
+
+module "cdn_alb" {
+  count  = var.enable_edge ? 1 : 0
+  source = "../../modules/cdn-alb"
+
+  name                 = local.name
+  alb_name             = local.name
+  origin_verify_secret = module.waf.origin_verify_secret
+}
+
 module "guardduty" {
   source = "../../modules/guardduty"
 

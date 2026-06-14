@@ -70,18 +70,29 @@ aws eks update-kubeconfig --name chaosplane-prod --region ap-northeast-2 --profi
 
 ### 7. Bootstrap ArgoCD
 
+ArgoCD is installed declaratively via Terraform (`module.argocd`, a `helm_release`
+of the `argo-cd` chart pinned to a specific version) — not via raw `kubectl apply`.
+It is created automatically during `terraform apply`. To (re)apply just ArgoCD:
+
 ```bash
-kubectl create namespace argocd
-kubectl apply -n argocd -f https://raw.githubusercontent.com/argoproj/argo-cd/v2.14.0/manifests/install.yaml
+cd deploy/terraform/envs/prod
+terraform apply -target=module.argocd
 
 # Wait for ArgoCD to be ready
 kubectl wait --for=condition=available deployment/argocd-server -n argocd --timeout=300s
 
-# Get initial admin password
+# Get initial admin password (rotate / delete after first login)
 kubectl -n argocd get secret argocd-initial-admin-secret -o jsonpath="{.data.password}" | base64 -d
 ```
 
+The chart version is pinned in `deploy/terraform/modules/argocd/variables.tf`
+(`chart_version`) for reproducibility. ArgoCD pods run on the system node group
+(tolerations + nodeSelector are set in the module).
+
 ### 8. Apply ArgoCD Applications
+
+After the repo credential is in place (see "ArgoCD → Private Repo Access" below),
+apply the root Applications:
 
 ```bash
 kubectl apply -f deploy/argocd/
@@ -89,48 +100,57 @@ kubectl apply -f deploy/argocd/
 
 This triggers automatic sync of all workloads.
 
-## GitHub App Setup (ArgoCD → Private Repo Access)
+## ArgoCD → Private Repo Access (Fine-grained PAT)
 
-ArgoCD needs to read `chaosplane-platform` (private repo) for K8s manifests.
+ArgoCD needs read access to `chaosplane-platform` (private repo) to pull K8s manifests.
+We use a **fine-grained Personal Access Token** scoped to a single repository with
+read-only contents. The token is injected directly into the cluster as a Secret via
+stdin and is **never written to a file or committed to the repo**.
 
-### Create GitHub App
+### 1. Create the fine-grained PAT (browser only — GitHub has no API for this)
 
-1. Go to https://github.com/organizations/chaosplane-hq/settings/apps/new
+1. Go to https://github.com/settings/personal-access-tokens/new
 2. Settings:
-   - Name: `chaosplane-argocd`
-   - Homepage URL: `https://app.chaosplane.dev`
-   - Uncheck "Webhook Active"
-   - Permissions:
-     - Repository permissions → Contents: Read-only
-   - Where can this app be installed: Only on this account
-3. Click "Create GitHub App"
-4. Note the **App ID** (shown at top of app settings page)
-5. Generate a **Private Key** (scroll down → "Generate a private key") — downloads a .pem file
-6. Install the app:
-   - Go to "Install App" tab
-   - Install on `chaosplane-hq`
-   - Select "Only select repositories" → choose `chaosplane-platform`
-   - Note the **Installation ID** from the URL: `https://github.com/organizations/chaosplane-hq/settings/installations/<INSTALLATION_ID>`
+   - Token name: `chaosplane-argocd-repo`
+   - Resource owner: `chaosplane-hq`
+   - Expiration: 90 days (rotate before expiry — see rotation below)
+   - Repository access: **Only select repositories** → `chaosplane-hq/chaosplane-platform`
+   - Repository permissions → **Contents: Read-only** (this is the only permission needed)
+3. Generate token and copy it (starts with `github_pat_...`).
 
-### Configure ArgoCD with GitHub App
+### 2. Inject the credential into ArgoCD (stdin, never saved to disk)
 
 ```bash
-kubectl apply -f - <<EOF
-apiVersion: v1
-kind: Secret
-metadata:
-  name: github-app-creds
-  namespace: argocd
-  labels:
-    argocd.argoproj.io/secret-type: repo-creds
-stringData:
-  url: https://github.com/chaosplane-hq/
-  githubAppID: "<APP_ID>"
-  githubAppInstallationID: "<INSTALLATION_ID>"
-  githubAppPrivateKey: |
-    <paste contents of .pem file>
-EOF
+# Paste the token when prompted; it is read into a shell variable and never written to a file.
+read -rs GH_PAT
+kubectl create secret generic chaosplane-platform-repo -n argocd \
+  --from-literal=type=git \
+  --from-literal=url=https://github.com/chaosplane-hq/chaosplane-platform.git \
+  --from-literal=username=chaosplane-argocd \
+  --from-literal=password="$GH_PAT" \
+  --dry-run=client -o yaml \
+  | kubectl label -f - --local -o yaml argocd.argoproj.io/secret-type=repository \
+  | kubectl apply -f -
+unset GH_PAT
 ```
+
+> Security notes:
+> - The token value lives only in cluster Secret storage (etcd, encrypted via the EKS KMS key) — never in a file, never in git.
+> - Use a fine-grained PAT (single repo, Contents read-only), not a classic token or the broad `gh` OAuth token. The latter has `repo`, `delete_repo`, `workflow` scopes and violates least privilege.
+> - For a temporary bring-up you may inject `$(gh auth token)` instead, but **replace it with the fine-grained PAT before going live** — the OAuth token is over-privileged.
+
+### 3. Rotate the token
+
+Before expiry, create a new fine-grained PAT and re-run step 2 (it overwrites the
+existing Secret). ArgoCD picks up the new credential on its next repo poll. Then
+delete the old PAT from GitHub.
+
+### Alternative: GitHub App
+
+If you prefer a GitHub App (no expiry, finer audit trail), create one with
+`Contents: Read-only`, install it on `chaosplane-platform`, and inject a
+`repo-creds` Secret with `githubAppID` / `githubAppInstallationID` /
+`githubAppPrivateKey`. The PAT approach above is simpler and is the supported default.
 
 ## GitHub Actions Setup (OIDC → ECR Push)
 

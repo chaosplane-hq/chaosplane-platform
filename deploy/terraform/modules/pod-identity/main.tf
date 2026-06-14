@@ -28,7 +28,7 @@ module "external_secrets" {
   associations = {
     this = {
       cluster_name    = var.cluster_name
-      namespace       = "kube-system"
+      namespace       = "external-secrets"
       service_account = "external-secrets"
     }
   }

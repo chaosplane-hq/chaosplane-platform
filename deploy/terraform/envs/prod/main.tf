@@ -130,6 +130,17 @@ module "ecr" {
   depends_on = [module.kms]
 }
 
+module "github_oidc" {
+  source = "../../modules/github-oidc"
+
+  name                = local.name
+  github_repo         = "chaosplane-hq/chaosplane-platform"
+  ecr_repository_arns = values(module.ecr.repository_arns)
+  tags                = {}
+
+  depends_on = [module.ecr]
+}
+
 module "eks" {
   source = "../../modules/eks"
 
@@ -153,6 +164,14 @@ module "karpenter" {
   tags                   = {}
 
   depends_on = [module.eks]
+}
+
+module "argocd" {
+  source = "../../modules/argocd"
+
+  tags = {}
+
+  depends_on = [module.eks, module.karpenter]
 }
 
 module "rds" {

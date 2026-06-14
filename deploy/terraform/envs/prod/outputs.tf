@@ -21,3 +21,7 @@ output "zone_name_servers" {
 output "waf_acl_arn" {
   value = module.waf.web_acl_arn
 }
+
+output "github_actions_role_arn" {
+  value = module.github_oidc.role_arn
+}

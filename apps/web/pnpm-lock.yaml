@@ -17,6 +17,9 @@ importers:
       '@carbon/styles':
         specifier: ^1.71.0
         version: 1.104.0(sass@1.99.0)
+      '@ibm/plex':
+        specifier: 6.0.0-next.6
+        version: 6.0.0-next.6
       '@tanstack/react-query':
         specifier: ^5.97.0
         version: 5.97.0(react@19.2.5)

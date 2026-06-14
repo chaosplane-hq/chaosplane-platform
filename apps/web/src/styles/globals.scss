@@ -1,3 +1,6 @@
+@use '@carbon/styles/scss/config' with (
+  $use-akamai-cdn: true
+);
 @use '@carbon/react/scss/reset';
 @use '@carbon/react/scss/grid';
 @use '@carbon/react/scss/type';

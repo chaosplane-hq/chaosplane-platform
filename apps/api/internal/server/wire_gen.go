@@ -86,11 +86,13 @@ func InitializeServer(ctx context.Context) (*Server, error) {
 
 	experimentService := service.NewExperimentService(pool)
 	policyService := service.NewPolicyService(pool)
+	agentWorkService := service.NewAgentWorkService(pool)
 
 	experimentHandler := handler.NewExperimentHandler(experimentService, notificationService, billingService)
 	policyHandler := handler.NewPolicyHandler(policyService)
 	wsHandler := handler.NewWebSocketHandler(experimentService, authService, pool)
+	agentWorkHandler := handler.NewAgentWorkHandler(agentWorkService)
 
-	srv := New(cfg, pool, healthHandler, authHandler, hierarchyHandler, onboardingHandler, invitationHandler, apiKeyHandler, oauthHandler, accountHandler, agentHandler, billingHandler, notificationHandler, auditHandler, topologyHandler, topoAnalysisHandler, vulnerabilityHandler, suggestionHandler, resultAnalysisHandler, aiChatHandler, enterpriseHandler, gamedayHandler, resilienceHandler, wfTemplateHandler, cuiHandler, marketplaceHandler, federationHandler, cicdHandler, predictiveHandler, experimentHandler, policyHandler, wsHandler, rdb, authService)
+	srv := New(cfg, pool, healthHandler, authHandler, hierarchyHandler, onboardingHandler, invitationHandler, apiKeyHandler, oauthHandler, accountHandler, agentHandler, billingHandler, notificationHandler, auditHandler, topologyHandler, topoAnalysisHandler, vulnerabilityHandler, suggestionHandler, resultAnalysisHandler, aiChatHandler, enterpriseHandler, gamedayHandler, resilienceHandler, wfTemplateHandler, cuiHandler, marketplaceHandler, federationHandler, cicdHandler, predictiveHandler, experimentHandler, policyHandler, wsHandler, agentWorkHandler, rdb, authService)
 	return srv, nil
 }

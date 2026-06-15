@@ -52,6 +52,7 @@ func New(
 	experiments *handler.ExperimentHandler,
 	policies *handler.PolicyHandler,
 	ws *handler.WebSocketHandler,
+	agentWork *handler.AgentWorkHandler,
 	rdb *redis.Client,
 	authService *service.AuthService,
 ) *Server {
@@ -92,6 +93,13 @@ func New(
 		agentPublic.POST("/topology/dependencies", topoAnalysis.SubmitDependencies)
 		agentPublic.POST("/topology/metrics", topoAnalysis.SubmitMetrics)
 		agentPublic.POST("/topology/drifts", topoAnalysis.SubmitDrift)
+	}
+
+	agentV1 := r.Group("/agent/v1")
+	agentV1.Use(middleware.AgentAuth(pool.App))
+	{
+		agentV1.GET("/work", agentWork.ClaimWork)
+		agentV1.POST("/experiments/:id/status", agentWork.ReportStatus)
 	}
 
 	webhooks := r.Group("/webhooks")

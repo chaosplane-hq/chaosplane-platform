@@ -364,11 +364,11 @@ export const auditApi = {
 };
 
 export const securityApi = {
-  listSSO: () => apiFetch<SSOProviderListResponse>('/api/v1/sso-providers'),
+  listSSO: () => apiFetch<SSOProviderListResponse>('/api/v1/saml-providers'),
   createSSO: (data: CreateSSOProviderRequest) =>
-    apiFetch<SSOProvider>('/api/v1/sso-providers', { method: 'POST', body: JSON.stringify(data) }),
+    apiFetch<SSOProvider>('/api/v1/saml-providers', { method: 'POST', body: JSON.stringify(data) }),
   deleteSSO: (id: string) =>
-    apiFetch<void>(`/api/v1/sso-providers/${id}`, { method: 'DELETE' }),
+    apiFetch<void>(`/api/v1/saml-providers/${id}`, { method: 'DELETE' }),
   listABACPolicies: () => apiFetch<ABACPolicyListResponse>('/api/v1/abac-policies'),
   createABACPolicy: (data: CreateABACPolicyRequest) =>
     apiFetch<ABACPolicy>('/api/v1/abac-policies', { method: 'POST', body: JSON.stringify(data) }),
@@ -376,16 +376,16 @@ export const securityApi = {
     apiFetch<void>(`/api/v1/abac-policies/${id}`, { method: 'DELETE' }),
   getMFACodes: () => apiFetch<MFARecoveryCodes>('/api/v1/mfa/recovery-codes'),
   generateMFACodes: () =>
-    apiFetch<MFARecoveryCodes>('/api/v1/mfa/recovery-codes/generate', { method: 'POST' }),
+    apiFetch<MFARecoveryCodes>('/api/v1/mfa/recovery-codes', { method: 'POST' }),
   listSessions: () => apiFetch<ActiveSessionListResponse>('/api/v1/sessions'),
   revokeSession: (id: string) =>
     apiFetch<void>(`/api/v1/sessions/${id}`, { method: 'DELETE' }),
   revokeAllSessions: () =>
     apiFetch<void>('/api/v1/sessions', { method: 'DELETE' }),
   requestEmailChange: (newEmail: string) =>
-    apiFetch<void>('/api/v1/account/email-change', { method: 'POST', body: JSON.stringify({ newEmail }) }),
+    apiFetch<void>('/api/v1/account/change-email', { method: 'POST', body: JSON.stringify({ newEmail }) }),
   requestAccountDeletion: () =>
-    apiFetch<void>('/api/v1/account/deletion-request', { method: 'POST' }),
+    apiFetch<void>('/api/v1/account/request-deletion', { method: 'POST' }),
 };
 
 export const marketplaceApi = {

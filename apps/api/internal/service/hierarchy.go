@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"strings"
+	"time"
 
 	"github.com/jackc/pgx/v5"
 
@@ -546,4 +547,52 @@ func nonNilEnvironments(items []Environment) []Environment {
 		return []Environment{}
 	}
 	return items
+}
+
+type TeamMember struct {
+	ID       string `json:"id"`
+	Email    string `json:"email"`
+	Name     string `json:"name"`
+	Role     string `json:"role"`
+	JoinedAt string `json:"joinedAt"`
+}
+
+type TeamMemberListResponse struct {
+	Items []TeamMember `json:"items"`
+}
+
+func (s *HierarchyService) ListMembers(ctx context.Context, actor ActorContext) (*TeamMemberListResponse, error) {
+	if err := ensureActorMembership(ctx, s.pool, actor); err != nil {
+		return nil, err
+	}
+	rows, err := s.pool.Conn(ctx).Query(ctx, `
+		SELECT u.id::text, u.email, u.name,
+		       COALESCE((
+		           SELECT tm.role FROM team_members tm
+		           JOIN teams t ON t.id = tm.team_id
+		           WHERE tm.user_id = u.id AND t.tenant_id = ut.tenant_id
+		           ORDER BY tm.joined_at ASC LIMIT 1
+		       ), 'member') AS role,
+		       ut.joined_at
+		FROM user_tenants ut
+		JOIN users u ON u.id = ut.user_id
+		WHERE ut.tenant_id = $1::uuid AND u.deleted_at IS NULL
+		ORDER BY ut.joined_at ASC
+	`, actor.TenantID)
+	if err != nil {
+		return nil, fmt.Errorf("list members: %w", err)
+	}
+	defer rows.Close()
+
+	items := []TeamMember{}
+	for rows.Next() {
+		var m TeamMember
+		var joinedAt time.Time
+		if err := rows.Scan(&m.ID, &m.Email, &m.Name, &m.Role, &joinedAt); err != nil {
+			return nil, fmt.Errorf("scan member: %w", err)
+		}
+		m.JoinedAt = joinedAt.UTC().Format(time.RFC3339)
+		items = append(items, m)
+	}
+	return &TeamMemberListResponse{Items: items}, rows.Err()
 }

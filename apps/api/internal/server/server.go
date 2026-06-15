@@ -130,6 +130,7 @@ func New(
 	}
 	{
 		saas.GET("/hierarchy", hierarchy.List)
+		saas.GET("/members", hierarchy.ListMembers)
 		saas.GET("/onboarding", onboarding.Get)
 		saas.PATCH("/onboarding", onboarding.Update)
 		saas.POST("/onboarding/skip", onboarding.Skip)

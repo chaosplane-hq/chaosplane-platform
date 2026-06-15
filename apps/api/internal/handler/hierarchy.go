@@ -25,6 +25,15 @@ func (h *HierarchyHandler) List(c *gin.Context) {
 	c.JSON(http.StatusOK, resp)
 }
 
+func (h *HierarchyHandler) ListMembers(c *gin.Context) {
+	resp, err := h.svc.ListMembers(c.Request.Context(), actorFromContext(c))
+	if err != nil {
+		writeHierarchyError(c, err)
+		return
+	}
+	c.JSON(http.StatusOK, resp)
+}
+
 func (h *HierarchyHandler) CreateOrganization(c *gin.Context) {
 	var req service.CreateOrganizationRequest
 	if err := c.ShouldBindJSON(&req); err != nil {

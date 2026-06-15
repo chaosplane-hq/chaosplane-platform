@@ -57,7 +57,6 @@ export function AppSidebar({ isExpanded, onToggle }: AppSidebarProps) {
     <SideNav
       aria-label="Side navigation"
       expanded={isExpanded}
-      isPersistent={false}
       onSideNavBlur={onToggle}
     >
       <SideNavItems>

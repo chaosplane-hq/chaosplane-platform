@@ -5,7 +5,26 @@
 @use '@carbon/react/scss/grid';
 @use '@carbon/react/scss/type';
 @use '@carbon/react/scss/themes';
-@use '@carbon/react/scss/theme' with (
+@use '@carbon/react/scss/theme' as theme with (
   $theme: themes.$g100
 );
 @use '@carbon/react';
+@use '@carbon/react/scss/breakpoint' as *;
+
+:root {
+  @include theme.theme();
+}
+
+html,
+body {
+  background: var(--cds-background);
+  color: var(--cds-text-primary);
+}
+
+.cds--side-nav ~ .cds--content {
+  margin-inline-start: 0;
+
+  @include breakpoint('lg') {
+    margin-inline-start: 16rem;
+  }
+}

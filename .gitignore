@@ -57,3 +57,4 @@ debug
 
 # Docker
 docker-compose.override.yaml
+.gstack/

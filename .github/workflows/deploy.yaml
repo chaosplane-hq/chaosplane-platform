@@ -47,8 +47,9 @@ jobs:
         env:
           REGISTRY: ${{ steps.ecr-login.outputs.registry }}
           TAG: ${{ steps.meta.outputs.tag }}
+          NEXT_PUBLIC_API_URL: ${{ vars.NEXT_PUBLIC_API_URL }}
         run: |
-          docker build -t $REGISTRY/chaosplane/web:$TAG -f apps/web/Dockerfile apps/web
+          docker build -t $REGISTRY/chaosplane/web:$TAG --build-arg NEXT_PUBLIC_API_URL="$NEXT_PUBLIC_API_URL" -f apps/web/Dockerfile apps/web
           docker push $REGISTRY/chaosplane/web:$TAG
 
   update-manifests:

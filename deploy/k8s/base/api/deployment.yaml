@@ -49,3 +49,10 @@ spec:
           envFrom:
             - secretRef:
                 name: chaosplane-secrets
+          env:
+            - name: ENVIRONMENT
+              value: production
+            - name: CORS_ORIGINS
+              value: https://d1gbvkrts3frks.cloudfront.net
+            - name: FRONTEND_URL
+              value: https://d1gbvkrts3frks.cloudfront.net

@@ -14,5 +14,11 @@ variable "origin_verify_secret" {
 variable "sites" {
   type = map(object({
     origin_host = string
+    domain      = optional(string)
   }))
+}
+
+variable "acm_certificate_arn" {
+  type    = string
+  default = ""
 }

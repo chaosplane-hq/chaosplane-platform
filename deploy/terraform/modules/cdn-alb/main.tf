@@ -8,6 +8,8 @@ resource "aws_cloudfront_distribution" "this" {
   enabled = true
   comment = "${var.name}-${each.key}"
 
+  aliases = each.value.domain != null ? [each.value.domain] : []
+
   origin {
     domain_name = data.aws_lb.this.dns_name
     origin_id   = "alb"
@@ -57,6 +59,9 @@ resource "aws_cloudfront_distribution" "this" {
   }
 
   viewer_certificate {
-    cloudfront_default_certificate = true
+    cloudfront_default_certificate = each.value.domain == null
+    acm_certificate_arn            = each.value.domain != null ? var.acm_certificate_arn : null
+    ssl_support_method             = each.value.domain != null ? "sni-only" : null
+    minimum_protocol_version       = each.value.domain != null ? "TLSv1.2_2021" : null
   }
 }

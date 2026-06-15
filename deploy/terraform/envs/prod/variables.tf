@@ -20,5 +20,5 @@ variable "aws_profile" {
 
 variable "enable_edge" {
   type    = bool
-  default = false
+  default = true
 }

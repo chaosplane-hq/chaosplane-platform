@@ -190,13 +190,13 @@ export default function ExperimentsPage() {
                       </TableRow>
                     ) : (
                       tableRows.map((row) => {
-                        const exp = experiments.find((e) => e.name === row.id);
+                        const exp = experiments.find((e) => e.id === row.id);
                         const { key, ...rowProps } = getRowProps({ row });
                         return (
                           <TableRow key={key} {...rowProps}>
                             <TableCell>
                               <Link as={NextLink} href={`/experiments/${row.id}`}>
-                                {row.id}
+                                {row.cells[0].value}
                               </Link>
                             </TableCell>
                             <TableCell>{row.cells[1].value}</TableCell>

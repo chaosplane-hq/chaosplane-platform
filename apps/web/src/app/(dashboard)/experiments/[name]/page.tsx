@@ -208,7 +208,7 @@ export default function ExperimentDetailPage({ params }: PageProps) {
           });
         }}
       >
-        <p>Are you sure you want to abort <strong>{name}</strong>? This will stop the experiment immediately.</p>
+        <p>Are you sure you want to abort <strong>{experiment.name}</strong>? This will stop the experiment immediately.</p>
       </Modal>
     </Grid>
   );

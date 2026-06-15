@@ -23,7 +23,7 @@ import {
 } from '@carbon/react';
 import { Add, TrashCan } from '@carbon/icons-react';
 import { useCICDIntegrations, useCreateCICDIntegration, useDeleteCICDIntegration } from '@/lib/hooks/use-cicd';
-import type { CICDProvider } from '@/lib/types';
+import type { CICDProvider, CICDIntegration } from '@/lib/types';
 
 const PROVIDERS: { id: CICDProvider; label: string }[] = [
   { id: 'github_actions', label: 'GitHub Actions' },
@@ -63,7 +63,7 @@ export function CICDTab() {
     );
   }
 
-  const rows = (data?.integrations ?? []).map((i) => ({ ...i, id: i.id }));
+  const rows = (data?.items ?? []).map((i: CICDIntegration) => ({ ...i, id: i.id }));
 
   return (
     <div style={{ marginTop: 'var(--cds-spacing-05)' }}>
@@ -100,7 +100,7 @@ export function CICDTab() {
                 </TableHead>
                 <TableBody>
                     {tableRows.map((row) => {
-                      const integration = data?.integrations.find((i) => i.id === row.id);
+                      const integration = (data?.items ?? []).find((i: CICDIntegration) => i.id === row.id);
                       const { key: rowKey, ...rowProps } = getRowProps({ row });
                       return (
                         <TableRow key={row.id} {...rowProps}>

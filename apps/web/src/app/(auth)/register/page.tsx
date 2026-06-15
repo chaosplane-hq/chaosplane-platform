@@ -2,6 +2,7 @@
 
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
+import Image from 'next/image';
 import { Button, Checkbox, InlineNotification, PasswordInput, TextInput } from '@carbon/react';
 import { register } from '@/lib/auth';
 
@@ -37,7 +38,14 @@ export default function RegisterPage() {
     <main className="login-page">
       <div className="login-container">
         <div className="login-brand">
-          <span className="login-brand__icon">⚡</span>
+          <Image
+            src="/logo.svg"
+            alt="ChaosPlane"
+            width={56}
+            height={56}
+            className="login-brand__logo"
+            priority
+          />
           <h1 className="login-brand__name">ChaosPlane</h1>
           <p className="login-brand__tagline">Chaos engineering, simplified.</p>
         </div>
@@ -132,20 +140,23 @@ export default function RegisterPage() {
 
         .login-container {
           width: 100%;
-          max-width: 400px;
+          max-width: 26rem;
           display: flex;
           flex-direction: column;
-          gap: var(--cds-spacing-07);
+          gap: var(--cds-spacing-08);
         }
 
         .login-brand {
           text-align: center;
+          display: flex;
+          flex-direction: column;
+          align-items: center;
         }
 
-        .login-brand__icon {
-          font-size: 2.5rem;
-          display: block;
-          margin-bottom: var(--cds-spacing-03);
+        .login-brand :global(.login-brand__logo) {
+          width: 56px;
+          height: 56px;
+          margin-bottom: var(--cds-spacing-05);
         }
 
         .login-brand__name {
@@ -164,7 +175,9 @@ export default function RegisterPage() {
 
         .login-card {
           background-color: var(--cds-layer-01);
-          padding: var(--cds-spacing-07);
+          border: 1px solid var(--cds-border-subtle-01);
+          border-top: 2px solid var(--cds-border-interactive);
+          padding: var(--cds-spacing-08) var(--cds-spacing-07);
           display: flex;
           flex-direction: column;
           gap: var(--cds-spacing-06);

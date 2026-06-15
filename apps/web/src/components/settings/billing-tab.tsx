@@ -51,6 +51,11 @@ export function BillingTab() {
   const upgradePlan = useUpgradePlan();
   const cancelPlan = useCancelPlan();
 
+  const subscription = data?.subscription ?? null;
+  const usage = data?.usage ?? null;
+  const limits = data?.limits ?? null;
+  const plan: BillingPlan = subscription?.plan ?? 'free';
+
   async function handleUpgrade() {
     setErrorMsg('');
     try {
@@ -122,28 +127,27 @@ export function BillingTab() {
             ) : (
               <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--cds-spacing-03)' }}>
                 <span style={{ fontSize: 'var(--cds-heading-04-font-size)', fontWeight: 600, color: 'var(--cds-text-primary)' }}>
-                  {PLAN_LABELS[data?.plan ?? 'free']}
+                  {PLAN_LABELS[plan]}
                 </span>
-                <Tag type={PLAN_COLORS[data?.plan ?? 'free']} size="sm">
-                  {data?.status ?? 'active'}
+                <Tag type={PLAN_COLORS[plan]} size="sm">
+                  {subscription?.status ?? 'active'}
                 </Tag>
               </div>
             )}
-            {data?.currentPeriodEnd && (
+            {subscription?.currentPeriodEnd && (
               <p style={{ color: 'var(--cds-text-secondary)', fontSize: 'var(--cds-label-01-font-size)', margin: 'var(--cds-spacing-02) 0 0' }}>
-                Renews {new Date(data.currentPeriodEnd).toLocaleDateString()}
-                {data.nextInvoiceAmount != null && ` · $${(data.nextInvoiceAmount / 100).toFixed(2)}`}
+                Renews {new Date(subscription.currentPeriodEnd).toLocaleDateString()}
               </p>
             )}
           </div>
           {!isLoading && (
             <div style={{ display: 'flex', gap: 'var(--cds-spacing-03)' }}>
-              {data?.plan !== 'enterprise' && (
+              {plan !== 'enterprise' && (
                 <Button kind="primary" onClick={() => setUpgradeOpen(true)}>
                   Upgrade
                 </Button>
               )}
-              {data?.plan !== 'free' && (
+              {plan !== 'free' && (
                 <Button kind="ghost" onClick={() => setCancelOpen(true)}>
                   Cancel plan
                 </Button>
@@ -159,22 +163,22 @@ export function BillingTab() {
         </h3>
         {isLoading ? (
           <SkeletonText paragraph lineCount={6} />
-        ) : data?.usage ? (
+        ) : usage ? (
           <>
             <UsageBar
               label="Experiments run"
-              used={data.usage.experimentsRun}
-              limit={data.usage.experimentsLimit}
+              used={usage.experiments ?? 0}
+              limit={limits?.maxExperiments ?? 0}
             />
             <UsageBar
-              label="Team members"
-              used={data.usage.membersCount}
-              limit={data.usage.membersLimit}
+              label="Agents"
+              used={usage.agents ?? 0}
+              limit={limits?.maxAgents ?? 0}
             />
             <UsageBar
               label="API calls"
-              used={data.usage.apiCallsCount}
-              limit={data.usage.apiCallsLimit}
+              used={usage.apiCalls ?? 0}
+              limit={limits?.maxApiCalls ?? 0}
             />
           </>
         ) : (

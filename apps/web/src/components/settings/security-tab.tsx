@@ -94,15 +94,15 @@ export function SecurityTab() {
   const [error, setError] = useState('');
   const [successMsg, setSuccessMsg] = useState('');
 
-  const providers = ssoData?.providers ?? [];
-  const policies = abacData?.policies ?? [];
-  const sessions = sessionsData?.sessions ?? [];
+  const providers = ssoData?.items ?? [];
+  const policies = abacData?.items ?? [];
+  const sessions = sessionsData?.items ?? [];
 
   const sessionRows = sessions.map((s) => ({
     id: s.id,
-    ipAddress: s.ipAddress,
-    userAgent: s.userAgent.slice(0, 60) + (s.userAgent.length > 60 ? '…' : ''),
-    lastActiveAt: formatDate(s.lastActiveAt),
+    ipAddress: s.ipAddress ?? '—',
+    userAgent: (s.userAgent ?? '').slice(0, 60) + ((s.userAgent ?? '').length > 60 ? '…' : ''),
+    lastActiveAt: formatDate(s.lastActivity),
     isCurrent: s.isCurrent,
   }));
 
@@ -112,8 +112,8 @@ export function SecurityTab() {
       const data: CreateSSOProviderRequest = {
         name: ssoName.trim(),
         type: ssoType,
-        entityId: ssoEntityId.trim() || undefined,
-        ssoUrl: ssoUrl.trim() || undefined,
+        entityId: ssoEntityId.trim(),
+        ssoUrl: ssoUrl.trim(),
       };
       await createSSO.mutateAsync(data);
       setSsoOpen(false);
@@ -224,10 +224,10 @@ export function SecurityTab() {
                     <Tag type={p.effect === 'allow' ? 'green' : 'red'} size="sm">{p.effect}</Tag>
                   </StructuredListCell>
                   <StructuredListCell style={{ fontSize: 'var(--cds-label-01-font-size)', color: 'var(--cds-text-secondary)' }}>
-                    {p.actions.join(', ')}
+                    {Array.isArray(p.actions) ? p.actions.join(', ') : String(p.actions ?? '')}
                   </StructuredListCell>
                   <StructuredListCell style={{ fontSize: 'var(--cds-label-01-font-size)', color: 'var(--cds-text-secondary)' }}>
-                    {p.resources.join(', ')}
+                    {Array.isArray(p.resources) ? p.resources.join(', ') : String(p.resources ?? '')}
                   </StructuredListCell>
                   <StructuredListCell>
                     <Button kind="danger--ghost" size="sm" renderIcon={TrashCan} iconDescription="Delete" hasIconOnly

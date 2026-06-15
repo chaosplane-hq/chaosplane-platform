@@ -69,13 +69,22 @@ export default function LoginPage() {
 
           <div className="login-oauth">
             <Button kind="tertiary" className="login-oauth__btn" onClick={() => handleOAuth('google')}>
-              Continue with Google
+              <span className="login-oauth__icon">
+                <Image src="/icons/google.svg" alt="" width={20} height={20} />
+              </span>
+              <span className="login-oauth__label">Continue with Google</span>
             </Button>
-            <Button kind="tertiary" renderIcon={LogoGithub} iconDescription="GitHub" className="login-oauth__btn" onClick={() => handleOAuth('github')}>
-              Continue with GitHub
+            <Button kind="tertiary" className="login-oauth__btn" onClick={() => handleOAuth('github')}>
+              <span className="login-oauth__icon">
+                <LogoGithub size={20} />
+              </span>
+              <span className="login-oauth__label">Continue with GitHub</span>
             </Button>
             <Button kind="tertiary" className="login-oauth__btn" onClick={() => handleOAuth('microsoft')}>
-              Continue with Microsoft
+              <span className="login-oauth__icon">
+                <Image src="/icons/microsoft.svg" alt="" width={18} height={18} />
+              </span>
+              <span className="login-oauth__label">Continue with Microsoft</span>
             </Button>
           </div>
 
@@ -187,7 +196,23 @@ export default function LoginPage() {
         .login-oauth__btn {
           width: 100%;
           max-width: 100%;
+          display: flex;
+          align-items: center;
+          justify-content: flex-start;
+          gap: var(--cds-spacing-04);
+        }
+
+        .login-oauth__icon {
+          display: inline-flex;
+          align-items: center;
           justify-content: center;
+          flex: 0 0 20px;
+          width: 20px;
+          height: 20px;
+        }
+
+        .login-oauth__label {
+          display: inline-block;
         }
 
         .login-divider {

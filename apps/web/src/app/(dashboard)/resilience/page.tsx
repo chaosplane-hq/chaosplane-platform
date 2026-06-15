@@ -21,8 +21,8 @@ import {
   TableContainer,
 } from '@carbon/react';
 import { Renew } from '@carbon/icons-react';
-import { useResilienceScore, useResilienceHistory, useCalculateResilienceScore } from '@/lib/hooks/use-resilience';
-import type { ResilienceGrade } from '@/lib/types';
+import { useResilienceScore, useCalculateResilienceScore } from '@/lib/hooks/use-resilience';
+import type { ResilienceGrade, ResilienceScore } from '@/lib/types';
 import styles from '@/components/experiments/experiments.module.scss';
 
 const GRADE_COLOR: Record<ResilienceGrade, 'green' | 'teal' | 'blue' | 'red' | 'purple'> = {
@@ -54,8 +54,7 @@ export default function ResiliencePage() {
   const [environmentId, setEnvironmentId] = useState('');
 
   const params = environmentId ? { environmentId } : undefined;
-  const { data: score, isLoading: scoreLoading } = useResilienceScore(params);
-  const { data: history, isLoading: historyLoading } = useResilienceHistory(params);
+  const { data, isLoading: scoreLoading } = useResilienceScore(params);
   const calculate = useCalculateResilienceScore();
 
   const [calcError, setCalcError] = useState('');
@@ -69,15 +68,24 @@ export default function ResiliencePage() {
     }
   }
 
-  const historyRows = (history?.scores ?? []).map((s, i) => ({
+  const score = data?.current ?? null;
+  const history = data?.history ?? [];
+
+  const historyRows = history.map((s: ResilienceScore, i: number) => ({
     id: String(i),
-    grade: s.grade,
-    score: s.score,
+    grade: s.overallGrade,
+    score: s.overallScore,
     calculatedAt: formatDate(s.calculatedAt),
   }));
 
-  const breakdown = score?.breakdown ?? {};
-  const dimensionKeys = Object.keys(breakdown).filter((k) => k in DIMENSION_LABELS || true);
+  const breakdown: Record<string, number> = score
+    ? {
+        availability: score.availability,
+        fault_tolerance: score.faultTolerance,
+        recoverability: score.recoverability,
+      }
+    : {};
+  const dimensionKeys = Object.keys(breakdown);
 
   return (
     <Grid fullWidth>
@@ -137,10 +145,10 @@ export default function ResiliencePage() {
                   color: 'var(--cds-text-primary)',
                 }}
               >
-                {score.grade}
+                {score.overallGrade}
               </p>
-              <Tag type={GRADE_COLOR[score.grade]} size="lg">
-                Score: {score.score}
+              <Tag type={GRADE_COLOR[score.overallGrade]} size="lg">
+                Score: {score.overallScore}
               </Tag>
               <p style={{ color: 'var(--cds-text-secondary)', fontSize: 'var(--cds-label-01-font-size)', marginTop: 'var(--cds-spacing-03)' }}>
                 Last calculated: {formatDate(score.calculatedAt)}
@@ -196,7 +204,7 @@ export default function ResiliencePage() {
       <Column lg={16} md={8} sm={4} style={{ marginTop: 'var(--cds-spacing-06)' }}>
         <Tile>
           <h3 className={styles.sectionTitle}>Score History</h3>
-          {historyLoading ? (
+          {scoreLoading ? (
             <SkeletonText paragraph lineCount={5} />
           ) : (
             <DataTable rows={historyRows} headers={historyHeaders}>
@@ -220,11 +228,11 @@ export default function ResiliencePage() {
                         </TableRow>
                       ) : tableRows.map((row) => {
                         const { key, ...rowProps } = getRowProps({ row });
-                        const original = history?.scores[Number(row.id)];
+                        const original = history[Number(row.id)];
                         return (
                           <TableRow key={key} {...rowProps}>
                             <TableCell>
-                              <Tag type={GRADE_COLOR[original?.grade ?? 'F']} size="sm">
+                              <Tag type={GRADE_COLOR[original?.overallGrade ?? 'F']} size="sm">
                                 {row.cells[0].value}
                               </Tag>
                             </TableCell>

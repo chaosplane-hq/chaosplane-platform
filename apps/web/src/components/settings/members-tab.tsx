@@ -27,6 +27,7 @@ import {
   useResendInvitation,
   useRevokeInvitation,
 } from '@/lib/hooks/use-invitations';
+import { useHierarchy } from '@/lib/hooks/use-hierarchy';
 import type { MemberRole, InvitationStatus } from '@/lib/types';
 
 const ROLE_OPTIONS: MemberRole[] = ['owner', 'admin', 'member', 'viewer'];
@@ -66,19 +67,25 @@ export function MembersTab() {
 
   const { data: membersData, isLoading: membersLoading } = useTeamMembers();
   const { data: invitesData, isLoading: invitesLoading } = useInvitations();
+  const { data: hierarchy } = useHierarchy();
   const createInvitation = useCreateInvitation();
   const resendInvitation = useResendInvitation();
   const revokeInvitation = useRevokeInvitation();
 
-  const members = membersData?.members ?? [];
-  const invitations = invitesData?.invitations ?? [];
+  const members = membersData?.items ?? [];
+  const invitations = invitesData?.items ?? [];
+  const organizationId = hierarchy?.organizations[0]?.id;
 
   async function handleInvite() {
     if (!email) return;
+    if (!organizationId) {
+      setErrorMsg('No organization available. Create an organization first.');
+      return;
+    }
     setSuccessMsg('');
     setErrorMsg('');
     try {
-      await createInvitation.mutateAsync({ email, role });
+      await createInvitation.mutateAsync({ email, organizationId, role });
       setSuccessMsg(`Invitation sent to ${email}`);
       setEmail('');
     } catch {

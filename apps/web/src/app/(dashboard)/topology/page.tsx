@@ -18,7 +18,6 @@ import {
   TableCell,
   TableContainer,
   Button,
-  Tag,
   SkeletonText,
   InlineNotification,
 } from '@carbon/react';
@@ -29,40 +28,28 @@ import {
   useTopologyMetrics,
   useAcknowledgeDrift,
 } from '@/lib/hooks/use-topology';
-import type { DriftSeverity } from '@/lib/types';
-
-function severityType(s: DriftSeverity): 'red' | 'magenta' | 'teal' | 'blue' {
-  if (s === 'critical') return 'red';
-  if (s === 'high') return 'magenta';
-  if (s === 'medium') return 'teal';
-  return 'blue';
-}
+import type { ServiceDependency, TopologyDrift, TopologyMetric } from '@/lib/types';
 
 const depHeaders = [
   { key: 'source', header: 'Source' },
   { key: 'target', header: 'Target' },
   { key: 'protocol', header: 'Protocol' },
-  { key: 'latencyP99', header: 'Latency P99 (ms)' },
-  { key: 'errorRate', header: 'Error Rate (%)' },
-  { key: 'requestsPerSecond', header: 'RPS' },
+  { key: 'port', header: 'Port' },
+  { key: 'lastSeenAt', header: 'Last Seen' },
 ];
 
 const driftHeaders = [
-  { key: 'service', header: 'Service' },
-  { key: 'type', header: 'Type' },
-  { key: 'description', header: 'Description' },
-  { key: 'severity', header: 'Severity' },
+  { key: 'resource', header: 'Resource' },
+  { key: 'driftType', header: 'Type' },
+  { key: 'namespace', header: 'Namespace' },
   { key: 'detectedAt', header: 'Detected' },
   { key: 'actions', header: '' },
 ];
 
 const metricHeaders = [
-  { key: 'service', header: 'Service' },
-  { key: 'metric', header: 'Metric' },
-  { key: 'value', header: 'Value' },
-  { key: 'unit', header: 'Unit' },
-  { key: 'trend', header: 'Trend' },
-  { key: 'timestamp', header: 'Timestamp' },
+  { key: 'metricName', header: 'Metric' },
+  { key: 'metricValue', header: 'Value' },
+  { key: 'collectedAt', header: 'Collected' },
 ];
 
 export default function TopologyPage() {
@@ -71,34 +58,29 @@ export default function TopologyPage() {
   const metrics = useTopologyMetrics();
   const acknowledge = useAcknowledgeDrift();
 
-  const depRows = (deps.data?.dependencies ?? []).map((d) => ({
+  const depRows = (deps.data?.dependencies ?? []).map((d: ServiceDependency) => ({
     id: d.id,
-    source: d.source,
-    target: d.target,
-    protocol: d.protocol,
-    latencyP99: d.latencyP99 ?? '—',
-    errorRate: d.errorRate != null ? `${d.errorRate.toFixed(2)}` : '—',
-    requestsPerSecond: d.requestsPerSecond ?? '—',
+    source: `${d.sourceName} (${d.sourceNamespace})`,
+    target: `${d.targetName} (${d.targetNamespace})`,
+    protocol: d.protocol ?? '—',
+    port: d.port ?? '—',
+    lastSeenAt: d.lastSeenAt ? new Date(d.lastSeenAt).toLocaleString() : '—',
   }));
 
-  const driftRows = (drifts.data?.drifts ?? []).map((d) => ({
+  const driftRows = (drifts.data?.items ?? []).map((d: TopologyDrift) => ({
     id: d.id,
-    service: d.service,
-    type: d.type,
-    description: d.description,
-    severity: d.severity,
+    resource: `${d.resourceKind}/${d.resourceName}`,
+    driftType: d.driftType,
+    namespace: d.resourceNamespace,
     detectedAt: new Date(d.detectedAt).toLocaleString(),
     acknowledged: !!d.acknowledgedAt,
   }));
 
-  const metricRows = (metrics.data?.metrics ?? []).map((m) => ({
-    id: m.id,
-    service: m.service,
-    metric: m.metric,
-    value: m.value,
-    unit: m.unit,
-    trend: m.trend ?? '—',
-    timestamp: new Date(m.timestamp).toLocaleString(),
+  const metricRows = (metrics.data?.items ?? []).map((m: TopologyMetric, i: number) => ({
+    id: String(i),
+    metricName: m.metricName,
+    metricValue: m.metricValue,
+    collectedAt: m.collectedAt ? new Date(m.collectedAt).toLocaleString() : '—',
   }));
 
   return (
@@ -194,12 +176,7 @@ export default function TopologyPage() {
                                 <TableCell>{row.cells[0].value as string}</TableCell>
                                 <TableCell>{row.cells[1].value as string}</TableCell>
                                 <TableCell>{row.cells[2].value as string}</TableCell>
-                                <TableCell>
-                                  <Tag type={severityType(row.cells[3].value as DriftSeverity)} size="sm">
-                                    {row.cells[3].value as string}
-                                  </Tag>
-                                </TableCell>
-                                <TableCell>{row.cells[4].value as string}</TableCell>
+                                <TableCell>{row.cells[3].value as string}</TableCell>
                                 <TableCell>
                                   {!drift?.acknowledged && (
                                     <Button

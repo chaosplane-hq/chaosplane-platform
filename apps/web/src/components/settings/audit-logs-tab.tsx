@@ -50,14 +50,14 @@ export function AuditLogsTab() {
 
   const [exportError, setExportError] = useState('');
 
-  const logs = data?.logs ?? [];
-  const exports = exportsData?.exports ?? [];
+  const logs = data?.items ?? [];
+  const exports = exportsData?.items ?? [];
 
   const rows = logs.map((l) => ({
     id: l.id,
     action: l.action,
-    resource: l.resourceId ? `${l.resource}/${l.resourceId}` : l.resource,
-    userEmail: l.userEmail ?? l.userId,
+    resource: l.resourceId ? `${l.resourceType}/${l.resourceId}` : l.resourceType,
+    userEmail: l.userId ?? '—',
     createdAt: formatDate(l.createdAt),
   }));
 
@@ -194,11 +194,9 @@ export function AuditLogsTab() {
                     {formatDate(exp.createdAt)}
                   </StructuredListCell>
                   <StructuredListCell>
-                    {exp.downloadUrl && (
-                      <a href={exp.downloadUrl} target="_blank" rel="noopener noreferrer" style={{ color: 'var(--cds-link-primary)' }}>
-                        Download
-                      </a>
-                    )}
+                    <span style={{ color: 'var(--cds-text-secondary)', fontSize: 'var(--cds-label-01-font-size)' }}>
+                      {exp.destination}
+                    </span>
                   </StructuredListCell>
                 </StructuredListRow>
               ))}

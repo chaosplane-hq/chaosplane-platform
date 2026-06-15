@@ -58,8 +58,8 @@ export function NotificationsTab() {
   const createRule = useCreateNotificationRule();
   const deleteRule = useDeleteNotificationRule();
 
-  const channels = channelsData?.channels ?? [];
-  const rules = rulesData?.rules ?? [];
+  const channels = channelsData?.items ?? [];
+  const rules = rulesData?.items ?? [];
 
   function configForType(type: NotificationChannelType, url: string): Record<string, string> {
     if (type === 'slack') return { webhookUrl: url };
@@ -89,11 +89,16 @@ export function NotificationsTab() {
     if (!ruleChannelId || ruleEvents.length === 0) return;
     setErrorMsg('');
     try {
-      await createRule.mutateAsync({
-        channelId: ruleChannelId,
-        events: ruleEvents,
-        namespaceFilter: ruleNamespace.trim() || undefined,
-      });
+      const filters = ruleNamespace.trim() ? { namespace: ruleNamespace.trim() } : undefined;
+      await Promise.all(
+        ruleEvents.map((event) =>
+          createRule.mutateAsync({
+            channelId: ruleChannelId,
+            eventType: event,
+            filters,
+          }),
+        ),
+      );
       setRuleOpen(false);
       setRuleChannelId('');
       setRuleEvents([]);
@@ -277,11 +282,9 @@ export function NotificationsTab() {
                     → {channelLabel(rule.channelId)}
                   </p>
                   <div style={{ display: 'flex', flexWrap: 'wrap', gap: 'var(--cds-spacing-02)' }}>
-                    {rule.events.map((ev) => (
-                      <Tag key={ev} type="gray" size="sm">{ev}</Tag>
-                    ))}
-                    {rule.namespaceFilter && (
-                      <Tag type="blue" size="sm">ns: {rule.namespaceFilter}</Tag>
+                    <Tag type="gray" size="sm">{rule.eventType}</Tag>
+                    {rule.filters?.namespace != null && (
+                      <Tag type="blue" size="sm">ns: {String(rule.filters.namespace)}</Tag>
                     )}
                   </div>
                 </div>

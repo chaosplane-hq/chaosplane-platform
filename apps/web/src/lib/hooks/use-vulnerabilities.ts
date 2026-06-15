@@ -6,6 +6,7 @@ export function useVulnerabilities(params?: VulnerabilityListParams) {
   return useQuery({
     queryKey: ['vulnerabilities', params],
     queryFn: () => vulnerabilitiesApi.list(params),
+    enabled: !!params?.environmentId,
     staleTime: 60_000,
   });
 }
@@ -22,7 +23,7 @@ export function useUpdateVulnerabilityStatus() {
 export function useScanVulnerabilities() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: (environmentId?: string) => vulnerabilitiesApi.scan(environmentId),
+    mutationFn: (environmentId: string) => vulnerabilitiesApi.scan(environmentId),
     onSuccess: () => qc.invalidateQueries({ queryKey: ['vulnerabilities'] }),
   });
 }

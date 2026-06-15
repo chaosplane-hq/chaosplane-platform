@@ -66,7 +66,7 @@ function SessionList({
                 {s.title || 'Untitled'}
               </p>
               <p style={{ margin: 0, fontSize: '0.75rem', color: 'var(--cds-text-secondary)' }}>
-                {s.messageCount} messages
+                {new Date(s.updatedAt).toLocaleDateString()}
               </p>
             </div>
             <Button
@@ -111,7 +111,7 @@ function ChatArea({ sessionId }: { sessionId: string }) {
   const [input, setInput] = useState('');
   const bottomRef = useRef<HTMLDivElement>(null);
 
-  const messages = data?.messages ?? [];
+  const messages = data?.items ?? [];
 
   useLayoutEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -183,7 +183,7 @@ export default function AIChatPage() {
   const deleteSession = useDeleteChatSession();
   const [selectedId, setSelectedId] = useState<string | null>(null);
 
-  const sessions = data?.sessions ?? [];
+  const sessions = data?.items ?? [];
 
   function handleCreate() {
     createSession.mutate(undefined, {

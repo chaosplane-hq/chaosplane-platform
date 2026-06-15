@@ -17,7 +17,7 @@ import {
 } from '@carbon/react';
 import { Star, Download, Checkmark, Add, TrashCan } from '@carbon/icons-react';
 import { useMarketplace, useInstallPlugin, useUninstallPlugin } from '@/lib/hooks/use-marketplace';
-import type { PluginCategory } from '@/lib/types';
+import type { PluginCategory, MarketplacePlugin } from '@/lib/types';
 import styles from '@/components/experiments/experiments.module.scss';
 
 const CATEGORIES: { id: PluginCategory | 'all'; label: string }[] = [
@@ -70,7 +70,7 @@ export default function MarketplacePage() {
                 )}
                 {!isLoading && data && (
                   <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(320px, 1fr))', gap: 'var(--cds-spacing-05)', marginTop: 'var(--cds-spacing-05)' }}>
-                    {data.plugins.map((plugin) => (
+                    {(data.items ?? []).map((plugin: MarketplacePlugin) => (
                       <Tile key={plugin.id} style={{ display: 'flex', flexDirection: 'column', gap: 'var(--cds-spacing-03)' }}>
                         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
                           <div>
@@ -129,7 +129,7 @@ export default function MarketplacePage() {
                     ))}
                   </div>
                 )}
-                {!isLoading && data?.plugins.length === 0 && (
+                {!isLoading && data?.items.length === 0 && (
                   <p style={{ color: 'var(--cds-text-secondary)', marginTop: 'var(--cds-spacing-07)' }}>
                     No plugins found in this category.
                   </p>

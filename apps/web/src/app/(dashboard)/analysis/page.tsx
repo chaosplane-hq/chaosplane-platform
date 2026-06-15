@@ -24,20 +24,20 @@ import {
 } from '@carbon/react';
 import { Add, ChevronRight } from '@carbon/icons-react';
 import { useResultAnalyses, useResultAnalysis, useTriggerAnalysis } from '@/lib/hooks/use-result-analysis';
-import type { AnalysisStatus } from '@/lib/types';
+import type { ResultAnalysis } from '@/lib/types';
 
-function statusTagType(s: AnalysisStatus): 'blue' | 'green' | 'red' | 'gray' {
-  if (s === 'running') return 'blue';
-  if (s === 'completed') return 'green';
-  if (s === 'failed') return 'red';
+function severityTagType(s?: string): 'blue' | 'green' | 'red' | 'gray' {
+  const v = (s ?? '').toLowerCase();
+  if (v.includes('critical') || v.includes('high')) return 'red';
+  if (v.includes('medium') || v.includes('warning')) return 'blue';
+  if (v.includes('low') || v.includes('healthy') || v.includes('ok')) return 'green';
   return 'gray';
 }
 
 const headers = [
   { key: 'experimentName', header: 'Experiment' },
-  { key: 'status', header: 'Status' },
-  { key: 'createdAt', header: 'Created' },
-  { key: 'completedAt', header: 'Completed' },
+  { key: 'severity', header: 'Severity' },
+  { key: 'analyzedAt', header: 'Analyzed' },
   { key: 'actions', header: '' },
 ];
 
@@ -55,16 +55,12 @@ function AnalysisDetail({ id }: { id: string }) {
       </div>
       <div>
         <p style={{ fontWeight: 600, marginBottom: '0.5rem' }}>Impact</p>
-        <p style={{ color: 'var(--cds-text-secondary)' }}>{data.impact ?? 'No impact data available.'}</p>
+        <p style={{ color: 'var(--cds-text-secondary)' }}>{data.impactAnalysis ?? 'No impact data available.'}</p>
       </div>
-      {data.recommendations && data.recommendations.length > 0 && (
+      {data.recommendations && (
         <div>
           <p style={{ fontWeight: 600, marginBottom: '0.5rem' }}>Recommendations</p>
-          <ul style={{ paddingLeft: '1.25rem', color: 'var(--cds-text-secondary)' }}>
-            {data.recommendations.map((r) => (
-              <li key={r} style={{ marginBottom: '0.25rem' }}>{r}</li>
-            ))}
-          </ul>
+          <p style={{ color: 'var(--cds-text-secondary)', whiteSpace: 'pre-wrap' }}>{data.recommendations}</p>
         </div>
       )}
     </div>
@@ -78,14 +74,13 @@ export default function AnalysisPage() {
   const [triggerOpen, setTriggerOpen] = useState(false);
   const [experimentName, setExperimentName] = useState('');
 
-  const analyses = data?.analyses ?? [];
+  const analyses = data?.items ?? [];
 
-  const rows = analyses.map((a) => ({
+  const rows = analyses.map((a: ResultAnalysis) => ({
     id: a.id,
     experimentName: a.experimentName,
-    status: a.status,
-    createdAt: new Date(a.createdAt).toLocaleString(),
-    completedAt: a.completedAt ? new Date(a.completedAt).toLocaleString() : '—',
+    severity: a.severityAssessment ?? '—',
+    analyzedAt: a.analyzedAt ? new Date(a.analyzedAt).toLocaleString() : '—',
   }));
 
   function handleTrigger() {
@@ -145,12 +140,11 @@ export default function AnalysisPage() {
                         <TableRow key={key} {...rowProps} style={{ cursor: 'pointer', background: selectedId === row.id ? 'var(--cds-layer-selected)' : undefined }}>
                           <TableCell>{row.cells[0].value as string}</TableCell>
                           <TableCell>
-                            <Tag type={statusTagType(row.cells[1].value as AnalysisStatus)} size="sm">
+                            <Tag type={severityTagType(row.cells[1].value as string)} size="sm">
                               {row.cells[1].value as string}
                             </Tag>
                           </TableCell>
                           <TableCell>{row.cells[2].value as string}</TableCell>
-                          <TableCell>{row.cells[3].value as string}</TableCell>
                           <TableCell>
                             <Button
                               kind="ghost"

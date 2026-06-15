@@ -158,22 +158,27 @@ export type MemberRole = 'owner' | 'admin' | 'member' | 'viewer';
 
 export interface Invitation {
   id: string;
+  tenantId: string;
+  organizationId: string;
+  teamId?: string;
   email: string;
   role: MemberRole;
   status: InvitationStatus;
-  invitedBy: string;
-  createdAt: string;
   expiresAt: string;
+  acceptedAt?: string;
+  createdAt: string;
+  inviteToken?: string;
 }
 
 export interface InvitationListResponse {
-  invitations: Invitation[];
-  total: number;
+  items: Invitation[];
 }
 
 export interface CreateInvitationRequest {
   email: string;
-  role: MemberRole;
+  organizationId: string;
+  teamId?: string;
+  role?: MemberRole;
 }
 
 export interface TeamMember {
@@ -186,68 +191,80 @@ export interface TeamMember {
 }
 
 export interface TeamMemberListResponse {
-  members: TeamMember[];
-  total: number;
+  items: TeamMember[];
 }
 
 export interface APIKey {
   id: string;
   name: string;
-  prefix: string;
-  scopes: string[];
-  createdAt: string;
   lastUsedAt?: string;
   expiresAt?: string;
+  revokedAt?: string;
+  createdAt: string;
+  plaintext?: string;
 }
 
 export interface APIKeyListResponse {
-  keys: APIKey[];
-  total: number;
+  items: APIKey[];
 }
 
 export interface CreateAPIKeyRequest {
   name: string;
-  scopes: string[];
-  expiresAt?: string;
+  expiresIn?: string;
 }
 
-export interface CreateAPIKeyResponse {
-  key: APIKey;
-  plaintext: string;
-}
+export type CreateAPIKeyResponse = APIKey;
 
 export type BillingPlan = 'free' | 'pro' | 'enterprise';
 
+export type BillingStatus = 'active' | 'past_due' | 'canceled' | 'trialing' | 'suspended';
+
+export interface Subscription {
+  id: string;
+  tenantId: string;
+  plan: BillingPlan;
+  status: BillingStatus;
+  gateway: string;
+  currentPeriodStart?: string;
+  currentPeriodEnd?: string;
+  trialEndsAt?: string;
+  cancelledAt?: string;
+  suspendedAt?: string;
+  createdAt: string;
+}
+
 export interface BillingUsage {
-  experimentsRun: number;
-  experimentsLimit: number;
-  membersCount: number;
-  membersLimit: number;
-  apiCallsCount: number;
-  apiCallsLimit: number;
+  experiments: number;
+  agents: number;
+  apiCalls: number;
+}
+
+export interface BillingLimits {
+  maxExperiments: number;
+  maxAgents: number;
+  maxApiCalls: number;
 }
 
 export interface BillingInfo {
-  plan: BillingPlan;
-  status: 'active' | 'past_due' | 'canceled' | 'trialing';
-  currentPeriodEnd?: string;
-  usage: BillingUsage;
-  nextInvoiceAmount?: number;
+  subscription: Subscription | null;
+  usage: BillingUsage | null;
+  limits: BillingLimits | null;
 }
 
 export type NotificationChannelType = 'slack' | 'webhook' | 'email' | 'pagerduty';
 
 export interface NotificationChannel {
   id: string;
-  name: string;
+  tenantId: string;
   type: NotificationChannelType;
-  config: Record<string, string>;
+  name: string;
+  config: Record<string, unknown>;
+  enabled: boolean;
   createdAt: string;
 }
 
 export interface NotificationChannelListResponse {
-  channels: NotificationChannel[];
-  total: number;
+  items: NotificationChannel[];
 }
 
 export interface CreateNotificationChannelRequest {
@@ -264,21 +281,22 @@ export type NotificationEvent =
 
 export interface NotificationRule {
   id: string;
+  tenantId: string;
   channelId: string;
-  events: NotificationEvent[];
-  namespaceFilter?: string;
+  eventType: string;
+  filters: Record<string, unknown> | null;
+  enabled: boolean;
   createdAt: string;
 }
 
 export interface NotificationRuleListResponse {
-  rules: NotificationRule[];
-  total: number;
+  items: NotificationRule[];
 }
 
 export interface CreateNotificationRuleRequest {
   channelId: string;
-  events: NotificationEvent[];
-  namespaceFilter?: string;
+  eventType: string;
+  filters?: Record<string, unknown>;
 }
 
 export type OnboardingStepId =
@@ -296,6 +314,21 @@ export interface OnboardingStep {
   skipped?: boolean;
 }
 
+export interface OnboardingProgressResponse {
+  userId: string;
+  tenantId: string;
+  stepOrgCreated: boolean;
+  stepWorkspaceCreated: boolean;
+  stepTeamCreated: boolean;
+  stepMemberInvited: boolean;
+  stepClusterConnected: boolean;
+  stepFirstExperiment: boolean;
+  stepResultViewed: boolean;
+  completedAt?: string;
+  skippedAt?: string;
+  updatedAt: string;
+}
+
 export interface OnboardingState {
   completed: boolean;
   skipped: boolean;
@@ -307,6 +340,16 @@ export interface OnboardingUpdateRequest {
   currentStep?: OnboardingStepId;
   stepId?: OnboardingStepId;
   stepCompleted?: boolean;
+}
+
+export interface OnboardingPatchRequest {
+  stepOrgCreated?: boolean;
+  stepWorkspaceCreated?: boolean;
+  stepTeamCreated?: boolean;
+  stepMemberInvited?: boolean;
+  stepClusterConnected?: boolean;
+  stepFirstExperiment?: boolean;
+  stepResultViewed?: boolean;
 }
 
 export interface QuickSetupResponse {
@@ -325,37 +368,94 @@ export type AgentStatus = 'connected' | 'disconnected' | 'degraded';
 
 export interface Environment {
   id: string;
+  tenantId?: string;
   name: string;
+  slug?: string;
+  type?: string;
   projectId: string;
   agentStatus: AgentStatus;
-  createdAt: string;
-  updatedAt?: string;
 }
 
 export interface Project {
   id: string;
+  tenantId?: string;
   name: string;
+  slug?: string;
   workspaceId: string;
   environments: Environment[];
-  createdAt: string;
 }
 
 export interface Workspace {
   id: string;
+  tenantId?: string;
   name: string;
+  slug?: string;
   organizationId: string;
   projects: Project[];
-  createdAt: string;
 }
 
 export interface Organization {
   id: string;
+  tenantId?: string;
   name: string;
+  slug?: string;
   workspaces: Workspace[];
-  createdAt: string;
+}
+
+export interface RawEnvironment {
+  id: string;
+  tenantId: string;
+  projectId: string;
+  name: string;
+  slug: string;
+  type: string;
+  agentStatus: AgentStatus;
+}
+
+export interface RawProject {
+  id: string;
+  tenantId: string;
+  workspaceId: string;
+  name: string;
+  slug: string;
+  description?: string;
+}
+
+export interface RawWorkspace {
+  id: string;
+  tenantId: string;
+  organizationId: string;
+  name: string;
+  slug: string;
+  description?: string;
+}
+
+export interface RawOrganization {
+  id: string;
+  tenantId: string;
+  name: string;
+  slug: string;
+  description?: string;
+}
+
+export interface RawTeam {
+  id: string;
+  tenantId: string;
+  workspaceId: string;
+  name: string;
+  slug: string;
+  description?: string;
 }
 
 export interface HierarchyResponse {
+  organizations: RawOrganization[];
+  workspaces: RawWorkspace[];
+  teams: RawTeam[];
+  projects: RawProject[];
+  environments: RawEnvironment[];
+}
+
+export interface HierarchyTree {
   organizations: Organization[];
 }
 
@@ -373,11 +473,20 @@ export interface PatchEnvironmentRequest { name?: string }
 export type ResilienceGrade = 'A' | 'B' | 'C' | 'D' | 'F';
 
 export interface ResilienceScore {
-  grade: ResilienceGrade;
-  score: number;
+  id: string;
   environmentId: string;
+  overallGrade: ResilienceGrade;
+  overallScore: number;
+  availability: number;
+  faultTolerance: number;
+  recoverability: number;
+  details: Record<string, unknown>;
   calculatedAt: string;
-  breakdown?: Record<string, number>;
+}
+
+export interface ResilienceScoreResponse {
+  current: ResilienceScore | null;
+  history: ResilienceScore[];
 }
 
 export interface ResilienceScoreParams {
@@ -390,18 +499,33 @@ export type VulnerabilityStatus = 'open' | 'acknowledged' | 'resolved' | 'false_
 
 export interface Vulnerability {
   id: string;
-  title: string;
+  environmentId: string;
+  category: string;
   severity: VulnerabilitySeverity;
+  title: string;
+  description: string;
+  resourceKind: string;
+  resourceName: string;
+  resourceNamespace: string;
+  remediation?: string;
+  suggestedExperiment?: Record<string, unknown>;
   status: VulnerabilityStatus;
-  description?: string;
-  environmentId?: string;
   detectedAt: string;
   resolvedAt?: string;
 }
 
+export interface VulnerabilitySummary {
+  critical: number;
+  high: number;
+  medium: number;
+  low: number;
+}
+
 export interface VulnerabilityListResponse {
-  vulnerabilities: Vulnerability[];
-  total: number;
+  items: Vulnerability[];
+  totalCount: number;
+  bySeverity: Record<string, number>;
+  byCategory: Record<string, number>;
 }
 
 export interface VulnerabilityListParams {
@@ -413,73 +537,79 @@ export interface VulnerabilityListParams {
 }
 
 // Suggestion types
-export type SuggestionPriority = 'high' | 'medium' | 'low';
-
 export interface Suggestion {
   id: string;
+  environmentId: string;
+  findingId?: string;
+  source: string;
   title: string;
   description: string;
-  priority: SuggestionPriority;
-  category?: string;
+  actionType: ActionType | string;
+  targetNamespace: string;
+  targetName: string;
+  duration: string;
+  parameters: Record<string, unknown>;
+  confidence: number;
   createdAt: string;
 }
 
 export interface SuggestionListResponse {
-  suggestions: Suggestion[];
-  total: number;
+  items: Suggestion[];
 }
 
 export interface SuggestionListParams {
   limit?: number;
   offset?: number;
+  environmentId?: string;
 }
 
 export interface ServiceDependency {
   id: string;
-  source: string;
-  target: string;
-  protocol: string;
-  latencyP99?: number;
-  errorRate?: number;
-  requestsPerSecond?: number;
+  sourceKind: string;
+  sourceName: string;
+  sourceNamespace: string;
+  targetKind: string;
+  targetName: string;
+  targetNamespace: string;
+  protocol?: string;
+  port?: number;
+  lastSeenAt: string;
 }
 
 export interface ServiceDependencyListResponse {
   dependencies: ServiceDependency[];
-  total: number;
+  nodeCount: number;
+  edgeCount: number;
 }
 
 export type DriftSeverity = 'critical' | 'high' | 'medium' | 'low';
 
 export interface TopologyDrift {
   id: string;
-  service: string;
-  type: string;
-  description: string;
-  severity: DriftSeverity;
+  driftType: string;
+  resourceKind: string;
+  resourceName: string;
+  resourceNamespace: string;
+  previousState?: Record<string, unknown>;
+  currentState?: Record<string, unknown>;
   detectedAt: string;
   acknowledgedAt?: string;
-  acknowledgedBy?: string;
 }
 
 export interface TopologyDriftListResponse {
-  drifts: TopologyDrift[];
-  total: number;
+  items: TopologyDrift[];
+  totalCount: number;
 }
 
 export interface TopologyMetric {
-  id: string;
-  service: string;
-  metric: string;
-  value: number;
-  unit: string;
-  timestamp: string;
-  trend?: 'up' | 'down' | 'stable';
+  metricName: string;
+  metricValue: number;
+  labels: Record<string, unknown>;
+  collectedAt: string;
 }
 
 export interface TopologyMetricsListResponse {
-  metrics: TopologyMetric[];
-  total: number;
+  items: TopologyMetric[];
 }
 
 export interface VulnerabilitySummary {
@@ -497,37 +627,32 @@ export interface UpdateVulnerabilityStatusRequest {
   status: VulnerabilityStatus;
 }
 
-export interface SuggestionWithConfidence extends Suggestion {
-  confidence: number;
-  targetService?: string;
-  experimentParams?: Record<string, string | number | boolean>;
-}
+export type SuggestionWithConfidence = Suggestion;
 
 export interface SuggestionWithConfidenceListResponse {
-  suggestions: SuggestionWithConfidence[];
-  total: number;
+  items: SuggestionWithConfidence[];
 }
-
-export type AnalysisStatus = 'pending' | 'running' | 'completed' | 'failed';
 
 export interface ResultAnalysis {
   id: string;
   experimentName: string;
-  status: AnalysisStatus;
-  summary?: string;
-  impact?: string;
-  recommendations?: string[];
-  createdAt: string;
-  completedAt?: string;
+  environmentId?: string;
+  summary: string;
+  impactAnalysis?: string;
+  recommendations?: string;
+  severityAssessment?: string;
+  affectedServices: Record<string, unknown>;
+  metricsImpact: Record<string, unknown>;
+  analyzedAt: string;
 }
 
 export interface ResultAnalysisListResponse {
-  analyses: ResultAnalysis[];
-  total: number;
+  items: ResultAnalysis[];
 }
 
 export interface TriggerAnalysisRequest {
   experimentName: string;
+  environmentId?: string;
 }
 
 export type ChatMessageRole = 'user' | 'assistant';
@@ -544,17 +669,14 @@ export interface ChatSession {
   title: string;
   createdAt: string;
   updatedAt: string;
-  messageCount: number;
 }
 
 export interface ChatSessionListResponse {
-  sessions: ChatSession[];
-  total: number;
+  items: ChatSession[];
 }
 
 export interface ChatMessageListResponse {
-  messages: ChatMessage[];
-  total: number;
+  items: ChatMessage[];
 }
 
 export interface SendMessageRequest {
@@ -562,8 +684,8 @@ export interface SendMessageRequest {
 }
 
 export interface SendMessageResponse {
-  message: ChatMessage;
-  reply: ChatMessage;
+  userMessage: ChatMessage;
+  assistantMessage: ChatMessage;
 }
 
 // Marketplace types
@@ -572,20 +694,20 @@ export type PluginCategory = 'chaos_action' | 'workflow_template' | 'integration
 export interface MarketplacePlugin {
   id: string;
   name: string;
-  description: string;
+  displayName: string;
+  description?: string;
   author: string;
+  version: string;
+  category: PluginCategory;
   downloads: number;
   rating: number;
   verified: boolean;
-  category: PluginCategory;
-  version: string;
+  publishedAt: string;
   installed?: boolean;
-  tags?: string[];
 }
 
 export interface MarketplaceListResponse {
-  plugins: MarketplacePlugin[];
-  total: number;
+  items: MarketplacePlugin[];
 }
 
 export interface MarketplaceListParams {
@@ -605,12 +727,12 @@ export interface FederatedCluster {
   provider: ClusterProvider;
   status: ClusterStatus;
   apiEndpoint: string;
-  registeredAt: string;
+  metadata?: Record<string, unknown>;
+  createdAt: string;
 }
 
 export interface FederatedClusterListResponse {
-  clusters: FederatedCluster[];
-  total: number;
+  items: FederatedCluster[];
 }
 
 export interface RegisterClusterRequest {
@@ -628,13 +750,13 @@ export interface CICDIntegration {
   name: string;
   provider: CICDProvider;
   enabled: boolean;
-  config: Record<string, string>;
+  config: Record<string, unknown>;
+  lastTriggered?: string;
   createdAt: string;
 }
 
 export interface CICDIntegrationListResponse {
-  integrations: CICDIntegration[];
-  total: number;
+  items: CICDIntegration[];
 }
 
 export interface CreateCICDIntegrationRequest {
@@ -649,110 +771,123 @@ export type PredictionStatus = 'active' | 'acknowledged' | 'resolved' | 'dismiss
 
 export interface Prediction {
   id: string;
+  environmentId: string;
+  predictionType: string;
+  severity: PredictionSeverity;
   title: string;
   description: string;
-  severity: PredictionSeverity;
   confidence: number;
-  recommendedAction: string;
+  recommendedAction?: string;
+  autoRemediation?: Record<string, unknown>;
   status: PredictionStatus;
-  createdAt: string;
-  acknowledgedAt?: string;
-  resolvedAt?: string;
+  predictedAt: string;
 }
 
 export interface PredictionListResponse {
-  predictions: Prediction[];
-  total: number;
+  items: Prediction[];
 }
 
 export interface PatchPredictionStatusRequest {
   status: 'acknowledged' | 'resolved' | 'dismissed';
 }
 
-export interface ResilienceScoreHistory {
-  scores: ResilienceScore[];
-  environmentId: string;
-}
-
 export type GameDayStatus = 'planned' | 'in_progress' | 'completed' | 'cancelled';
 
 export interface GameDayEvent {
   id: string;
-  gameDayId: string;
-  title?: string;
-  description: string;
+  eventType: string;
+  title: string;
+  description?: string;
+  userId?: string;
+  metadata?: Record<string, unknown>;
+  createdAt: string;
   occurredAt?: string;
-  timestamp: string;
-  type?: string;
 }
 
 export interface GameDayPostmortem {
   id: string;
-  gameDayId: string;
   summary: string;
-  findings: string;
+  whatWentWell?: string;
+  whatWentWrong?: string;
+  actionItems?: string;
   lessonsLearned?: string;
-  actionItems: string;
+  createdBy?: string;
   createdAt: string;
-  updatedAt?: string;
 }
 
 export interface GameDay {
   id: string;
+  environmentId?: string;
   title: string;
   description?: string;
   status: GameDayStatus;
   scheduledAt?: string;
+  startedAt?: string;
+  endedAt?: string;
   completedAt?: string;
-  events: GameDayEvent[];
+  createdBy?: string;
+  createdAt: string;
+  events?: GameDayEvent[];
   postmortem?: GameDayPostmortem;
+}
+
+export interface RawGameDayPostmortem {
+  id: string;
+  summary: string;
+  whatWentWell?: string;
+  whatWentWrong?: string;
+  actionItems: unknown;
+  createdBy: string;
   createdAt: string;
 }
 
+export interface GameDayDetailResponse {
+  gameday: GameDay;
+  events: GameDayEvent[];
+  postmortem?: RawGameDayPostmortem;
+}
+
 export interface GameDayListResponse {
-  gameDays: GameDay[];
-  total: number;
+  items: GameDay[];
 }
 
 export interface CreateGameDayRequest {
+  environmentId: string;
   title: string;
   description?: string;
   scheduledAt?: string;
 }
 
 export interface CreateGameDayEventRequest {
+  eventType: string;
   title: string;
-  description: string;
-  eventType?: string;
-  occurredAt?: string;
+  description?: string;
+  metadata?: Record<string, unknown>;
 }
 
 export interface CreatePostmortemRequest {
   summary: string;
   whatWentWell?: string;
   whatWentWrong?: string;
-  lessonsLearned?: string;
-  findings?: string;
-  actionItems: string;
+  actionItems?: Record<string, unknown> | unknown[];
 }
 
 export type WorkflowCategory = 'chaos' | 'load' | 'security' | 'custom';
 
 export interface WorkflowTemplate {
   id: string;
+  tenantId?: string;
   name: string;
   description?: string;
-  category?: 'chaos' | 'load' | 'security' | 'custom';
-  isPublic?: boolean;
-  spec?: Record<string, unknown>;
-  steps: Record<string, unknown>[];
+  category: 'chaos' | 'load' | 'security' | 'custom' | string;
+  isPublic: boolean;
+  spec: Record<string, unknown>;
+  createdBy?: string;
   createdAt: string;
-  updatedAt?: string;
 }
 
 export interface WorkflowTemplateListResponse {
-  templates: WorkflowTemplate[];
-  total: number;
+  items: WorkflowTemplate[];
 }
 
 export interface CreateWorkflowTemplateRequest {
@@ -761,23 +896,25 @@ export interface CreateWorkflowTemplateRequest {
   category?: 'chaos' | 'load' | 'security' | 'custom';
   isPublic?: boolean;
   spec?: Record<string, unknown>;
-  steps?: Record<string, unknown>[];
 }
 
 export interface AuditLog {
   id: string;
+  tenantId: string;
+  userId?: string;
   action: string;
-  resource: string;
+  resourceType: string;
   resourceId?: string;
-  userId: string;
-  userEmail?: string;
-  details?: Record<string, unknown>;
+  ipAddress?: string;
+  requestMethod?: string;
+  requestPath?: string;
+  responseStatus?: number;
   createdAt: string;
 }
 
 export interface AuditLogListResponse {
-  logs: AuditLog[];
-  total: number;
+  items: AuditLog[];
+  totalCount: number;
 }
 
 export interface AuditLogListParams {
@@ -792,76 +929,90 @@ export interface AuditLogListParams {
 
 export interface AuditExport {
   id: string;
-  status: 'pending' | 'ready' | 'completed' | 'failed';
-  downloadUrl?: string;
+  destination: string;
+  config: Record<string, unknown>;
+  status: string;
+  recordsExported: number;
+  errorMessage?: string;
   createdAt: string;
 }
 
 export interface AuditExportListResponse {
-  exports: AuditExport[];
-  total: number;
+  items: AuditExport[];
 }
 
 export interface SSOProvider {
   id: string;
+  tenantId: string;
   name: string;
   type: 'saml' | 'oidc';
-  entityId?: string;
-  ssoUrl?: string;
+  entityId: string;
+  ssoUrl: string;
+  metadataUrl?: string;
   enabled: boolean;
-  config: Record<string, string>;
+  jitProvisioning: boolean;
+  defaultRole: string;
   createdAt: string;
 }
 
 export interface SSOProviderListResponse {
-  providers: SSOProvider[];
-  total: number;
+  items: SSOProvider[];
 }
 
 export interface CreateSSOProviderRequest {
   name: string;
-  type: 'saml' | 'oidc';
-  entityId?: string;
-  ssoUrl?: string;
+  entityId: string;
+  ssoUrl: string;
+  certificate?: string;
+  type?: 'saml' | 'oidc';
   config?: Record<string, string>;
 }
 
 export interface ABACPolicy {
   id: string;
+  tenantId: string;
   name: string;
   description?: string;
   effect: 'allow' | 'deny';
-  actions: string[];
-  resources: string[];
-  rules: Record<string, unknown>[];
+  subjects: unknown;
+  resources: unknown;
+  actions: unknown;
+  conditions: unknown;
+  priority: number;
+  enabled: boolean;
   createdAt: string;
 }
 
 export interface ABACPolicyListResponse {
-  policies: ABACPolicy[];
-  total: number;
+  items: ABACPolicy[];
 }
 
 export interface CreateABACPolicyRequest {
   name: string;
   description?: string;
-  effect?: 'allow' | 'deny';
-  actions?: string[];
-  resources?: string[];
-  rules?: Record<string, unknown>[];
+  effect: 'allow' | 'deny';
+  subjects?: unknown;
+  resources?: unknown;
+  actions?: unknown;
+  conditions?: unknown;
+  priority?: number;
 }
 
 export interface MFARecoveryCodes {
   codes: string[];
   remaining: number;
-  generatedAt: string;
+  generatedAt?: string;
 }
 
 export interface ActiveSession {
   id: string;
-  userAgent: string;
-  ipAddress: string;
+  ipAddress?: string;
+  userAgent?: string;
+  lastActivity: string;
   createdAt: string;
-  lastActiveAt: string;
-  isCurrent: boolean;
+  isCurrent?: boolean;
+}
+
+export interface ActiveSessionListResponse {
+  items: ActiveSession[];
 }

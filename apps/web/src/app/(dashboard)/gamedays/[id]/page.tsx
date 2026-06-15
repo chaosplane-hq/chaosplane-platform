@@ -78,9 +78,9 @@ export default function GameDayDetailPage({ params }: { params: Promise<{ id: st
       await addEvent.mutateAsync({
         id,
         data: {
+          eventType: 'note',
           title: eventTitle.trim(),
           description: eventDesc.trim() || '',
-          occurredAt: eventOccurredAt || new Date().toISOString(),
         },
       });
       setEventOpen(false);
@@ -95,7 +95,11 @@ export default function GameDayDetailPage({ params }: { params: Promise<{ id: st
   async function handleSavePostmortem() {
     if (!pmSummary.trim()) return;
     setActionError('');
-    const data = { summary: pmSummary, lessonsLearned: pmLessons, actionItems: pmActions };
+    const actionItems = pmActions
+      .split('\n')
+      .map((s) => s.trim())
+      .filter(Boolean);
+    const data = { summary: pmSummary, whatWentWell: pmLessons, actionItems };
     try {
       if (gameDay?.postmortem) {
         await updatePostmortem.mutateAsync({ id, data });

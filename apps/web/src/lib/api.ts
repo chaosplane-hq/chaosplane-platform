@@ -5,8 +5,8 @@ import {
   type CreateExperimentRequest,
   type Policy,
   type PolicyListResponse,
-  type OnboardingState,
-  type OnboardingUpdateRequest,
+  type OnboardingProgressResponse,
+  type OnboardingPatchRequest,
   type AgentTestConnectionResponse,
   type QuickSetupResponse,
   type InvitationListResponse,
@@ -16,7 +16,6 @@ import {
   type APIKeyListResponse,
   type CreateAPIKeyRequest,
   type CreateAPIKeyResponse,
-  type APIKey,
   type BillingInfo,
   type NotificationChannelListResponse,
   type CreateNotificationChannelRequest,
@@ -37,16 +36,15 @@ import {
   type Workspace,
   type Project,
   type Environment,
+  type ResilienceScoreResponse,
   type ResilienceScore,
   type ResilienceScoreParams,
-  type ResilienceScoreHistory,
   type VulnerabilityListResponse,
   type VulnerabilityListParams,
-  type Vulnerability,
-  type SuggestionListResponse,
   type SuggestionListParams,
   type GameDay,
   type GameDayListResponse,
+  type GameDayDetailResponse,
   type CreateGameDayRequest,
   type CreateGameDayEventRequest,
   type GameDayEvent,
@@ -55,7 +53,6 @@ import {
   type WorkflowTemplate,
   type WorkflowTemplateListResponse,
   type CreateWorkflowTemplateRequest,
-  type AuditLog,
   type AuditLogListResponse,
   type AuditLogListParams,
   type AuditExport,
@@ -67,12 +64,10 @@ import {
   type ABACPolicyListResponse,
   type CreateABACPolicyRequest,
   type MFARecoveryCodes,
-  type ActiveSession,
+  type ActiveSessionListResponse,
   type ServiceDependencyListResponse,
   type TopologyDriftListResponse,
   type TopologyMetricsListResponse,
-  type VulnerabilityListWithSummaryResponse,
-  type UpdateVulnerabilityStatusRequest,
   type SuggestionWithConfidenceListResponse,
   type ResultAnalysisListResponse,
   type ResultAnalysis,
@@ -147,19 +142,19 @@ export const policiesApi = {
 };
 
 export const onboardingApi = {
-  get: () => apiFetch<OnboardingState>('/api/v1/onboarding'),
+  get: () => apiFetch<OnboardingProgressResponse>('/api/v1/onboarding'),
 
-  update: (data: OnboardingUpdateRequest) =>
-    apiFetch<OnboardingState>('/api/v1/onboarding', {
+  update: (data: OnboardingPatchRequest) =>
+    apiFetch<OnboardingProgressResponse>('/api/v1/onboarding', {
       method: 'PATCH',
       body: JSON.stringify(data),
     }),
 
   skip: () =>
-    apiFetch<OnboardingState>('/api/v1/onboarding/skip', { method: 'POST' }),
+    apiFetch<OnboardingProgressResponse>('/api/v1/onboarding/skip', { method: 'POST' }),
 
   complete: () =>
-    apiFetch<OnboardingState>('/api/v1/onboarding/complete', { method: 'POST' }),
+    apiFetch<OnboardingProgressResponse>('/api/v1/onboarding/complete', { method: 'POST' }),
 
   quickSetup: () =>
     apiFetch<QuickSetupResponse>('/auth/quick-setup', { method: 'POST' }),
@@ -237,7 +232,7 @@ export const resilienceApi = {
     const query = new URLSearchParams();
     if (params?.environmentId) query.set('environmentId', params.environmentId);
     const qs = query.toString();
-    return apiFetch<ResilienceScore>(`/api/v1/resilience-score${qs ? `?${qs}` : ''}`);
+    return apiFetch<ResilienceScoreResponse>(`/api/v1/resilience-score${qs ? `?${qs}` : ''}`);
   },
   calculate: (environmentId: string) =>
     apiFetch<ResilienceScore>('/api/v1/resilience-score/calculate', {
@@ -258,12 +253,12 @@ export const vulnerabilitiesApi = {
     return apiFetch<VulnerabilityListResponse>(`/api/v1/vulnerabilities${qs ? `?${qs}` : ''}`);
   },
   updateStatus: (id: string, status: string) =>
-    apiFetch<Vulnerability>(`/api/v1/vulnerabilities/${id}/status`, {
+    apiFetch<void>(`/api/v1/vulnerabilities/${id}`, {
       method: 'PATCH',
       body: JSON.stringify({ status }),
     }),
-  scan: (environmentId?: string) =>
-    apiFetch<void>('/api/v1/vulnerabilities/scan', {
+  scan: (environmentId: string) =>
+    apiFetch<{ findingsCreated: number; findingsUpdated: number }>('/api/v1/vulnerabilities/scan', {
       method: 'POST',
       body: JSON.stringify({ environmentId }),
     }),
@@ -274,19 +269,26 @@ export const suggestionsApi = {
     const query = new URLSearchParams();
     if (params?.limit) query.set('limit', String(params.limit));
     if (params?.offset) query.set('offset', String(params.offset));
+    if (params?.environmentId) query.set('environmentId', params.environmentId);
     const qs = query.toString();
     return apiFetch<SuggestionWithConfidenceListResponse>(`/api/v1/suggestions${qs ? `?${qs}` : ''}`);
   },
-  generate: () =>
-    apiFetch<SuggestionWithConfidenceListResponse>('/api/v1/suggestions/generate', { method: 'POST' }),
+  generate: (environmentId: string) =>
+    apiFetch<{ generated: number }>('/api/v1/suggestions/generate', {
+      method: 'POST',
+      body: JSON.stringify({ environmentId }),
+    }),
   delete: (id: string) =>
     apiFetch<void>(`/api/v1/suggestions/${id}`, { method: 'DELETE' }),
 };
 
 export const topologyApi = {
-  dependencies: () => apiFetch<ServiceDependencyListResponse>('/api/v1/topology/dependencies'),
-  drifts: () => apiFetch<TopologyDriftListResponse>('/api/v1/topology/drifts'),
-  metrics: () => apiFetch<TopologyMetricsListResponse>('/api/v1/topology/metrics'),
+  dependencies: (environmentId: string) =>
+    apiFetch<ServiceDependencyListResponse>(`/api/v1/topology/dependencies?environmentId=${encodeURIComponent(environmentId)}`),
+  drifts: (environmentId: string) =>
+    apiFetch<TopologyDriftListResponse>(`/api/v1/topology/drifts?environmentId=${encodeURIComponent(environmentId)}`),
+  metrics: (environmentId: string) =>
+    apiFetch<TopologyMetricsListResponse>(`/api/v1/topology/metrics?environmentId=${encodeURIComponent(environmentId)}`),
   acknowledgeDrift: (id: string) =>
     apiFetch<void>(`/api/v1/topology/drifts/${id}/acknowledge`, { method: 'POST' }),
 };
@@ -300,7 +302,7 @@ export const resultAnalysisApi = {
 
 export const aiChatApi = {
   listSessions: () => apiFetch<ChatSessionListResponse>('/api/v1/ai/chat/sessions'),
-  createSession: () => apiFetch<{ id: string; title: string; createdAt: string; updatedAt: string; messageCount: number }>('/api/v1/ai/chat/sessions', { method: 'POST' }),
+  createSession: () => apiFetch<import('./types').ChatSession>('/api/v1/ai/chat/sessions', { method: 'POST' }),
   deleteSession: (id: string) => apiFetch<void>(`/api/v1/ai/chat/sessions/${id}`, { method: 'DELETE' }),
   listMessages: (sessionId: string) =>
     apiFetch<ChatMessageListResponse>(`/api/v1/ai/chat/sessions/${sessionId}/messages`),
@@ -313,7 +315,7 @@ export const aiChatApi = {
 
 export const gameDaysApi = {
   list: () => apiFetch<GameDayListResponse>('/api/v1/gamedays'),
-  get: (id: string) => apiFetch<GameDay>(`/api/v1/gamedays/${id}`),
+  get: (id: string) => apiFetch<GameDayDetailResponse>(`/api/v1/gamedays/${id}`),
   create: (data: CreateGameDayRequest) =>
     apiFetch<GameDay>('/api/v1/gamedays', { method: 'POST', body: JSON.stringify(data) }),
   updateStatus: (id: string, status: string) =>
@@ -324,15 +326,6 @@ export const gameDaysApi = {
     apiFetch<GameDayPostmortem>(`/api/v1/gamedays/${id}/postmortem`, { method: 'POST', body: JSON.stringify(data) }),
   updatePostmortem: (id: string, data: CreatePostmortemRequest) =>
     apiFetch<GameDayPostmortem>(`/api/v1/gamedays/${id}/postmortem`, { method: 'PUT', body: JSON.stringify(data) }),
-};
-
-export const resilienceHistoryApi = {
-  history: (params?: ResilienceScoreParams) => {
-    const query = new URLSearchParams();
-    if (params?.environmentId) query.set('environmentId', params.environmentId);
-    const qs = query.toString();
-    return apiFetch<ResilienceScoreHistory>(`/api/v1/resilience-score/history${qs ? `?${qs}` : ''}`);
-  },
 };
 
 export const workflowsApi = {
@@ -376,7 +369,7 @@ export const securityApi = {
   getMFACodes: () => apiFetch<MFARecoveryCodes>('/api/v1/mfa/recovery-codes'),
   generateMFACodes: () =>
     apiFetch<MFARecoveryCodes>('/api/v1/mfa/recovery-codes/generate', { method: 'POST' }),
-  listSessions: () => apiFetch<{ sessions: ActiveSession[] }>('/api/v1/sessions'),
+  listSessions: () => apiFetch<ActiveSessionListResponse>('/api/v1/sessions'),
   revokeSession: (id: string) =>
     apiFetch<void>(`/api/v1/sessions/${id}`, { method: 'DELETE' }),
   revokeAllSessions: () =>
@@ -397,9 +390,9 @@ export const marketplaceApi = {
     return apiFetch<import('./types').MarketplaceListResponse>(`/api/v1/marketplace${qs ? `?${qs}` : ''}`);
   },
   install: (id: string) =>
-    apiFetch<import('./types').MarketplacePlugin>(`/api/v1/marketplace/${id}/install`, { method: 'POST' }),
+    apiFetch<void>('/api/v1/marketplace/install', { method: 'POST', body: JSON.stringify({ pluginId: id }) }),
   uninstall: (id: string) =>
-    apiFetch<void>(`/api/v1/marketplace/${id}/uninstall`, { method: 'POST' }),
+    apiFetch<void>(`/api/v1/marketplace/${id}`, { method: 'DELETE' }),
 };
 
 export const federationApi = {

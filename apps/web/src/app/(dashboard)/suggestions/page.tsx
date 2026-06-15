@@ -12,6 +12,7 @@ import {
 import { Add, TrashCan, Launch } from '@carbon/icons-react';
 import { useRouter } from 'next/navigation';
 import { useSuggestions, useGenerateSuggestions, useDeleteSuggestion } from '@/lib/hooks/use-suggestions';
+import { useDefaultEnvironmentId } from '@/lib/hooks/use-environments';
 import type { SuggestionWithConfidence } from '@/lib/types';
 
 function confidenceColor(score: number): string {
@@ -25,9 +26,11 @@ function SuggestionCard({ suggestion, onDelete }: { suggestion: SuggestionWithCo
 
   function handleCreateExperiment() {
     const params = new URLSearchParams();
-    if (suggestion.targetService) params.set('target', suggestion.targetService);
-    if (suggestion.experimentParams) {
-      for (const [k, v] of Object.entries(suggestion.experimentParams)) {
+    if (suggestion.targetNamespace) params.set('namespace', suggestion.targetNamespace);
+    if (suggestion.targetName) params.set('target', suggestion.targetName);
+    if (suggestion.actionType) params.set('action', String(suggestion.actionType));
+    if (suggestion.parameters) {
+      for (const [k, v] of Object.entries(suggestion.parameters)) {
         params.set(k, String(v));
       }
     }
@@ -51,8 +54,8 @@ function SuggestionCard({ suggestion, onDelete }: { suggestion: SuggestionWithCo
       </p>
 
       <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
-        {suggestion.category && <Tag type="blue" size="sm">{suggestion.category}</Tag>}
-        {suggestion.targetService && <Tag type="gray" size="sm">{suggestion.targetService}</Tag>}
+        {suggestion.source && <Tag type="blue" size="sm">{suggestion.source}</Tag>}
+        {suggestion.targetName && <Tag type="gray" size="sm">{suggestion.targetName}</Tag>}
       </div>
 
       <div style={{ display: 'flex', gap: '0.5rem', marginTop: '0.25rem' }}>
@@ -78,11 +81,12 @@ function SuggestionCard({ suggestion, onDelete }: { suggestion: SuggestionWithCo
 }
 
 export default function SuggestionsPage() {
-  const { data, isLoading, isError } = useSuggestions({ limit: 50 });
+  const { environmentId } = useDefaultEnvironmentId();
+  const { data, isLoading, isError } = useSuggestions({ limit: 50, environmentId });
   const generate = useGenerateSuggestions();
   const deleteSuggestion = useDeleteSuggestion();
 
-  const suggestions = (data?.suggestions ?? []) as SuggestionWithConfidence[];
+  const suggestions = (data?.items ?? []) as SuggestionWithConfidence[];
 
   return (
     <Grid fullWidth>
@@ -95,8 +99,8 @@ export default function SuggestionsPage() {
           <Button
             renderIcon={Add}
             kind="primary"
-            disabled={generate.isPending}
-            onClick={() => generate.mutate()}
+            disabled={generate.isPending || !environmentId}
+            onClick={() => environmentId && generate.mutate(environmentId)}
           >
             {generate.isPending ? 'Generating…' : 'Generate Suggestions'}
           </Button>
@@ -104,7 +108,11 @@ export default function SuggestionsPage() {
       </Column>
 
       <Column lg={16} md={8} sm={4}>
-        {isLoading ? (
+        {!environmentId ? (
+          <Tile style={{ textAlign: 'center', padding: '3rem' }}>
+            <p style={{ color: 'var(--cds-text-secondary)' }}>No environment available. Connect an environment to generate suggestions.</p>
+          </Tile>
+        ) : isLoading ? (
           <SkeletonText paragraph lineCount={6} />
         ) : isError ? (
           <InlineNotification kind="error" title="Failed to load suggestions" subtitle="" />

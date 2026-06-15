@@ -16,7 +16,6 @@ import {
   TableBody,
   TableCell,
   TableContainer,
-  Tag,
   CodeSnippet,
 } from '@carbon/react';
 import { Add, Renew, TrashCan } from '@carbon/icons-react';
@@ -25,10 +24,9 @@ import type { CreateAPIKeyResponse } from '@/lib/types';
 
 const keyHeaders = [
   { key: 'name', header: 'Name' },
-  { key: 'prefix', header: 'Prefix' },
-  { key: 'scopes', header: 'Scopes' },
   { key: 'createdAt', header: 'Created' },
   { key: 'lastUsedAt', header: 'Last used' },
+  { key: 'expiresAt', header: 'Expires' },
   { key: 'actions', header: '' },
 ];
 
@@ -48,13 +46,13 @@ export function APIKeysTab() {
   const rotateKey = useRotateAPIKey();
   const revokeKey = useRevokeAPIKey();
 
-  const keys = data?.keys ?? [];
+  const keys = data?.items ?? [];
 
   async function handleCreate() {
     if (!newKeyName.trim()) return;
     setErrorMsg('');
     try {
-      const result = await createKey.mutateAsync({ name: newKeyName.trim(), scopes: ['read', 'write'] });
+      const result = await createKey.mutateAsync({ name: newKeyName.trim() });
       setRevealData(result);
       setCreateOpen(false);
       setNewKeyName('');
@@ -76,10 +74,9 @@ export function APIKeysTab() {
   const rows = keys.map((k) => ({
     id: k.id,
     name: k.name,
-    prefix: k.prefix,
-    scopes: k.scopes.join(', '),
     createdAt: formatDate(k.createdAt),
     lastUsedAt: formatDate(k.lastUsedAt),
+    expiresAt: formatDate(k.expiresAt),
   }));
 
   return (
@@ -131,7 +128,7 @@ export function APIKeysTab() {
           hideCloseButton
         />
         <p style={{ color: 'var(--cds-text-secondary)', marginBottom: 'var(--cds-spacing-03)', fontSize: 'var(--cds-label-01-font-size)' }}>
-          Key name: <strong style={{ color: 'var(--cds-text-primary)' }}>{revealData?.key.name}</strong>
+          Key name: <strong style={{ color: 'var(--cds-text-primary)' }}>{revealData?.name}</strong>
         </p>
         <CodeSnippet type="single" feedback="Copied!">
           {revealData?.plaintext ?? ''}
@@ -175,14 +172,9 @@ export function APIKeysTab() {
                       return (
                         <TableRow key={key} {...rowProps}>
                           <TableCell>{row.cells[0].value}</TableCell>
-                          <TableCell>
-                            <Tag type="gray" size="sm">{row.cells[1].value}…</Tag>
-                          </TableCell>
-                          <TableCell style={{ fontSize: 'var(--cds-label-01-font-size)', color: 'var(--cds-text-secondary)' }}>
-                            {row.cells[2].value}
-                          </TableCell>
+                          <TableCell>{row.cells[1].value}</TableCell>
+                          <TableCell>{row.cells[2].value}</TableCell>
                           <TableCell>{row.cells[3].value}</TableCell>
-                          <TableCell>{row.cells[4].value}</TableCell>
                           <TableCell>
                             <div style={{ display: 'flex', gap: 'var(--cds-spacing-02)' }}>
                               <Button

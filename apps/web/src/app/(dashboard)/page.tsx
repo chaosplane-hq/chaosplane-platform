@@ -8,7 +8,7 @@ import { useVulnerabilities } from '@/lib/hooks/use-vulnerabilities';
 import { useSuggestions } from '@/lib/hooks/use-suggestions';
 import { StatusTag } from '@/components/experiments/status-tag';
 import styles from '@/components/experiments/experiments.module.scss';
-import type { Experiment, ResilienceGrade, VulnerabilitySeverity, SuggestionPriority } from '@/lib/types';
+import type { Experiment, ResilienceGrade, VulnerabilitySeverity } from '@/lib/types';
 import NextLink from 'next/link';
 
 function formatTime(iso?: string) {
@@ -58,12 +58,6 @@ const SEVERITY_TYPE: Record<VulnerabilitySeverity, 'red' | 'purple' | 'gray' | '
   info: 'blue',
 };
 
-const PRIORITY_TYPE: Record<SuggestionPriority, 'red' | 'purple' | 'blue'> = {
-  high: 'red',
-  medium: 'purple',
-  low: 'blue',
-};
-
 export default function DashboardPage() {
   const { data, isLoading } = useExperiments({ limit: 100 });
   const { data: onboarding } = useOnboarding();
@@ -75,8 +69,8 @@ export default function DashboardPage() {
   const total = data?.total ?? 0;
   const running = experiments.filter((e) => e.status.phase === 'Running').length;
   const recent = experiments.slice(0, 5);
-  const vulnerabilities = vulnData?.vulnerabilities ?? [];
-  const suggestions = suggestionsData?.suggestions ?? [];
+  const vulnerabilities = vulnData?.items ?? [];
+  const suggestions = suggestionsData?.items ?? [];
 
   const showOnboarding = onboarding && !onboarding.completed && !onboarding.skipped;
   const completedSteps = onboarding?.steps.filter((s) => s.completed).length ?? 0;
@@ -141,16 +135,16 @@ export default function DashboardPage() {
           <p className={styles.statLabel}>Resilience Score</p>
           {resilienceLoading ? (
             <SkeletonText />
-          ) : resilience ? (
+          ) : resilience?.current ? (
             <div style={{ display: 'flex', alignItems: 'baseline', gap: 'var(--cds-spacing-03)' }}>
               <p
                 className={styles.statValue}
-                style={{ color: GRADE_COLORS[resilience.grade] }}
+                style={{ color: GRADE_COLORS[resilience.current.overallGrade] }}
               >
-                {resilience.grade}
+                {resilience.current.overallGrade}
               </p>
               <span style={{ color: 'var(--cds-text-secondary)', fontSize: 'var(--cds-label-01-font-size)' }}>
-                {resilience.score}/100
+                {resilience.current.overallScore}/100
               </span>
             </div>
           ) : (
@@ -215,8 +209,8 @@ export default function DashboardPage() {
                     <span style={{ fontSize: 'var(--cds-body-short-01-font-size)', fontWeight: 600, color: 'var(--cds-text-primary)' }}>
                       {s.title}
                     </span>
-                    <Tag type={PRIORITY_TYPE[s.priority]} size="sm">
-                      {s.priority}
+                    <Tag type="blue" size="sm">
+                      {Math.round(s.confidence * 100)}% confidence
                     </Tag>
                   </div>
                   <p style={{ margin: 0, fontSize: 'var(--cds-label-01-font-size)', color: 'var(--cds-text-secondary)' }}>

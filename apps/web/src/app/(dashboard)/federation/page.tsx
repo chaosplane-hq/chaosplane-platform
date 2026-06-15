@@ -24,7 +24,7 @@ import {
 } from '@carbon/react';
 import { Add, TrashCan } from '@carbon/icons-react';
 import { useFederatedClusters, useRegisterCluster, useRemoveCluster } from '@/lib/hooks/use-federation';
-import type { ClusterProvider, ClusterStatus } from '@/lib/types';
+import type { ClusterProvider, ClusterStatus, FederatedCluster } from '@/lib/types';
 import styles from '@/components/experiments/experiments.module.scss';
 
 const STATUS_TAG: Record<ClusterStatus, 'green' | 'red' | 'warm-gray' | 'gray'> = {
@@ -69,7 +69,7 @@ export default function FederationPage() {
     );
   }
 
-  const rows = (data?.clusters ?? []).map((c) => ({ ...c, id: c.id }));
+  const rows = (data?.items ?? []).map((c: FederatedCluster) => ({ ...c, id: c.id }));
 
   return (
     <Grid fullWidth>
@@ -113,7 +113,7 @@ export default function FederationPage() {
                   </TableHead>
                   <TableBody>
                     {tableRows.map((row) => {
-                      const cluster = data?.clusters.find((c) => c.id === row.id);
+                      const cluster = (data?.items ?? []).find((c: FederatedCluster) => c.id === row.id);
                       return (
                         <TableRow {...getRowProps({ row })}>
                           {row.cells.map((cell) => {

@@ -6,6 +6,7 @@ export function useSuggestions(params?: SuggestionListParams) {
   return useQuery({
     queryKey: ['suggestions', params],
     queryFn: () => suggestionsApi.list(params),
+    enabled: !!params?.environmentId,
     staleTime: 60_000,
   });
 }
@@ -13,7 +14,7 @@ export function useSuggestions(params?: SuggestionListParams) {
 export function useGenerateSuggestions() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: () => suggestionsApi.generate(),
+    mutationFn: (environmentId: string) => suggestionsApi.generate(environmentId),
     onSuccess: () => qc.invalidateQueries({ queryKey: ['suggestions'] }),
   });
 }

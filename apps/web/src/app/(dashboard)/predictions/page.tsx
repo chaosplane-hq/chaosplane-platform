@@ -13,7 +13,7 @@ import {
 } from '@carbon/react';
 import { Play } from '@carbon/icons-react';
 import { usePredictions, useRunPredictions, usePatchPredictionStatus } from '@/lib/hooks/use-predictions';
-import type { PredictionSeverity, PredictionStatus } from '@/lib/types';
+import type { PredictionSeverity, PredictionStatus, Prediction } from '@/lib/types';
 import styles from '@/components/experiments/experiments.module.scss';
 
 const SEVERITY_TAG: Record<PredictionSeverity, 'red' | 'magenta' | 'teal' | 'blue'> = {
@@ -82,7 +82,7 @@ export default function PredictionsPage() {
 
         {!isLoading && data && (
           <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--cds-spacing-04)' }}>
-            {data.predictions.map((p) => (
+            {(data.items ?? []).map((p: Prediction) => (
               <Tile key={p.id}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
                   <div style={{ flex: 1 }}>
@@ -121,7 +121,7 @@ export default function PredictionsPage() {
                 </div>
               </Tile>
             ))}
-            {data.predictions.length === 0 && (
+            {(data.items ?? []).length === 0 && (
               <p style={{ color: 'var(--cds-text-secondary)' }}>No predictions available. Run an analysis to get started.</p>
             )}
           </div>

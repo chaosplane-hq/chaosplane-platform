@@ -25,7 +25,8 @@ import {
 import { Add } from '@carbon/icons-react';
 import { useRouter } from 'next/navigation';
 import { useGameDays, useCreateGameDay } from '@/lib/hooks/use-gamedays';
-import type { GameDayStatus } from '@/lib/types';
+import { useDefaultEnvironmentId } from '@/lib/hooks/use-environments';
+import type { GameDayStatus, GameDay } from '@/lib/types';
 import styles from '@/components/experiments/experiments.module.scss';
 
 const STATUS_TAG: Record<GameDayStatus, 'blue' | 'green' | 'gray' | 'red'> = {
@@ -51,6 +52,7 @@ export default function GameDaysPage() {
   const router = useRouter();
   const { data, isLoading } = useGameDays();
   const createGameDay = useCreateGameDay();
+  const { environmentId } = useDefaultEnvironmentId();
 
   const [createOpen, setCreateOpen] = useState(false);
   const [title, setTitle] = useState('');
@@ -58,9 +60,9 @@ export default function GameDaysPage() {
   const [scheduledAt, setScheduledAt] = useState('');
   const [error, setError] = useState('');
 
-  const gameDays = data?.gameDays ?? [];
+  const gameDays = data?.items ?? [];
 
-  const rows = gameDays.map((g) => ({
+  const rows = gameDays.map((g: GameDay) => ({
     id: g.id,
     title: g.title,
     status: g.status,
@@ -70,9 +72,14 @@ export default function GameDaysPage() {
 
   async function handleCreate() {
     if (!title.trim() || !scheduledAt) return;
+    if (!environmentId) {
+      setError('No environment available. Create an environment first.');
+      return;
+    }
     setError('');
     try {
       await createGameDay.mutateAsync({
+        environmentId,
         title: title.trim(),
         description: description.trim() || undefined,
         scheduledAt,

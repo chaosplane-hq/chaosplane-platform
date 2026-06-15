@@ -23,7 +23,8 @@ import {
 } from '@carbon/react';
 import { Scan, Checkmark, Close, View } from '@carbon/icons-react';
 import { useVulnerabilities, useUpdateVulnerabilityStatus, useScanVulnerabilities } from '@/lib/hooks/use-vulnerabilities';
-import type { VulnerabilitySeverity, VulnerabilityStatus } from '@/lib/types';
+import { useDefaultEnvironmentId } from '@/lib/hooks/use-environments';
+import type { VulnerabilitySeverity, VulnerabilityStatus, Vulnerability } from '@/lib/types';
 
 function severityTagType(s: VulnerabilitySeverity): 'red' | 'magenta' | 'teal' | 'blue' {
   if (s === 'critical') return 'red';
@@ -61,24 +62,27 @@ export default function VulnerabilitiesPage() {
   const [severityFilter, setSeverityFilter] = useState<VulnerabilitySeverity | ''>('');
   const [statusFilter, setStatusFilter] = useState<VulnerabilityStatus | ''>('');
 
+  const { environmentId } = useDefaultEnvironmentId();
+
   const { data, isLoading, isError } = useVulnerabilities({
     limit: 100,
     severity: severityFilter || undefined,
     status: statusFilter || undefined,
+    environmentId,
   });
 
   const updateStatus = useUpdateVulnerabilityStatus();
   const scan = useScanVulnerabilities();
 
-  const vulns = data?.vulnerabilities ?? [];
-  const summary = (data as { summary?: { critical: number; high: number; medium: number; low: number } })?.summary;
+  const vulns = data?.items ?? [];
+  const bySeverity = data?.bySeverity;
 
-  const rows = vulns.map((v) => ({
+  const rows = vulns.map((v: Vulnerability) => ({
     id: v.id,
     title: v.title,
     severity: v.severity,
     status: v.status,
-    affectedResource: (v as { affectedResource?: string }).affectedResource ?? '—',
+    affectedResource: `${v.resourceKind}/${v.resourceName}`,
     detectedAt: new Date(v.detectedAt).toLocaleString(),
   }));
 
@@ -91,13 +95,13 @@ export default function VulnerabilitiesPage() {
         </div>
       </Column>
 
-      {summary && (
+      {bySeverity && (
         <>
           {(['critical', 'high', 'medium', 'low'] as const).map((sev) => (
             <Column key={sev} lg={4} md={2} sm={4}>
               <Tile style={{ textAlign: 'center', padding: '1.5rem' }}>
                 <p style={{ fontSize: '2rem', fontWeight: 700, color: sev === 'critical' ? 'var(--cds-support-error)' : sev === 'high' ? 'var(--cds-support-warning)' : 'var(--cds-text-primary)' }}>
-                  {summary[sev]}
+                  {bySeverity[sev] ?? 0}
                 </p>
                 <p style={{ textTransform: 'capitalize', color: 'var(--cds-text-secondary)', marginTop: '0.25rem' }}>{sev}</p>
               </Tile>
@@ -145,8 +149,8 @@ export default function VulnerabilitiesPage() {
                     <Button
                       renderIcon={Scan}
                       kind="primary"
-                      disabled={scan.isPending}
-                      onClick={() => scan.mutate(undefined)}
+                      disabled={scan.isPending || !environmentId}
+                      onClick={() => environmentId && scan.mutate(environmentId)}
                     >
                       {scan.isPending ? 'Scanning…' : 'Trigger Scan'}
                     </Button>

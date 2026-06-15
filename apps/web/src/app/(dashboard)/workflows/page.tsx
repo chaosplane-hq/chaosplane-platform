@@ -54,7 +54,7 @@ export default function WorkflowsPage() {
   const [specError, setSpecError] = useState('');
   const [error, setError] = useState('');
 
-  const templates = data?.templates ?? [];
+  const templates = data?.items ?? [];
   const previewTemplate = templates.find((t) => t.id === previewId);
 
   async function handleCreate() {
@@ -137,7 +137,7 @@ export default function WorkflowsPage() {
                   />
                 </div>
                 <div style={{ display: 'flex', gap: 'var(--cds-spacing-02)', flexWrap: 'wrap' }}>
-                  <Tag type={CATEGORY_TAG[t.category ?? 'custom']} size="sm">{t.category ?? 'custom'}</Tag>
+                  <Tag type={CATEGORY_TAG[(t.category as WorkflowCategory) ?? 'custom']} size="sm">{t.category ?? 'custom'}</Tag>
                   {t.isPublic && <Tag type="teal" size="sm">public</Tag>}
                 </div>
                 {t.description && (

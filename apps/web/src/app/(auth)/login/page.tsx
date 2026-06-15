@@ -72,19 +72,19 @@ export default function LoginPage() {
               <span className="login-oauth__icon">
                 <Image src="/icons/google.svg" alt="" width={20} height={20} />
               </span>
-              <span className="login-oauth__label">Continue with Google</span>
+              <span className="login-oauth__label">Google</span>
             </Button>
             <Button kind="tertiary" className="login-oauth__btn" onClick={() => handleOAuth('github')}>
               <span className="login-oauth__icon">
                 <LogoGithub size={20} />
               </span>
-              <span className="login-oauth__label">Continue with GitHub</span>
+              <span className="login-oauth__label">GitHub</span>
             </Button>
             <Button kind="tertiary" className="login-oauth__btn" onClick={() => handleOAuth('microsoft')}>
               <span className="login-oauth__icon">
                 <Image src="/icons/microsoft.svg" alt="" width={18} height={18} />
               </span>
-              <span className="login-oauth__label">Continue with Microsoft</span>
+              <span className="login-oauth__label">Microsoft</span>
             </Button>
           </div>
 
@@ -189,17 +189,18 @@ export default function LoginPage() {
 
         .login-oauth {
           display: flex;
-          flex-direction: column;
+          flex-direction: row;
           gap: var(--cds-spacing-03);
         }
 
         .login-oauth__btn {
-          width: 100%;
+          flex: 1 1 0;
+          min-width: 0;
           max-width: 100%;
           display: flex;
           align-items: center;
-          justify-content: flex-start;
-          gap: var(--cds-spacing-04);
+          justify-content: center;
+          gap: var(--cds-spacing-03);
         }
 
         .login-oauth__icon {
@@ -213,6 +214,7 @@ export default function LoginPage() {
 
         .login-oauth__label {
           display: inline-block;
+          white-space: nowrap;
         }
 
         .login-divider {

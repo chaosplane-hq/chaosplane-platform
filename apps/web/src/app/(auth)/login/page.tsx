@@ -188,19 +188,20 @@ export default function LoginPage() {
         }
 
         .login-oauth {
-          display: flex;
-          flex-direction: row;
+          display: grid;
+          grid-template-columns: repeat(3, 1fr);
           gap: var(--cds-spacing-03);
         }
 
-        .login-oauth__btn {
-          flex: 1 1 0;
+        .login-oauth :global(.login-oauth__btn) {
+          width: 100%;
           min-width: 0;
           max-width: 100%;
           display: flex;
           align-items: center;
           justify-content: center;
           gap: var(--cds-spacing-03);
+          padding-inline: var(--cds-spacing-03);
         }
 
         .login-oauth__icon {
@@ -239,7 +240,7 @@ export default function LoginPage() {
           gap: var(--cds-spacing-05);
         }
 
-        .login-form__submit {
+        .login-form :global(.login-form__submit) {
           width: 100%;
           max-width: 100%;
           justify-content: center;

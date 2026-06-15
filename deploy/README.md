@@ -276,3 +276,93 @@ aws rds restore-db-instance-to-point-in-time \
 ## Architecture
 
 See `.sisyphus/plans/infra-aws-eks.md` for the full architecture document.
+
+## Edge / TLS Topology
+
+Traffic flows: **CloudFront (HTTPS) → ALB (HTTP :80) → go-api / web pods**.
+
+- The ALB is HTTP-only because the custom-domain ACM certificate cannot be
+  issued until the `chaosplane.dev` nameservers are delegated to Route 53.
+- CloudFront terminates TLS. Two distributions exist (`api`, `app`), each
+  injecting an `X-Site` header (`api` / `app`) so the single ALB routes by
+  header, plus a shared `X-Origin-Verify` secret header.
+- A WAF rule on the ALB blocks any request lacking the correct
+  `X-Origin-Verify` value, so the public ALB cannot be reached directly
+  (bypassing CloudFront returns 403). The secret lives only in Terraform
+  state / WAF, never in git.
+
+Until NS delegation, CloudFront serves on its default `*.cloudfront.net`
+domains. Current distributions:
+
+```
+api → https://d24111gb9yg8wo.cloudfront.net
+app → https://d1gbvkrts3frks.cloudfront.net
+```
+
+## Post-NS-Delegation: Custom Domain + HTTPS Everywhere
+
+These steps require the `chaosplane.dev` nameservers to point at Route 53.
+
+### 1. Delegate nameservers
+
+`chaosplane.dev` currently resolves to Cloudflare. Point its NS records at the
+Route 53 hosted zone (created by `module.dns`):
+
+```
+ns-63.awsdns-07.com
+ns-1260.awsdns-29.org
+ns-666.awsdns-19.net
+ns-1944.awsdns-51.co.uk
+```
+
+Verify propagation: `dig +short NS chaosplane.dev` should return the AWS NS set.
+
+### 2. Issue the ACM certificate
+
+Flip `wait_for_validation` to `true` so Terraform blocks until the DNS-validated
+cert is ISSUED (validation records live in the new Route 53 zone):
+
+```bash
+cd deploy/terraform/envs/prod
+terraform apply -var='dns_wait_for_validation=true'   # or set in the dns module call
+```
+
+The us-east-1 certificate ARN is exposed as `module.dns.certificate_arn_us_east_1`
+(CloudFront requires the cert in us-east-1).
+
+### 3. Attach custom domains to CloudFront
+
+Wire the domains and cert into the `cdn_alb` module call in `main.tf`:
+
+```hcl
+module "cdn_alb" {
+  # ...
+  acm_certificate_arn = module.dns.certificate_arn_us_east_1
+  sites = {
+    api = { origin_host = "api.chaosplane.dev", domain = "api.chaosplane.dev" }
+    app = { origin_host = "app.chaosplane.dev", domain = "app.chaosplane.dev" }
+  }
+}
+```
+
+`terraform apply` then adds the aliases + SNI viewer cert to each distribution.
+
+### 4. Route 53 alias records
+
+Add A/AAAA alias records pointing `api.chaosplane.dev` / `app.chaosplane.dev`
+at their CloudFront distributions (in the `dns` module or via the
+`cdn_alb` outputs `domain_names` / `distribution_ids`).
+
+### 5. (Optional) HTTPS origin
+
+Once a regional ACM cert is attached to the ALB and a 443 listener is added,
+flip the CloudFront origin `origin_protocol_policy` to `https-only`. This is a
+distribution-only change that deploys in minutes with no downtime.
+
+## Rotating the ArgoCD repo token
+
+The ArgoCD repo credential is currently a temporary `gh` OAuth token
+(over-privileged, `gho_...`). Replace it with a fine-grained PAT
+(repo-scoped, Contents read-only) per the "ArgoCD → Private Repo Access"
+section above. The injection command overwrites the existing
+`chaosplane-platform-repo` Secret; the token value never touches git.

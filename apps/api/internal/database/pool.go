@@ -3,6 +3,7 @@ package database
 import (
 	"context"
 	"fmt"
+	"time"
 
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgconn"
@@ -53,14 +54,14 @@ func NewPool(ctx context.Context, cfg *config.Config) (*Pool, error) {
 		return nil, fmt.Errorf("DATABASE_URL is required")
 	}
 
-	appPool, err := pgxpool.New(ctx, cfg.DatabaseURL)
+	appPool, err := newConfiguredPool(ctx, cfg.DatabaseURL)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create app pool: %w", err)
 	}
 
 	var superadminPool *pgxpool.Pool
 	if cfg.SuperadminDBURL != "" {
-		superadminPool, err = pgxpool.New(ctx, cfg.SuperadminDBURL)
+		superadminPool, err = newConfiguredPool(ctx, cfg.SuperadminDBURL)
 		if err != nil {
 			appPool.Close()
 			return nil, fmt.Errorf("failed to create superadmin pool: %w", err)
@@ -71,6 +72,23 @@ func NewPool(ctx context.Context, cfg *config.Config) (*Pool, error) {
 		App:        appPool,
 		Superadmin: superadminPool,
 	}, nil
+}
+
+// newConfiguredPool keeps warm connections (MinConns) so requests never pay the
+// multi-second cost of establishing a new TLS connection to RDS Proxy on a cold
+// pool, which was making login and other first-hit queries take 10-30s.
+func newConfiguredPool(ctx context.Context, url string) (*pgxpool.Pool, error) {
+	poolCfg, err := pgxpool.ParseConfig(url)
+	if err != nil {
+		return nil, err
+	}
+	poolCfg.MinConns = 2
+	poolCfg.MaxConns = 10
+	poolCfg.MaxConnLifetime = 30 * time.Minute
+	poolCfg.MaxConnIdleTime = 5 * time.Minute
+	poolCfg.HealthCheckPeriod = 1 * time.Minute
+
+	return pgxpool.NewWithConfig(ctx, poolCfg)
 }
 
 // Close closes both connection pools.

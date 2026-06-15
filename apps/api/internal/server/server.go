@@ -2,6 +2,7 @@ package server
 
 import (
 	"log/slog"
+	"time"
 
 	"github.com/gin-gonic/gin"
 	"github.com/redis/go-redis/v9"
@@ -279,5 +280,9 @@ func NewRedisClient(cfg *config.Config) *redis.Client {
 		slog.Error("failed to parse REDIS_URL, rate limiting disabled", "error", err)
 		return nil
 	}
+	opts.DialTimeout = 300 * time.Millisecond
+	opts.ReadTimeout = 300 * time.Millisecond
+	opts.WriteTimeout = 300 * time.Millisecond
+	opts.MaxRetries = -1
 	return redis.NewClient(opts)
 }

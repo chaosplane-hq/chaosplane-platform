@@ -374,7 +374,7 @@ export const securityApi = {
     apiFetch<ABACPolicy>('/api/v1/abac-policies', { method: 'POST', body: JSON.stringify(data) }),
   deleteABACPolicy: (id: string) =>
     apiFetch<void>(`/api/v1/abac-policies/${id}`, { method: 'DELETE' }),
-  getMFACodes: () => apiFetch<MFARecoveryCodes>('/api/v1/mfa/recovery-codes'),
+  getMFACodes: () => apiFetch<MFARecoveryCodes>('/api/v1/mfa/recovery-codes/count'),
   generateMFACodes: () =>
     apiFetch<MFARecoveryCodes>('/api/v1/mfa/recovery-codes', { method: 'POST' }),
   listSessions: () => apiFetch<ActiveSessionListResponse>('/api/v1/sessions'),

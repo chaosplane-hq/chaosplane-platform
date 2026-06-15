@@ -3,27 +3,33 @@ package service
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
+	"strings"
 	"time"
 
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
+	"github.com/google/uuid"
+	"github.com/jackc/pgx/v5"
+
+	"github.com/chaosplane-hq/chaosplane-platform/apps/api/internal/database"
 )
 
+var ErrExperimentNotFound = errors.New("experiment not found")
+
 type ExperimentService struct {
-	k8s *K8sClient
+	pool *database.Pool
 }
 
-func NewExperimentService(k8s *K8sClient) *ExperimentService {
-	return &ExperimentService{k8s: k8s}
+func NewExperimentService(pool *database.Pool) *ExperimentService {
+	return &ExperimentService{pool: pool}
 }
 
 type CreateExperimentRequest struct {
 	Name      string        `json:"name" binding:"required"`
-	Namespace string        `json:"namespace" binding:"required"`
+	Namespace string        `json:"namespace"`
 	Action    ActionRequest `json:"action" binding:"required"`
 	Target    TargetRequest `json:"target" binding:"required"`
-	Duration  string        `json:"duration" binding:"required"`
+	Duration  string        `json:"duration"`
 }
 
 type ActionRequest struct {
@@ -32,170 +38,331 @@ type ActionRequest struct {
 }
 
 type TargetRequest struct {
-	Kind          string            `json:"kind" binding:"required"`
+	Kind          string            `json:"kind,omitempty"`
 	Namespace     string            `json:"namespace,omitempty"`
 	LabelSelector map[string]string `json:"labelSelector,omitempty"`
+	Mode          string            `json:"mode,omitempty"`
+	Value         string            `json:"value,omitempty"`
 	Names         []string          `json:"names,omitempty"`
 }
 
+type ExperimentAction struct {
+	Type       string          `json:"type"`
+	Parameters json.RawMessage `json:"parameters,omitempty"`
+}
+
+type ExperimentTarget struct {
+	Namespace     string            `json:"namespace"`
+	LabelSelector map[string]string `json:"labelSelector,omitempty"`
+	Mode          string            `json:"mode,omitempty"`
+	Value         string            `json:"value,omitempty"`
+}
+
+type ExperimentStatus struct {
+	Phase          string  `json:"phase"`
+	StartTime      *string `json:"startTime,omitempty"`
+	CompletionTime *string `json:"completionTime,omitempty"`
+	Message        string  `json:"message,omitempty"`
+}
+
 type ExperimentResponse struct {
-	Name      string `json:"name"`
-	Namespace string `json:"namespace"`
-	Action    string `json:"action"`
-	Phase     string `json:"phase"`
-	StartTime string `json:"startTime,omitempty"`
-	EndTime   string `json:"endTime,omitempty"`
+	ID        string           `json:"id"`
+	Name      string           `json:"name"`
+	Namespace string           `json:"namespace"`
+	Action    ExperimentAction `json:"action"`
+	Target    ExperimentTarget `json:"target"`
+	Status    ExperimentStatus `json:"status"`
+	Duration  string           `json:"duration,omitempty"`
+	CreatedAt string           `json:"createdAt,omitempty"`
 }
 
-type PaginatedResponse struct {
-	Items      []ExperimentResponse `json:"items"`
-	TotalCount int                  `json:"totalCount"`
-	Limit      int                  `json:"limit"`
-	Offset     int                  `json:"offset"`
+type ExperimentListResponse struct {
+	Experiments []ExperimentResponse `json:"experiments"`
+	Total       int                  `json:"total"`
+	Limit       int                  `json:"limit"`
+	Offset      int                  `json:"offset"`
 }
 
-func (s *ExperimentService) Create(ctx context.Context, req *CreateExperimentRequest) (*ExperimentResponse, error) {
-	duration, err := time.ParseDuration(req.Duration)
-	if err != nil {
-		return nil, fmt.Errorf("invalid duration %q: %w", req.Duration, err)
-	}
-
-	spec := map[string]interface{}{
-		"target":   buildTargetSpec(req.Target),
-		"action":   buildActionSpec(req.Action),
-		"duration": fmt.Sprintf("%.0fs", duration.Seconds()),
-	}
-
-	obj := &unstructured.Unstructured{
-		Object: map[string]interface{}{
-			"apiVersion": "chaos.chaosplane.dev/v1alpha1",
-			"kind":       "ChaosExperiment",
-			"metadata": map[string]interface{}{
-				"name":      req.Name,
-				"namespace": req.Namespace,
-			},
-			"spec": spec,
-		},
-	}
-
-	created, err := s.k8s.CreateExperiment(ctx, req.Namespace, obj)
-	if err != nil {
-		return nil, fmt.Errorf("k8s create failed: %w", err)
-	}
-
-	return toExperimentResponse(created), nil
+type experimentRow struct {
+	id        string
+	name      string
+	status    string
+	target    []byte
+	action    []byte
+	duration  int
+	createdAt time.Time
+	startedAt *time.Time
+	endedAt   *time.Time
 }
 
-func (s *ExperimentService) Get(ctx context.Context, namespace, name string) (*ExperimentResponse, error) {
-	obj, err := s.k8s.GetExperiment(ctx, namespace, name)
-	if err != nil {
-		return nil, err
-	}
-	return toExperimentResponse(obj), nil
-}
-
-func (s *ExperimentService) List(ctx context.Context, namespace string, limit, offset int) (*PaginatedResponse, error) {
-	list, err := s.k8s.ListExperiments(ctx, namespace, metav1.ListOptions{})
-	if err != nil {
+func (s *ExperimentService) List(ctx context.Context, actor ActorContext, statusFilter, actionFilter string, limit, offset int) (*ExperimentListResponse, error) {
+	if err := ensureActorMembership(ctx, s.pool, actor); err != nil {
 		return nil, err
 	}
 
-	total := len(list.Items)
-	end := offset + limit
-	if end > total {
-		end = total
+	var total int
+	if err := s.pool.Conn(ctx).QueryRow(ctx, `
+		SELECT count(*) FROM experiments WHERE tenant_id = $1::uuid AND deleted_at IS NULL
+	`, actor.TenantID).Scan(&total); err != nil {
+		return nil, fmt.Errorf("count experiments: %w", err)
 	}
 
-	var items []ExperimentResponse
-	if offset < total {
-		for _, item := range list.Items[offset:end] {
-			items = append(items, *toExperimentResponse(&item))
+	rows, err := s.pool.Conn(ctx).Query(ctx, `
+		SELECT id::text, name, status, target, action, duration_seconds, created_at, run_started_at, run_ended_at
+		FROM experiments
+		WHERE tenant_id = $1::uuid AND deleted_at IS NULL
+		ORDER BY created_at DESC
+		LIMIT $2 OFFSET $3
+	`, actor.TenantID, limit, offset)
+	if err != nil {
+		return nil, fmt.Errorf("list experiments: %w", err)
+	}
+	defer rows.Close()
+
+	items := []ExperimentResponse{}
+	for rows.Next() {
+		var r experimentRow
+		if err := rows.Scan(&r.id, &r.name, &r.status, &r.target, &r.action, &r.duration, &r.createdAt, &r.startedAt, &r.endedAt); err != nil {
+			return nil, fmt.Errorf("scan experiment: %w", err)
 		}
+		resp := toExperimentResponse(&r)
+		if statusFilter != "" && !strings.EqualFold(resp.Status.Phase, statusFilter) {
+			continue
+		}
+		if actionFilter != "" && resp.Action.Type != actionFilter {
+			continue
+		}
+		items = append(items, resp)
 	}
-	if items == nil {
-		items = []ExperimentResponse{}
+	if err := rows.Err(); err != nil {
+		return nil, err
 	}
 
-	return &PaginatedResponse{
-		Items:      items,
-		TotalCount: total,
-		Limit:      limit,
-		Offset:     offset,
+	return &ExperimentListResponse{
+		Experiments: items,
+		Total:       total,
+		Limit:       limit,
+		Offset:      offset,
 	}, nil
 }
 
-func (s *ExperimentService) Delete(ctx context.Context, namespace, name string) error {
-	return s.k8s.DeleteExperiment(ctx, namespace, name)
-}
-
-func (s *ExperimentService) Abort(ctx context.Context, namespace, name string) (*ExperimentResponse, error) {
-	obj, err := s.k8s.AbortExperiment(ctx, namespace, name)
+func (s *ExperimentService) Get(ctx context.Context, actor ActorContext, id string) (*ExperimentResponse, error) {
+	if err := ensureActorMembership(ctx, s.pool, actor); err != nil {
+		return nil, err
+	}
+	r, err := s.fetchRow(ctx, actor, id)
 	if err != nil {
 		return nil, err
 	}
-	return toExperimentResponse(obj), nil
+	resp := toExperimentResponse(r)
+	return &resp, nil
 }
 
-func buildTargetSpec(t TargetRequest) map[string]interface{} {
-	target := map[string]interface{}{
-		"kind": t.Kind,
+func (s *ExperimentService) Create(ctx context.Context, actor ActorContext, req *CreateExperimentRequest) (*ExperimentResponse, error) {
+	if err := ensureActorMembership(ctx, s.pool, actor); err != nil {
+		return nil, err
 	}
-	if t.Namespace != "" {
-		target["namespace"] = t.Namespace
+
+	envID, err := s.resolveDefaultEnvironment(ctx, actor)
+	if err != nil {
+		return nil, err
 	}
-	if len(t.LabelSelector) > 0 {
-		matchLabels := make(map[string]interface{}, len(t.LabelSelector))
-		for k, v := range t.LabelSelector {
-			matchLabels[k] = v
+
+	targetSpec := ExperimentTarget{
+		Namespace:     req.Target.Namespace,
+		LabelSelector: req.Target.LabelSelector,
+		Mode:          req.Target.Mode,
+		Value:         req.Target.Value,
+	}
+	targetJSON, err := json.Marshal(targetSpec)
+	if err != nil {
+		return nil, fmt.Errorf("marshal target: %w", err)
+	}
+
+	actionParams := req.Action.Parameters
+	if len(actionParams) == 0 {
+		actionParams = json.RawMessage(`{}`)
+	}
+	actionSpec := ExperimentAction{Type: req.Action.Type, Parameters: actionParams}
+	actionJSON, err := json.Marshal(actionSpec)
+	if err != nil {
+		return nil, fmt.Errorf("marshal action: %w", err)
+	}
+
+	durationSeconds := 60
+	if req.Duration != "" {
+		if d, derr := time.ParseDuration(req.Duration); derr == nil && d > 0 {
+			durationSeconds = int(d.Seconds())
 		}
-		target["labelSelector"] = map[string]interface{}{
-			"matchLabels": matchLabels,
-		}
 	}
-	if len(t.Names) > 0 {
-		names := make([]interface{}, len(t.Names))
-		for i, n := range t.Names {
-			names[i] = n
-		}
-		target["names"] = names
+
+	var r experimentRow
+	err = s.pool.Conn(ctx).QueryRow(ctx, `
+		INSERT INTO experiments (tenant_id, environment_id, name, target, action, duration_seconds, status, created_by)
+		VALUES ($1::uuid, $2::uuid, $3, $4::jsonb, $5::jsonb, $6, 'scheduled', $7::uuid)
+		RETURNING id::text, name, status, target, action, duration_seconds, created_at, run_started_at, run_ended_at
+	`, actor.TenantID, envID, req.Name, targetJSON, actionJSON, durationSeconds, actor.UserID).Scan(
+		&r.id, &r.name, &r.status, &r.target, &r.action, &r.duration, &r.createdAt, &r.startedAt, &r.endedAt,
+	)
+	if err != nil {
+		return nil, fmt.Errorf("create experiment: %w", err)
 	}
-	return target
+
+	resp := toExperimentResponse(&r)
+	return &resp, nil
 }
 
-func buildActionSpec(a ActionRequest) map[string]interface{} {
-	action := map[string]interface{}{
-		"type": a.Type,
+func (s *ExperimentService) Delete(ctx context.Context, actor ActorContext, id string) error {
+	if err := ensureActorMembership(ctx, s.pool, actor); err != nil {
+		return err
 	}
-	if len(a.Parameters) > 0 {
-		var params interface{}
-		if json.Unmarshal(a.Parameters, &params) == nil {
-			action["parameters"] = params
-		}
+	if _, err := uuid.Parse(id); err != nil {
+		return ErrExperimentNotFound
 	}
-	return action
+	cmd, err := s.pool.Conn(ctx).Exec(ctx, `
+		UPDATE experiments SET deleted_at = now()
+		WHERE id = $1::uuid AND tenant_id = $2::uuid AND deleted_at IS NULL
+	`, id, actor.TenantID)
+	if err != nil {
+		return fmt.Errorf("delete experiment: %w", err)
+	}
+	if cmd.RowsAffected() == 0 {
+		return ErrExperimentNotFound
+	}
+	return nil
 }
 
-func toExperimentResponse(obj *unstructured.Unstructured) *ExperimentResponse {
-	resp := &ExperimentResponse{
-		Name:      obj.GetName(),
-		Namespace: obj.GetNamespace(),
+func (s *ExperimentService) Abort(ctx context.Context, actor ActorContext, id string) (*ExperimentResponse, error) {
+	if err := ensureActorMembership(ctx, s.pool, actor); err != nil {
+		return nil, err
+	}
+	if _, err := uuid.Parse(id); err != nil {
+		return nil, ErrExperimentNotFound
+	}
+	cmd, err := s.pool.Conn(ctx).Exec(ctx, `
+		UPDATE experiments
+		SET desired_state = 'abort', generation = generation + 1
+		WHERE id = $1::uuid AND tenant_id = $2::uuid AND deleted_at IS NULL
+		  AND status IN ('scheduled','running','paused')
+	`, id, actor.TenantID)
+	if err != nil {
+		return nil, fmt.Errorf("abort experiment: %w", err)
+	}
+	if cmd.RowsAffected() == 0 {
+		return nil, ErrExperimentNotFound
+	}
+	return s.Get(ctx, actor, id)
+}
+
+func (s *ExperimentService) fetchRow(ctx context.Context, actor ActorContext, id string) (*experimentRow, error) {
+	if _, err := uuid.Parse(id); err != nil {
+		return nil, ErrExperimentNotFound
+	}
+	var r experimentRow
+	err := s.pool.Conn(ctx).QueryRow(ctx, `
+		SELECT id::text, name, status, target, action, duration_seconds, created_at, run_started_at, run_ended_at
+		FROM experiments
+		WHERE id = $1::uuid AND tenant_id = $2::uuid AND deleted_at IS NULL
+	`, id, actor.TenantID).Scan(&r.id, &r.name, &r.status, &r.target, &r.action, &r.duration, &r.createdAt, &r.startedAt, &r.endedAt)
+	if err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			return nil, ErrExperimentNotFound
+		}
+		return nil, fmt.Errorf("get experiment: %w", err)
+	}
+	return &r, nil
+}
+
+// resolveDefaultEnvironment creates a default project and environment on demand
+// when the tenant has none, since registration does not provision one.
+func (s *ExperimentService) resolveDefaultEnvironment(ctx context.Context, actor ActorContext) (string, error) {
+	var envID string
+	err := s.pool.Conn(ctx).QueryRow(ctx, `
+		SELECT id::text FROM environments
+		WHERE tenant_id = $1::uuid AND deleted_at IS NULL
+		ORDER BY created_at ASC LIMIT 1
+	`, actor.TenantID).Scan(&envID)
+	if err == nil {
+		return envID, nil
+	}
+	if !errors.Is(err, pgx.ErrNoRows) {
+		return "", fmt.Errorf("lookup default environment: %w", err)
 	}
 
-	if action, ok, _ := unstructured.NestedString(obj.Object, "spec", "action", "type"); ok {
-		resp.Action = action
-	}
-	if phase, ok, _ := unstructured.NestedString(obj.Object, "status", "phase"); ok {
-		resp.Phase = phase
-	}
-	if resp.Phase == "" {
-		resp.Phase = "Pending"
-	}
-	if startTime, ok, _ := unstructured.NestedString(obj.Object, "status", "startTime"); ok {
-		resp.StartTime = startTime
-	}
-	if endTime, ok, _ := unstructured.NestedString(obj.Object, "status", "endTime"); ok {
-		resp.EndTime = endTime
+	var workspaceID string
+	if err := s.pool.Conn(ctx).QueryRow(ctx, `
+		SELECT id::text FROM workspaces
+		WHERE tenant_id = $1::uuid AND deleted_at IS NULL
+		ORDER BY created_at ASC LIMIT 1
+	`, actor.TenantID).Scan(&workspaceID); err != nil {
+		return "", fmt.Errorf("lookup default workspace: %w", err)
 	}
 
+	var projectID string
+	if err := s.pool.Conn(ctx).QueryRow(ctx, `
+		INSERT INTO projects (tenant_id, workspace_id, name, slug)
+		VALUES ($1::uuid, $2::uuid, 'Default', 'default')
+		ON CONFLICT (workspace_id, slug) DO UPDATE SET updated_at = now()
+		RETURNING id::text
+	`, actor.TenantID, workspaceID).Scan(&projectID); err != nil {
+		return "", fmt.Errorf("create default project: %w", err)
+	}
+
+	if err := s.pool.Conn(ctx).QueryRow(ctx, `
+		INSERT INTO environments (tenant_id, project_id, name, slug, type)
+		VALUES ($1::uuid, $2::uuid, 'Default', 'default', 'staging')
+		ON CONFLICT (project_id, slug) DO UPDATE SET updated_at = now()
+		RETURNING id::text
+	`, actor.TenantID, projectID).Scan(&envID); err != nil {
+		return "", fmt.Errorf("create default environment: %w", err)
+	}
+	return envID, nil
+}
+
+func toExperimentResponse(r *experimentRow) ExperimentResponse {
+	var target ExperimentTarget
+	if len(r.target) > 0 {
+		_ = json.Unmarshal(r.target, &target)
+	}
+	var action ExperimentAction
+	if len(r.action) > 0 {
+		_ = json.Unmarshal(r.action, &action)
+	}
+
+	resp := ExperimentResponse{
+		ID:        r.id,
+		Name:      r.name,
+		Namespace: target.Namespace,
+		Action:    action,
+		Target:    target,
+		Status:    ExperimentStatus{Phase: phaseFromStatus(r.status)},
+		Duration:  fmt.Sprintf("%ds", r.duration),
+		CreatedAt: r.createdAt.UTC().Format(time.RFC3339),
+	}
+	if r.startedAt != nil {
+		t := r.startedAt.UTC().Format(time.RFC3339)
+		resp.Status.StartTime = &t
+	}
+	if r.endedAt != nil {
+		t := r.endedAt.UTC().Format(time.RFC3339)
+		resp.Status.CompletionTime = &t
+	}
 	return resp
+}
+
+// phaseFromStatus maps the DB experiment status enum to the frontend
+// ExperimentPhase contract (Pending/Running/Completed/Failed/Aborted).
+func phaseFromStatus(status string) string {
+	switch status {
+	case "running":
+		return "Running"
+	case "completed":
+		return "Completed"
+	case "failed", "rejected":
+		return "Failed"
+	case "aborted", "rolled_back":
+		return "Aborted"
+	default:
+		return "Pending"
+	}
 }

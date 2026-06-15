@@ -91,7 +91,7 @@ export default function ExperimentsPage() {
     });
 
   const rows = experiments.map((e) => ({
-    id: e.name,
+    id: e.id,
     name: e.name,
     namespace: e.namespace,
     action: e.action.type,

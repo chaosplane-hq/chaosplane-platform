@@ -2,6 +2,7 @@ package handler
 
 import (
 	"context"
+	"errors"
 	"net/http"
 	"strconv"
 
@@ -27,9 +28,9 @@ func (h *ExperimentHandler) Create(c *gin.Context) {
 		return
 	}
 
-	resp, err := h.svc.Create(c.Request.Context(), &req)
+	resp, err := h.svc.Create(c.Request.Context(), actorFromContext(c), &req)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		writeExperimentError(c, err)
 		return
 	}
 
@@ -40,7 +41,7 @@ func (h *ExperimentHandler) Create(c *gin.Context) {
 		}
 		if h.notification != nil {
 			go h.notification.Dispatch(context.Background(), tid, "experiment.created", map[string]interface{}{
-				"name": resp.Name, "namespace": resp.Namespace, "action": resp.Action,
+				"name": resp.Name, "namespace": resp.Namespace, "action": resp.Action.Type,
 			})
 		}
 	}
@@ -50,11 +51,12 @@ func (h *ExperimentHandler) Create(c *gin.Context) {
 
 func (h *ExperimentHandler) List(c *gin.Context) {
 	limit, offset := parsePagination(c)
-	namespace := c.Query("namespace")
+	statusFilter := c.Query("status")
+	actionFilter := c.Query("action")
 
-	resp, err := h.svc.List(c.Request.Context(), namespace, limit, offset)
+	resp, err := h.svc.List(c.Request.Context(), actorFromContext(c), statusFilter, actionFilter, limit, offset)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		writeExperimentError(c, err)
 		return
 	}
 
@@ -62,12 +64,9 @@ func (h *ExperimentHandler) List(c *gin.Context) {
 }
 
 func (h *ExperimentHandler) Get(c *gin.Context) {
-	name := c.Param("name")
-	namespace := c.DefaultQuery("namespace", "default")
-
-	resp, err := h.svc.Get(c.Request.Context(), namespace, name)
+	resp, err := h.svc.Get(c.Request.Context(), actorFromContext(c), c.Param("name"))
 	if err != nil {
-		c.JSON(http.StatusNotFound, gin.H{"error": err.Error()})
+		writeExperimentError(c, err)
 		return
 	}
 
@@ -75,11 +74,8 @@ func (h *ExperimentHandler) Get(c *gin.Context) {
 }
 
 func (h *ExperimentHandler) Delete(c *gin.Context) {
-	name := c.Param("name")
-	namespace := c.DefaultQuery("namespace", "default")
-
-	if err := h.svc.Delete(c.Request.Context(), namespace, name); err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+	if err := h.svc.Delete(c.Request.Context(), actorFromContext(c), c.Param("name")); err != nil {
+		writeExperimentError(c, err)
 		return
 	}
 
@@ -87,16 +83,21 @@ func (h *ExperimentHandler) Delete(c *gin.Context) {
 }
 
 func (h *ExperimentHandler) Abort(c *gin.Context) {
-	name := c.Param("name")
-	namespace := c.DefaultQuery("namespace", "default")
-
-	resp, err := h.svc.Abort(c.Request.Context(), namespace, name)
+	resp, err := h.svc.Abort(c.Request.Context(), actorFromContext(c), c.Param("name"))
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		writeExperimentError(c, err)
 		return
 	}
 
 	c.JSON(http.StatusOK, resp)
+}
+
+func writeExperimentError(c *gin.Context, err error) {
+	if errors.Is(err, service.ErrExperimentNotFound) {
+		c.JSON(http.StatusNotFound, gin.H{"error": err.Error()})
+		return
+	}
+	c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 }
 
 func parsePagination(c *gin.Context) (limit, offset int) {

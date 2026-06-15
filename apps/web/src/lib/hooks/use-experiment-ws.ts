@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState } from 'react';
 import { getWsUrl } from '@/lib/api';
+import { getAccessToken } from '@/lib/auth';
 import type { ExperimentStatusMessage } from '@/lib/types';
 
 export function useExperimentWs(name: string) {
@@ -17,7 +18,9 @@ export function useExperimentWs(name: string) {
 
     function connect() {
       if (unmounted.current) return;
-      const ws = new WebSocket(getWsUrl(`/ws/experiments/${name}`));
+      const token = getAccessToken();
+      if (!token) return;
+      const ws = new WebSocket(getWsUrl(`/ws/experiments/${name}?token=${encodeURIComponent(token)}`));
       wsRef.current = ws;
 
       ws.onopen = () => setConnected(true);

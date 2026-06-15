@@ -302,7 +302,7 @@ export default function CreateExperimentPage() {
         duration,
       },
       {
-        onSuccess: (exp) => router.push(`/experiments/${exp.name}`),
+        onSuccess: (exp) => router.push(`/experiments/${exp.id}`),
       },
     );
   }

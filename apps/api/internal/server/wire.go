@@ -81,7 +81,6 @@ var ProviderSet = wire.NewSet(
 	service.NewFederationService,
 	service.NewCICDService,
 	service.NewPredictiveAnalysisService,
-	service.NewK8sClient,
 	service.NewExperimentService,
 	service.NewPolicyService,
 	NewRedisClient,

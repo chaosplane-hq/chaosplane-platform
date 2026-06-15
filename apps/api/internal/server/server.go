@@ -247,6 +247,8 @@ func New(
 
 		api.GET("/policies", policies.List)
 		api.GET("/policies/:name", policies.Get)
+		api.POST("/policies", policies.Create)
+		api.DELETE("/policies/:name", policies.Delete)
 	}
 
 	r.GET("/ws/experiments/:name", ws.ExperimentStatus)

@@ -13,6 +13,7 @@ import {
   Rocket,
   Network_3,
   Security,
+  Rule,
   Idea,
   ChartLine,
   Chat,
@@ -34,6 +35,7 @@ interface AppSidebarProps {
 const navItems = [
   { href: '/', label: 'Dashboard', icon: Dashboard },
   { href: '/experiments', label: 'Experiments', icon: Chemistry },
+  { href: '/policies', label: 'Policies', icon: Rule },
   { href: '/environments', label: 'Environments', icon: Cloud },
   { href: '/topology', label: 'Topology', icon: Network_3 },
   { href: '/vulnerabilities', label: 'Vulnerabilities', icon: Security },

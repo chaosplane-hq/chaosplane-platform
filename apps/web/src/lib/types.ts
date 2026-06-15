@@ -93,6 +93,7 @@ export interface ExperimentStatus {
 }
 
 export interface Experiment {
+  id: string;
   name: string;
   namespace: string;
   action: ExperimentAction;
@@ -125,23 +126,33 @@ export interface CreateExperimentRequest {
   duration?: string;
 }
 
-export interface PolicyRule {
-  type: string;
-  maxConcurrent?: number;
-  allowedNamespaces?: string[];
-  blockedNamespaces?: string[];
-}
+export type PolicyEnforcement = 'enforce' | 'audit' | 'disabled';
 
 export interface Policy {
+  id: string;
   name: string;
-  namespace: string;
-  rules: PolicyRule[];
-  createdAt?: string;
+  description?: string;
+  enforcement: PolicyEnforcement;
+  maxConcurrent?: number;
+  maxTargets?: number;
+  allowedNamespaces: string[];
+  blockedNamespaces: string[];
+  createdAt: string;
 }
 
 export interface PolicyListResponse {
   policies: Policy[];
   total: number;
+}
+
+export interface CreatePolicyRequest {
+  name: string;
+  description?: string;
+  enforcement: PolicyEnforcement;
+  maxConcurrent?: number;
+  maxTargets?: number;
+  allowedNamespaces?: string[];
+  blockedNamespaces?: string[];
 }
 
 export interface ExperimentStatusMessage {

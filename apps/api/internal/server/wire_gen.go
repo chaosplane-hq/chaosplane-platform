@@ -84,17 +84,12 @@ func InitializeServer(ctx context.Context) (*Server, error) {
 	predictiveService := service.NewPredictiveAnalysisService(pool, llmClient)
 	predictiveHandler := handler.NewPredictiveHandler(predictiveService)
 
-	k8sClient, err := service.NewK8sClient(cfg)
-	if err != nil {
-		return nil, err
-	}
-
-	experimentService := service.NewExperimentService(k8sClient)
-	policyService := service.NewPolicyService(k8sClient)
+	experimentService := service.NewExperimentService(pool)
+	policyService := service.NewPolicyService(pool)
 
 	experimentHandler := handler.NewExperimentHandler(experimentService, notificationService, billingService)
 	policyHandler := handler.NewPolicyHandler(policyService)
-	wsHandler := handler.NewWebSocketHandler(experimentService)
+	wsHandler := handler.NewWebSocketHandler(experimentService, authService, pool)
 
 	srv := New(cfg, pool, healthHandler, authHandler, hierarchyHandler, onboardingHandler, invitationHandler, apiKeyHandler, oauthHandler, accountHandler, agentHandler, billingHandler, notificationHandler, auditHandler, topologyHandler, topoAnalysisHandler, vulnerabilityHandler, suggestionHandler, resultAnalysisHandler, aiChatHandler, enterpriseHandler, gamedayHandler, resilienceHandler, wfTemplateHandler, cuiHandler, marketplaceHandler, federationHandler, cicdHandler, predictiveHandler, experimentHandler, policyHandler, wsHandler, rdb, authService)
 	return srv, nil

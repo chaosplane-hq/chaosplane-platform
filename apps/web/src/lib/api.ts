@@ -5,6 +5,7 @@ import {
   type CreateExperimentRequest,
   type Policy,
   type PolicyListResponse,
+  type CreatePolicyRequest,
   type OnboardingProgressResponse,
   type OnboardingPatchRequest,
   type AgentTestConnectionResponse,
@@ -138,7 +139,14 @@ export const experimentsApi = {
 
 export const policiesApi = {
   list: () => apiFetch<PolicyListResponse>('/api/v1/policies'),
-  get: (name: string) => apiFetch<Policy>(`/api/v1/policies/${name}`),
+  get: (id: string) => apiFetch<Policy>(`/api/v1/policies/${id}`),
+  create: (data: CreatePolicyRequest) =>
+    apiFetch<Policy>('/api/v1/policies', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    }),
+  delete: (id: string) =>
+    apiFetch<void>(`/api/v1/policies/${id}`, { method: 'DELETE' }),
 };
 
 export const onboardingApi = {

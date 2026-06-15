@@ -3,8 +3,10 @@ data "aws_lb" "this" {
 }
 
 resource "aws_cloudfront_distribution" "this" {
+  for_each = var.sites
+
   enabled = true
-  comment = var.name
+  comment = "${var.name}-${each.key}"
 
   origin {
     domain_name = data.aws_lb.this.dns_name
@@ -20,6 +22,11 @@ resource "aws_cloudfront_distribution" "this" {
     custom_header {
       name  = "X-Origin-Verify"
       value = var.origin_verify_secret
+    }
+
+    custom_header {
+      name  = "X-Site"
+      value = each.key
     }
   }
 

@@ -289,6 +289,11 @@ module "cdn_alb" {
   name                 = local.name
   alb_name             = local.name
   origin_verify_secret = module.waf.origin_verify_secret
+
+  sites = {
+    api = { origin_host = "api.chaosplane.dev" }
+    app = { origin_host = "app.chaosplane.dev" }
+  }
 }
 
 module "guardduty" {

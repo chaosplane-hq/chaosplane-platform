@@ -151,7 +151,7 @@ resource "aws_db_proxy" "this" {
 
   auth {
     auth_scheme = "SECRETS"
-    iam_auth    = "REQUIRED"
+    iam_auth    = "DISABLED"
     secret_arn  = aws_secretsmanager_secret.db_credentials.arn
   }
 

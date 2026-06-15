@@ -10,10 +10,13 @@ metadata:
     alb.ingress.kubernetes.io/target-type: ip
     alb.ingress.kubernetes.io/listen-ports: '[{"HTTP":80}]'
     alb.ingress.kubernetes.io/healthcheck-path: /healthz
+    alb.ingress.kubernetes.io/conditions.go-api: |
+      [{"field":"http-header","httpHeaderConfig":{"httpHeaderName":"X-Site","values":["api"]}}]
+    alb.ingress.kubernetes.io/conditions.web: |
+      [{"field":"http-header","httpHeaderConfig":{"httpHeaderName":"X-Site","values":["app"]}}]
 spec:
   rules:
-    - host: api.chaosplane.dev
-      http:
+    - http:
         paths:
           - path: /
             pathType: Prefix
@@ -22,9 +25,6 @@ spec:
                 name: go-api
                 port:
                   number: 8080
-    - host: app.chaosplane.dev
-      http:
-        paths:
           - path: /
             pathType: Prefix
             backend:

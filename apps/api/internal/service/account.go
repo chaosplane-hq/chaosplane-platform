@@ -46,7 +46,7 @@ type DeleteAccountRequest struct {
 }
 
 func (s *AccountService) AcceptTOS(ctx context.Context, actor ActorContext, req *AcceptTOSRequest) error {
-	cmd, err := s.pool.App.Exec(ctx, `
+	cmd, err := s.pool.Conn(ctx).Exec(ctx, `
 		UPDATE users
 		SET accepted_tos_version = $2, accepted_tos_at = now()
 		WHERE id = $1::uuid AND deleted_at IS NULL
@@ -193,7 +193,7 @@ func (s *AccountService) Delete(ctx context.Context, actor ActorContext, req *De
 }
 
 func (s *AccountService) CancelDeletion(ctx context.Context, actor ActorContext) error {
-	cmd, err := s.pool.App.Exec(ctx, `
+	cmd, err := s.pool.Conn(ctx).Exec(ctx, `
 		UPDATE users
 		SET deleted_at = NULL, status = 'active',
 		    email = regexp_replace(email, '\.deleted\.[a-f0-9-]+$', '')
@@ -211,7 +211,7 @@ func (s *AccountService) CancelDeletion(ctx context.Context, actor ActorContext)
 
 func queryJSON(ctx context.Context, pool *database.Pool, query string, args ...any) (json.RawMessage, error) {
 	var raw json.RawMessage
-	err := pool.App.QueryRow(ctx, query, args...).Scan(&raw)
+	err := pool.Conn(ctx).QueryRow(ctx, query, args...).Scan(&raw)
 	if err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
 			return json.RawMessage("null"), nil

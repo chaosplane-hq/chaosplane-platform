@@ -75,7 +75,7 @@ func (s *AuditService) List(ctx context.Context, actor ActorContext, req *ListAu
 
 	var totalCount int
 	countQuery := "SELECT COUNT(*) FROM (" + query + ") sub"
-	if err := s.pool.App.QueryRow(ctx, countQuery, args...).Scan(&totalCount); err != nil {
+	if err := s.pool.Conn(ctx).QueryRow(ctx, countQuery, args...).Scan(&totalCount); err != nil {
 		return nil, fmt.Errorf("count audit logs: %w", err)
 	}
 
@@ -83,7 +83,7 @@ func (s *AuditService) List(ctx context.Context, actor ActorContext, req *ListAu
 	query += fmt.Sprintf(" LIMIT $%d OFFSET $%d", argIdx, argIdx+1)
 	args = append(args, req.Limit, req.Offset)
 
-	rows, err := s.pool.App.Query(ctx, query, args...)
+	rows, err := s.pool.Conn(ctx).Query(ctx, query, args...)
 	if err != nil {
 		return nil, fmt.Errorf("list audit logs: %w", err)
 	}

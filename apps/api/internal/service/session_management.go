@@ -33,7 +33,7 @@ func (s *SessionManagementService) List(ctx context.Context, actor ActorContext)
 	if err := ensureActorMembership(ctx, s.pool, actor); err != nil {
 		return nil, err
 	}
-	rows, err := s.pool.App.Query(ctx, `
+	rows, err := s.pool.Conn(ctx).Query(ctx, `
 		SELECT id::text, host(ip_address), user_agent, last_activity, created_at
 		FROM active_sessions
 		WHERE user_id = $1::uuid AND tenant_id = $2::uuid AND revoked_at IS NULL
@@ -56,7 +56,7 @@ func (s *SessionManagementService) List(ctx context.Context, actor ActorContext)
 
 func (s *SessionManagementService) Register(ctx context.Context, userID, tenantID string, ip net.IP, userAgent string) (string, error) {
 	var sessionID string
-	err := s.pool.App.QueryRow(ctx, `
+	err := s.pool.Conn(ctx).QueryRow(ctx, `
 		INSERT INTO active_sessions (user_id, tenant_id, ip_address, user_agent)
 		VALUES ($1::uuid, $2::uuid, $3::inet, $4)
 		RETURNING id::text
@@ -71,7 +71,7 @@ func (s *SessionManagementService) Revoke(ctx context.Context, actor ActorContex
 	if err := ensureActorMembership(ctx, s.pool, actor); err != nil {
 		return err
 	}
-	cmd, err := s.pool.App.Exec(ctx, `
+	cmd, err := s.pool.Conn(ctx).Exec(ctx, `
 		UPDATE active_sessions SET revoked_at = now()
 		WHERE id = $1::uuid AND user_id = $2::uuid AND revoked_at IS NULL
 	`, sessionID, actor.UserID)
@@ -88,7 +88,7 @@ func (s *SessionManagementService) RevokeAll(ctx context.Context, actor ActorCon
 	if err := ensureActorMembership(ctx, s.pool, actor); err != nil {
 		return 0, err
 	}
-	cmd, err := s.pool.App.Exec(ctx, `
+	cmd, err := s.pool.Conn(ctx).Exec(ctx, `
 		UPDATE active_sessions SET revoked_at = now()
 		WHERE user_id = $1::uuid AND tenant_id = $2::uuid AND revoked_at IS NULL
 	`, actor.UserID, actor.TenantID)
@@ -102,7 +102,7 @@ func (s *SessionManagementService) EnforceLimit(ctx context.Context, userID, ten
 	if maxSessions <= 0 {
 		return nil
 	}
-	_, err := s.pool.App.Exec(ctx, `
+	_, err := s.pool.Conn(ctx).Exec(ctx, `
 		UPDATE active_sessions SET revoked_at = now()
 		WHERE id IN (
 			SELECT id FROM active_sessions
@@ -118,7 +118,7 @@ func (s *SessionManagementService) EnforceLimit(ctx context.Context, userID, ten
 }
 
 func (s *SessionManagementService) Touch(ctx context.Context, sessionID string) {
-	_, _ = s.pool.App.Exec(ctx, `
+	_, _ = s.pool.Conn(ctx).Exec(ctx, `
 		UPDATE active_sessions SET last_activity = now() WHERE id = $1::uuid AND revoked_at IS NULL
 	`, sessionID)
 }

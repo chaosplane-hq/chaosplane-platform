@@ -201,7 +201,7 @@ func (s *OnboardingService) TestAgentConnection(ctx context.Context, actor Actor
 	}
 
 	var resp TestAgentConnectionResponse
-	err := s.pool.App.QueryRow(ctx, `
+	err := s.pool.Conn(ctx).QueryRow(ctx, `
 		SELECT id::text, agent_status
 		FROM environments
 		WHERE id = $1::uuid AND tenant_id = $2::uuid AND deleted_at IS NULL
@@ -226,7 +226,7 @@ func (s *OnboardingService) TestAgentConnection(ctx context.Context, actor Actor
 }
 
 func (s *OnboardingService) getOrCreateProgress(ctx context.Context, actor ActorContext) (*OnboardingProgress, error) {
-	row := s.pool.App.QueryRow(ctx, `
+	row := s.pool.Conn(ctx).QueryRow(ctx, `
 		SELECT user_id::text, tenant_id::text, step_org_created, step_workspace_created, step_team_created,
 		       step_member_invited, step_cluster_connected, step_first_experiment, step_result_viewed,
 		       completed_at, skipped_at, updated_at
@@ -252,7 +252,7 @@ func (s *OnboardingService) getOrCreateProgress(ctx context.Context, actor Actor
 		if !errors.Is(err, pgx.ErrNoRows) {
 			return nil, fmt.Errorf("load onboarding progress: %w", err)
 		}
-		if _, insertErr := s.pool.App.Exec(ctx, `
+		if _, insertErr := s.pool.Conn(ctx).Exec(ctx, `
 			INSERT INTO onboarding_progress (user_id, tenant_id)
 			VALUES ($1::uuid, $2::uuid)
 			ON CONFLICT (user_id, tenant_id) DO NOTHING
@@ -265,7 +265,7 @@ func (s *OnboardingService) getOrCreateProgress(ctx context.Context, actor Actor
 }
 
 func (s *OnboardingService) persistProgress(ctx context.Context, progress *OnboardingProgress) (*OnboardingProgress, error) {
-	row := s.pool.App.QueryRow(ctx, `
+	row := s.pool.Conn(ctx).QueryRow(ctx, `
 		UPDATE onboarding_progress
 		SET step_org_created = $3,
 		    step_workspace_created = $4,
@@ -305,7 +305,7 @@ func (s *OnboardingService) persistProgress(ctx context.Context, progress *Onboa
 
 func ensureActorMembership(ctx context.Context, pool *database.Pool, actor ActorContext) error {
 	var exists bool
-	err := pool.App.QueryRow(ctx, `
+	err := pool.Conn(ctx).QueryRow(ctx, `
 		SELECT EXISTS(
 			SELECT 1 FROM user_tenants WHERE user_id = $1::uuid AND tenant_id = $2::uuid
 		)

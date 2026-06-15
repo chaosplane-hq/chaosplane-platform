@@ -7,6 +7,8 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"github.com/jackc/pgx/v5/pgxpool"
+
+	"github.com/chaosplane-hq/chaosplane-platform/apps/api/internal/database"
 )
 
 type tenantContextKey struct{}
@@ -19,9 +21,11 @@ func TenantIDFromContext(ctx context.Context) string {
 	return ""
 }
 
-// TenantContext extracts tenant_id from the request (JWT claims or API key lookup)
-// and calls SET LOCAL app.current_tenant_id on the DB connection within the
-// request transaction (ADR-001).
+// TenantContext opens a per-request transaction, sets app.current_tenant_id on
+// it via set_config (transaction-scoped, so Postgres resets it on commit/rollback
+// and tenant context can never leak across requests), and stores the tx on the
+// request context. All handler queries run on that same connection so RLS sees
+// the tenant. The tx commits on success and rolls back on error/abort.
 func TenantContext(pool *pgxpool.Pool) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		tenantID := c.GetHeader("X-Tenant-ID")
@@ -38,19 +42,24 @@ func TenantContext(pool *pgxpool.Pool) gin.HandlerFunc {
 			return
 		}
 
-		conn, err := pool.Acquire(c.Request.Context())
+		ctx := c.Request.Context()
+		tx, err := pool.Begin(ctx)
 		if err != nil {
-			slog.Error("failed to acquire connection for tenant context", "error", err)
+			slog.Error("failed to begin tenant transaction", "error", err)
 			c.AbortWithStatusJSON(http.StatusInternalServerError, gin.H{
 				"error": "internal server error",
 			})
 			return
 		}
-		defer conn.Release()
 
-		// ADR-001: SET LOCAL scopes the setting to the current transaction
-		_, err = conn.Exec(c.Request.Context(), "SET LOCAL app.current_tenant_id = $1", tenantID)
-		if err != nil {
+		committed := false
+		defer func() {
+			if !committed {
+				_ = tx.Rollback(context.Background())
+			}
+		}()
+
+		if _, err := tx.Exec(ctx, "SELECT set_config('app.current_tenant_id', $1, true)", tenantID); err != nil {
 			slog.Error("failed to set tenant context", "error", err, "tenant_id", tenantID)
 			c.AbortWithStatusJSON(http.StatusInternalServerError, gin.H{
 				"error": "internal server error",
@@ -58,10 +67,20 @@ func TenantContext(pool *pgxpool.Pool) gin.HandlerFunc {
 			return
 		}
 
-		ctx := context.WithValue(c.Request.Context(), tenantContextKey{}, tenantID)
+		ctx = database.WithTx(ctx, tx)
+		ctx = context.WithValue(ctx, tenantContextKey{}, tenantID)
 		c.Request = c.Request.WithContext(ctx)
 		c.Set("tenant_id_str", tenantID)
 
 		c.Next()
+
+		if c.IsAborted() || len(c.Errors) > 0 || c.Writer.Status() >= 500 {
+			return
+		}
+		if err := tx.Commit(ctx); err != nil {
+			slog.Error("failed to commit tenant transaction", "error", err)
+			return
+		}
+		committed = true
 	}
 }

@@ -44,7 +44,7 @@ func (s *CICDService) List(ctx context.Context, actor ActorContext) (*CICDListRe
 	if err := ensureActorMembership(ctx, s.pool, actor); err != nil {
 		return nil, err
 	}
-	rows, err := s.pool.App.Query(ctx, `
+	rows, err := s.pool.Conn(ctx).Query(ctx, `
 		SELECT id::text, provider, name, config, enabled, last_triggered, created_at
 		FROM cicd_integrations WHERE tenant_id = $1::uuid ORDER BY created_at DESC
 	`, actor.TenantID)
@@ -68,7 +68,7 @@ func (s *CICDService) Create(ctx context.Context, actor ActorContext, req *Creat
 		return nil, err
 	}
 	var c CICDIntegration
-	err := s.pool.App.QueryRow(ctx, `
+	err := s.pool.Conn(ctx).QueryRow(ctx, `
 		INSERT INTO cicd_integrations (tenant_id, provider, name, config)
 		VALUES ($1::uuid, $2, $3, $4::jsonb)
 		RETURNING id::text, provider, name, config, enabled, last_triggered, created_at
@@ -84,7 +84,7 @@ func (s *CICDService) Delete(ctx context.Context, actor ActorContext, integratio
 	if err := ensureActorMembership(ctx, s.pool, actor); err != nil {
 		return err
 	}
-	cmd, err := s.pool.App.Exec(ctx, `DELETE FROM cicd_integrations WHERE id = $1::uuid AND tenant_id = $2::uuid`, integrationID, actor.TenantID)
+	cmd, err := s.pool.Conn(ctx).Exec(ctx, `DELETE FROM cicd_integrations WHERE id = $1::uuid AND tenant_id = $2::uuid`, integrationID, actor.TenantID)
 	if err != nil {
 		return fmt.Errorf("delete cicd integration: %w", err)
 	}

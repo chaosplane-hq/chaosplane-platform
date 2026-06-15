@@ -40,7 +40,7 @@ func (s *AccountDeletionService) Request(ctx context.Context, actor ActorContext
 	}
 	gracePeriodEnds := time.Now().Add(30 * 24 * time.Hour)
 	var dr DeletionRequest
-	err := s.pool.App.QueryRow(ctx, `
+	err := s.pool.Conn(ctx).QueryRow(ctx, `
 		INSERT INTO account_deletion_requests (user_id, reason, grace_period_ends)
 		VALUES ($1::uuid, NULLIF($2, ''), $3)
 		RETURNING id::text, user_id::text, reason, grace_period_ends, cancelled_at, executed_at, created_at
@@ -50,7 +50,7 @@ func (s *AccountDeletionService) Request(ctx context.Context, actor ActorContext
 		return nil, fmt.Errorf("request account deletion: %w", err)
 	}
 
-	_, _ = s.pool.App.Exec(ctx, `UPDATE users SET status = 'pending_deletion' WHERE id = $1::uuid`, actor.UserID)
+	_, _ = s.pool.Conn(ctx).Exec(ctx, `UPDATE users SET status = 'pending_deletion' WHERE id = $1::uuid`, actor.UserID)
 	return &dr, nil
 }
 
@@ -58,7 +58,7 @@ func (s *AccountDeletionService) Cancel(ctx context.Context, actor ActorContext)
 	if err := ensureActorMembership(ctx, s.pool, actor); err != nil {
 		return err
 	}
-	cmd, err := s.pool.App.Exec(ctx, `
+	cmd, err := s.pool.Conn(ctx).Exec(ctx, `
 		UPDATE account_deletion_requests SET cancelled_at = now()
 		WHERE user_id = $1::uuid AND executed_at IS NULL AND cancelled_at IS NULL
 	`, actor.UserID)
@@ -68,12 +68,12 @@ func (s *AccountDeletionService) Cancel(ctx context.Context, actor ActorContext)
 	if cmd.RowsAffected() == 0 {
 		return ErrHierarchyNotFound
 	}
-	_, _ = s.pool.App.Exec(ctx, `UPDATE users SET status = 'active', deleted_at = NULL WHERE id = $1::uuid`, actor.UserID)
+	_, _ = s.pool.Conn(ctx).Exec(ctx, `UPDATE users SET status = 'active', deleted_at = NULL WHERE id = $1::uuid`, actor.UserID)
 	return nil
 }
 
 func (s *AccountDeletionService) ExecuteExpired(ctx context.Context) (int, error) {
-	rows, err := s.pool.App.Query(ctx, `
+	rows, err := s.pool.Conn(ctx).Query(ctx, `
 		SELECT id::text, user_id::text FROM account_deletion_requests
 		WHERE grace_period_ends < now() AND executed_at IS NULL AND cancelled_at IS NULL
 	`)
@@ -91,7 +91,7 @@ func (s *AccountDeletionService) ExecuteExpired(ctx context.Context) (int, error
 		if err := s.anonymizeUser(ctx, userID); err != nil {
 			continue
 		}
-		_, _ = s.pool.App.Exec(ctx, `UPDATE account_deletion_requests SET executed_at = now() WHERE id = $1::uuid`, reqID)
+		_, _ = s.pool.Conn(ctx).Exec(ctx, `UPDATE account_deletion_requests SET executed_at = now() WHERE id = $1::uuid`, reqID)
 		count++
 	}
 	return count, rows.Err()

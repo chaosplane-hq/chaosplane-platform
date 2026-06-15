@@ -47,7 +47,7 @@ func (s *WorkflowTemplateService) List(ctx context.Context, actor ActorContext) 
 	if err := ensureActorMembership(ctx, s.pool, actor); err != nil {
 		return nil, err
 	}
-	rows, err := s.pool.App.Query(ctx, `
+	rows, err := s.pool.Conn(ctx).Query(ctx, `
 		SELECT id::text, tenant_id::text, name, description, category, is_public, spec, created_by::text, created_at
 		FROM workflow_templates
 		WHERE tenant_id = $1::uuid OR is_public = true
@@ -77,7 +77,7 @@ func (s *WorkflowTemplateService) Create(ctx context.Context, actor ActorContext
 		category = "custom"
 	}
 	var t WorkflowTemplate
-	err := s.pool.App.QueryRow(ctx, `
+	err := s.pool.Conn(ctx).QueryRow(ctx, `
 		INSERT INTO workflow_templates (tenant_id, name, description, category, spec, created_by)
 		VALUES ($1::uuid, $2, $3, $4, $5::jsonb, $6::uuid)
 		RETURNING id::text, tenant_id::text, name, description, category, is_public, spec, created_by::text, created_at
@@ -93,7 +93,7 @@ func (s *WorkflowTemplateService) Delete(ctx context.Context, actor ActorContext
 	if err := ensureActorMembership(ctx, s.pool, actor); err != nil {
 		return err
 	}
-	cmd, err := s.pool.App.Exec(ctx, `DELETE FROM workflow_templates WHERE id = $1::uuid AND tenant_id = $2::uuid`, templateID, actor.TenantID)
+	cmd, err := s.pool.Conn(ctx).Exec(ctx, `DELETE FROM workflow_templates WHERE id = $1::uuid AND tenant_id = $2::uuid`, templateID, actor.TenantID)
 	if err != nil {
 		return fmt.Errorf("delete workflow template: %w", err)
 	}

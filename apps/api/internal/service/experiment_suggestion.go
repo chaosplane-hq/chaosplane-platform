@@ -51,7 +51,7 @@ func (s *ExperimentSuggestionService) List(ctx context.Context, actor ActorConte
 		return nil, err
 	}
 
-	rows, err := s.pool.App.Query(ctx, `
+	rows, err := s.pool.Conn(ctx).Query(ctx, `
 		SELECT id::text, environment_id::text, finding_id::text, source, title, description,
 		       action_type, target_namespace, target_name, duration, parameters, confidence, created_at
 		FROM experiment_suggestions
@@ -98,7 +98,7 @@ func (s *ExperimentSuggestionService) Generate(ctx context.Context, tenantID str
 			continue
 		}
 
-		_, err := s.pool.App.Exec(ctx, `
+		_, err := s.pool.Conn(ctx).Exec(ctx, `
 			INSERT INTO experiment_suggestions (tenant_id, environment_id, finding_id, source, title, description,
 				action_type, target_namespace, target_name, duration, parameters, confidence)
 			VALUES ($1::uuid, $2::uuid, $3::uuid, 'vulnerability', $4, $5, $6, $7, $8, $9, $10::jsonb, $11)
@@ -114,7 +114,7 @@ func (s *ExperimentSuggestionService) Generate(ctx context.Context, tenantID str
 	}
 
 	for _, bp := range bestPractices {
-		_, err := s.pool.App.Exec(ctx, `
+		_, err := s.pool.Conn(ctx).Exec(ctx, `
 			INSERT INTO experiment_suggestions (tenant_id, environment_id, source, title, description,
 				action_type, target_namespace, target_name, duration, parameters, confidence)
 			VALUES ($1::uuid, $2::uuid, 'best_practice', $3, $4, $5, $6, $7, $8, $9::jsonb, $10)
@@ -134,7 +134,7 @@ func (s *ExperimentSuggestionService) Delete(ctx context.Context, actor ActorCon
 	if err := ensureActorMembership(ctx, s.pool, actor); err != nil {
 		return err
 	}
-	cmd, err := s.pool.App.Exec(ctx, `
+	cmd, err := s.pool.Conn(ctx).Exec(ctx, `
 		DELETE FROM experiment_suggestions WHERE id = $1::uuid AND tenant_id = $2::uuid
 	`, suggestionID, actor.TenantID)
 	if err != nil {
@@ -154,7 +154,7 @@ type vulnFindingForSuggestion struct {
 }
 
 func (s *ExperimentSuggestionService) getOpenFindings(ctx context.Context, tenantID, environmentID string) ([]vulnFindingForSuggestion, error) {
-	rows, err := s.pool.App.Query(ctx, `
+	rows, err := s.pool.Conn(ctx).Query(ctx, `
 		SELECT id::text, title, description, suggested_experiment
 		FROM vulnerability_findings
 		WHERE environment_id = $1::uuid AND tenant_id = $2::uuid AND status = 'open' AND suggested_experiment IS NOT NULL

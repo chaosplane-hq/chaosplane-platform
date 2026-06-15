@@ -4,10 +4,30 @@ import (
 	"context"
 	"fmt"
 
+	"github.com/jackc/pgx/v5"
+	"github.com/jackc/pgx/v5/pgconn"
 	"github.com/jackc/pgx/v5/pgxpool"
 
 	"github.com/chaosplane-hq/chaosplane-platform/apps/api/internal/config"
 )
+
+// Querier is the common query surface shared by *pgxpool.Pool and pgx.Tx,
+// so call sites can run either against the pool (auto-commit) or against a
+// request-scoped transaction carrying the RLS tenant GUC.
+type Querier interface {
+	Exec(ctx context.Context, sql string, args ...any) (pgconn.CommandTag, error)
+	Query(ctx context.Context, sql string, args ...any) (pgx.Rows, error)
+	QueryRow(ctx context.Context, sql string, args ...any) pgx.Row
+}
+
+type txContextKey struct{}
+
+// WithTx stores a request-scoped transaction on the context. The tenant
+// middleware sets this so all queries in the request run on the same
+// connection where app.current_tenant_id was configured.
+func WithTx(ctx context.Context, tx pgx.Tx) context.Context {
+	return context.WithValue(ctx, txContextKey{}, tx)
+}
 
 // Pool holds both the application and superadmin database connection pools.
 // The App pool enforces RLS policies; the Superadmin pool bypasses them
@@ -15,6 +35,16 @@ import (
 type Pool struct {
 	App        *pgxpool.Pool // Normal app pool (RLS enforced)
 	Superadmin *pgxpool.Pool // Superadmin pool (separate role, audit logged)
+}
+
+// Conn returns the request-scoped transaction if the tenant middleware ran,
+// otherwise the App pool. RLS-protected tables error when the tenant GUC is
+// unset, so non-tenant paths (login, health) fail closed rather than leak.
+func (p *Pool) Conn(ctx context.Context) Querier {
+	if tx, ok := ctx.Value(txContextKey{}).(pgx.Tx); ok && tx != nil {
+		return tx
+	}
+	return p.App
 }
 
 // NewPool creates both database connection pools from config.

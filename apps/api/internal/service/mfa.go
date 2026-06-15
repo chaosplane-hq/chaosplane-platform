@@ -32,7 +32,7 @@ func (s *MFAService) GenerateRecoveryCodes(ctx context.Context, actor ActorConte
 		return nil, err
 	}
 
-	_, _ = s.pool.App.Exec(ctx, `DELETE FROM mfa_recovery_codes WHERE user_id = $1::uuid`, actor.UserID)
+	_, _ = s.pool.Conn(ctx).Exec(ctx, `DELETE FROM mfa_recovery_codes WHERE user_id = $1::uuid`, actor.UserID)
 
 	codes := make([]RecoveryCode, 10)
 	for i := range codes {
@@ -44,7 +44,7 @@ func (s *MFAService) GenerateRecoveryCodes(ctx context.Context, actor ActorConte
 		hash := sha256.Sum256([]byte(plain))
 		hashStr := hex.EncodeToString(hash[:])
 
-		if _, err := s.pool.App.Exec(ctx, `
+		if _, err := s.pool.Conn(ctx).Exec(ctx, `
 			INSERT INTO mfa_recovery_codes (user_id, code_hash) VALUES ($1::uuid, $2)
 		`, actor.UserID, hashStr); err != nil {
 			return nil, fmt.Errorf("store recovery code: %w", err)
@@ -59,7 +59,7 @@ func (s *MFAService) VerifyRecoveryCode(ctx context.Context, userID, code string
 	hash := sha256.Sum256([]byte(code))
 	hashStr := hex.EncodeToString(hash[:])
 
-	cmd, err := s.pool.App.Exec(ctx, `
+	cmd, err := s.pool.Conn(ctx).Exec(ctx, `
 		UPDATE mfa_recovery_codes SET used_at = now()
 		WHERE user_id = $1::uuid AND code_hash = $2 AND used_at IS NULL
 	`, userID, hashStr)
@@ -71,7 +71,7 @@ func (s *MFAService) VerifyRecoveryCode(ctx context.Context, userID, code string
 	}
 
 	var remaining int
-	_ = s.pool.App.QueryRow(ctx, `
+	_ = s.pool.Conn(ctx).QueryRow(ctx, `
 		SELECT COUNT(*) FROM mfa_recovery_codes WHERE user_id = $1::uuid AND used_at IS NULL
 	`, userID).Scan(&remaining)
 
@@ -83,7 +83,7 @@ func (s *MFAService) GetRemainingCount(ctx context.Context, actor ActorContext) 
 		return 0, err
 	}
 	var count int
-	err := s.pool.App.QueryRow(ctx, `
+	err := s.pool.Conn(ctx).QueryRow(ctx, `
 		SELECT COUNT(*) FROM mfa_recovery_codes WHERE user_id = $1::uuid AND used_at IS NULL
 	`, actor.UserID).Scan(&count)
 	if err != nil {

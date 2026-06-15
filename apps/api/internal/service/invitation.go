@@ -61,7 +61,7 @@ func (s *InvitationService) List(ctx context.Context, actor ActorContext) (*List
 		return nil, err
 	}
 
-	rows, err := s.pool.App.Query(ctx, `
+	rows, err := s.pool.Conn(ctx).Query(ctx, `
 		SELECT id::text, tenant_id::text, organization_id::text, team_id::text, email, role, status, expires_at, accepted_at, created_at
 		FROM invitations
 		WHERE tenant_id = $1::uuid
@@ -107,7 +107,7 @@ func (s *InvitationService) Create(ctx context.Context, actor ActorContext, req 
 	}
 	expiresAt := time.Now().Add(7 * 24 * time.Hour)
 
-	row := s.pool.App.QueryRow(ctx, `
+	row := s.pool.Conn(ctx).QueryRow(ctx, `
 		INSERT INTO invitations (tenant_id, organization_id, team_id, email, role, invited_by, token_hash, expires_at)
 		VALUES ($1::uuid, $2::uuid, $3::uuid, lower($4), $5, $6::uuid, $7, $8)
 		RETURNING id::text, tenant_id::text, organization_id::text, team_id::text, email, role, status, expires_at, accepted_at, created_at
@@ -134,7 +134,7 @@ func (s *InvitationService) Resend(ctx context.Context, actor ActorContext, invi
 	}
 	expiresAt := time.Now().Add(7 * 24 * time.Hour)
 
-	row := s.pool.App.QueryRow(ctx, `
+	row := s.pool.Conn(ctx).QueryRow(ctx, `
 		UPDATE invitations
 		SET token_hash = $3, expires_at = $4, status = 'pending', accepted_at = NULL
 		WHERE id = $1::uuid AND tenant_id = $2::uuid AND status IN ('pending','expired','declined')
@@ -156,7 +156,7 @@ func (s *InvitationService) Revoke(ctx context.Context, actor ActorContext, invi
 	if err := ensureActorMembership(ctx, s.pool, actor); err != nil {
 		return err
 	}
-	cmd, err := s.pool.App.Exec(ctx, `
+	cmd, err := s.pool.Conn(ctx).Exec(ctx, `
 		UPDATE invitations
 		SET status = 'revoked'
 		WHERE id = $1::uuid AND tenant_id = $2::uuid AND status = 'pending'
@@ -334,7 +334,7 @@ type InvitationByTokenResponse struct {
 }
 
 func (s *InvitationService) LookupByToken(ctx context.Context, token string) (*InvitationByTokenResponse, error) {
-	row := s.pool.App.QueryRow(ctx, `
+	row := s.pool.Conn(ctx).QueryRow(ctx, `
 		SELECT
 			i.id::text,
 			t.name,

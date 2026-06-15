@@ -44,7 +44,7 @@ func (s *ResilienceScoreService) Get(ctx context.Context, actor ActorContext, en
 		return nil, err
 	}
 
-	rows, err := s.pool.App.Query(ctx, `
+	rows, err := s.pool.Conn(ctx).Query(ctx, `
 		SELECT id::text, environment_id::text, overall_grade, overall_score, availability, fault_tolerance, recoverability, details, calculated_at
 		FROM resilience_scores
 		WHERE environment_id = $1::uuid AND tenant_id = $2::uuid
@@ -86,7 +86,7 @@ func (s *ResilienceScoreService) Calculate(ctx context.Context, tenantID string,
 	})
 
 	var score ResilienceScore
-	err := s.pool.App.QueryRow(ctx, `
+	err := s.pool.Conn(ctx).QueryRow(ctx, `
 		INSERT INTO resilience_scores (tenant_id, environment_id, overall_grade, overall_score, availability, fault_tolerance, recoverability, details)
 		VALUES ($1::uuid, $2::uuid, $3, $4, $5, $6, $7, $8::jsonb)
 		RETURNING id::text, environment_id::text, overall_grade, overall_score, availability, fault_tolerance, recoverability, details, calculated_at
@@ -102,7 +102,7 @@ func (s *ResilienceScoreService) Calculate(ctx context.Context, tenantID string,
 func (s *ResilienceScoreService) calculateAvailability(ctx context.Context, tenantID, envID string) float64 {
 	var replicaScore float64
 	var total, multiReplica int
-	rows, _ := s.pool.App.Query(ctx, `
+	rows, _ := s.pool.Conn(ctx).Query(ctx, `
 		SELECT replicas FROM (
 			SELECT (d->>'replicas')::int as replicas
 			FROM topology_snapshots, jsonb_array_elements(deployments) d
@@ -130,7 +130,7 @@ func (s *ResilienceScoreService) calculateAvailability(ctx context.Context, tena
 
 func (s *ResilienceScoreService) calculateFaultTolerance(ctx context.Context, tenantID, envID string) float64 {
 	var openVulns int
-	_ = s.pool.App.QueryRow(ctx, `
+	_ = s.pool.Conn(ctx).QueryRow(ctx, `
 		SELECT COUNT(*) FROM vulnerability_findings
 		WHERE environment_id = $1::uuid AND tenant_id = $2::uuid AND status = 'open'
 	`, envID, tenantID).Scan(&openVulns)
@@ -141,7 +141,7 @@ func (s *ResilienceScoreService) calculateFaultTolerance(ctx context.Context, te
 
 func (s *ResilienceScoreService) calculateRecoverability(ctx context.Context, tenantID, envID string) float64 {
 	var completedExperiments int
-	_ = s.pool.App.QueryRow(ctx, `
+	_ = s.pool.Conn(ctx).QueryRow(ctx, `
 		SELECT COUNT(*) FROM experiment_results_analysis
 		WHERE environment_id = $1::uuid AND tenant_id = $2::uuid
 	`, envID, tenantID).Scan(&completedExperiments)

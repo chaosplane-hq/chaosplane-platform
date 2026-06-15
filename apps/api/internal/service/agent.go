@@ -71,7 +71,7 @@ func (s *AgentService) ListTokens(ctx context.Context, actor ActorContext, envir
 		return nil, err
 	}
 
-	rows, err := s.pool.App.Query(ctx, `
+	rows, err := s.pool.Conn(ctx).Query(ctx, `
 		SELECT id::text, environment_id::text, name, last_used_at, created_at
 		FROM agent_tokens
 		WHERE environment_id = $1::uuid AND tenant_id = $2::uuid AND revoked_at IS NULL
@@ -108,7 +108,7 @@ func (s *AgentService) CreateToken(ctx context.Context, actor ActorContext, req 
 	prefixed := "cpagent_" + plain
 
 	var item AgentToken
-	err = s.pool.App.QueryRow(ctx, `
+	err = s.pool.Conn(ctx).QueryRow(ctx, `
 		INSERT INTO agent_tokens (tenant_id, environment_id, token_hash, name)
 		VALUES ($1::uuid, $2::uuid, $3, $4)
 		RETURNING id::text, environment_id::text, name, last_used_at, created_at
@@ -126,7 +126,7 @@ func (s *AgentService) RevokeToken(ctx context.Context, actor ActorContext, toke
 	if err := ensureActorMembership(ctx, s.pool, actor); err != nil {
 		return err
 	}
-	cmd, err := s.pool.App.Exec(ctx, `
+	cmd, err := s.pool.Conn(ctx).Exec(ctx, `
 		UPDATE agent_tokens
 		SET revoked_at = now()
 		WHERE id = $1::uuid AND tenant_id = $2::uuid AND revoked_at IS NULL
@@ -151,7 +151,7 @@ func (s *AgentService) Register(ctx context.Context, req *RegisterAgentRequest) 
 		clusterInfo = req.ClusterInfo
 	}
 
-	if _, err := s.pool.App.Exec(ctx, `
+	if _, err := s.pool.Conn(ctx).Exec(ctx, `
 		UPDATE environments
 		SET agent_status = 'connected', agent_version = $2, cluster_info = $3::jsonb, last_heartbeat = now()
 		WHERE id = $1::uuid AND deleted_at IS NULL
@@ -173,7 +173,7 @@ func (s *AgentService) Heartbeat(ctx context.Context, req *AgentHeartbeatRequest
 		status = "degraded"
 	}
 
-	if _, err := s.pool.App.Exec(ctx, `
+	if _, err := s.pool.Conn(ctx).Exec(ctx, `
 		UPDATE environments
 		SET agent_status = $2, last_heartbeat = now(),
 		    agent_version = COALESCE(NULLIF($3, ''), agent_version)
@@ -186,7 +186,7 @@ func (s *AgentService) Heartbeat(ctx context.Context, req *AgentHeartbeatRequest
 }
 
 func (s *AgentService) validateAgentToken(ctx context.Context, token string) (envID string, tenantID string, err error) {
-	err = s.pool.App.QueryRow(ctx, `
+	err = s.pool.Conn(ctx).QueryRow(ctx, `
 		SELECT at.environment_id::text, at.tenant_id::text
 		FROM agent_tokens at
 		WHERE at.token_hash = $1 AND at.revoked_at IS NULL
@@ -198,6 +198,6 @@ func (s *AgentService) validateAgentToken(ctx context.Context, token string) (en
 		return "", "", fmt.Errorf("validate agent token: %w", err)
 	}
 
-	_, _ = s.pool.App.Exec(ctx, `UPDATE agent_tokens SET last_used_at = now() WHERE token_hash = $1`, hashToken(token))
+	_, _ = s.pool.Conn(ctx).Exec(ctx, `UPDATE agent_tokens SET last_used_at = now() WHERE token_hash = $1`, hashToken(token))
 	return envID, tenantID, nil
 }

@@ -48,7 +48,7 @@ func (s *APIKeyService) List(ctx context.Context, actor ActorContext) (*ListAPIK
 		return nil, err
 	}
 
-	rows, err := s.pool.App.Query(ctx, `
+	rows, err := s.pool.Conn(ctx).Query(ctx, `
 		SELECT id::text, name, last_used_at, expires_at, revoked_at, created_at
 		FROM api_keys
 		WHERE tenant_id = $1::uuid AND user_id = $2::uuid
@@ -88,7 +88,7 @@ func (s *APIKeyService) Create(ctx context.Context, actor ActorContext, req *Cre
 		return nil, err
 	}
 
-	row := s.pool.App.QueryRow(ctx, `
+	row := s.pool.Conn(ctx).QueryRow(ctx, `
 		INSERT INTO api_keys (user_id, tenant_id, name, key_hash, expires_at)
 		VALUES ($1::uuid, $2::uuid, $3, digest($4, 'sha256'), $5)
 		RETURNING id::text, name, last_used_at, expires_at, revoked_at, created_at
@@ -106,7 +106,7 @@ func (s *APIKeyService) Revoke(ctx context.Context, actor ActorContext, id strin
 	if err := ensureActorMembership(ctx, s.pool, actor); err != nil {
 		return err
 	}
-	cmd, err := s.pool.App.Exec(ctx, `
+	cmd, err := s.pool.Conn(ctx).Exec(ctx, `
 		UPDATE api_keys
 		SET revoked_at = now()
 		WHERE id = $1::uuid AND tenant_id = $2::uuid AND user_id = $3::uuid AND revoked_at IS NULL
@@ -135,7 +135,7 @@ func (s *APIKeyService) Rotate(ctx context.Context, actor ActorContext, id strin
 	}
 	name := strings.TrimSpace(req.Name)
 
-	row := s.pool.App.QueryRow(ctx, `
+	row := s.pool.Conn(ctx).QueryRow(ctx, `
 		UPDATE api_keys
 		SET key_hash = digest($4, 'sha256'),
 		    name = COALESCE(NULLIF($5, ''), name),

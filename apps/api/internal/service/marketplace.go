@@ -53,7 +53,7 @@ func (s *MarketplaceService) List(ctx context.Context, category string, limit in
 		query += " ORDER BY downloads DESC LIMIT $1"
 		args = append(args, limit)
 	}
-	rows, err := s.pool.App.Query(ctx, query, args...)
+	rows, err := s.pool.Conn(ctx).Query(ctx, query, args...)
 	if err != nil {
 		return nil, fmt.Errorf("list marketplace plugins: %w", err)
 	}
@@ -73,12 +73,12 @@ func (s *MarketplaceService) Install(ctx context.Context, actor ActorContext, re
 	if err := ensureActorMembership(ctx, s.pool, actor); err != nil {
 		return err
 	}
-	if _, err := s.pool.App.Exec(ctx, `
+	if _, err := s.pool.Conn(ctx).Exec(ctx, `
 		INSERT INTO marketplace_installs (tenant_id, plugin_id) VALUES ($1::uuid, $2::uuid) ON CONFLICT DO NOTHING
 	`, actor.TenantID, req.PluginID); err != nil {
 		return fmt.Errorf("install plugin: %w", err)
 	}
-	_, _ = s.pool.App.Exec(ctx, `UPDATE marketplace_plugins SET downloads = downloads + 1 WHERE id = $1::uuid`, req.PluginID)
+	_, _ = s.pool.Conn(ctx).Exec(ctx, `UPDATE marketplace_plugins SET downloads = downloads + 1 WHERE id = $1::uuid`, req.PluginID)
 	return nil
 }
 
@@ -86,7 +86,7 @@ func (s *MarketplaceService) Uninstall(ctx context.Context, actor ActorContext, 
 	if err := ensureActorMembership(ctx, s.pool, actor); err != nil {
 		return err
 	}
-	cmd, err := s.pool.App.Exec(ctx, `DELETE FROM marketplace_installs WHERE tenant_id = $1::uuid AND plugin_id = $2::uuid`, actor.TenantID, pluginID)
+	cmd, err := s.pool.Conn(ctx).Exec(ctx, `DELETE FROM marketplace_installs WHERE tenant_id = $1::uuid AND plugin_id = $2::uuid`, actor.TenantID, pluginID)
 	if err != nil {
 		return fmt.Errorf("uninstall plugin: %w", err)
 	}

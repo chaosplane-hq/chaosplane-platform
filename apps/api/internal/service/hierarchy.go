@@ -177,7 +177,7 @@ func (s *HierarchyService) CreateOrganization(ctx context.Context, actor ActorCo
 		return nil, err
 	}
 	slug := defaultSlug(req.Slug, req.Name)
-	row := s.pool.App.QueryRow(ctx, `
+	row := s.pool.Conn(ctx).QueryRow(ctx, `
 		INSERT INTO organizations (tenant_id, name, slug, description)
 		VALUES ($1::uuid, $2, $3, NULLIF($4, ''))
 		RETURNING id::text, tenant_id::text, name, slug, COALESCE(description, '')
@@ -187,7 +187,7 @@ func (s *HierarchyService) CreateOrganization(ctx context.Context, actor ActorCo
 
 func (s *HierarchyService) UpdateOrganization(ctx context.Context, actor ActorContext, id string, req *UpdateOrganizationRequest) (*Organization, error) {
 	slug := defaultSlug(req.Slug, req.Name)
-	row := s.pool.App.QueryRow(ctx, `
+	row := s.pool.Conn(ctx).QueryRow(ctx, `
 		UPDATE organizations
 		SET name = $3, slug = $4, description = NULLIF($5, ''), updated_at = now()
 		WHERE id = $1::uuid AND tenant_id = $2::uuid AND deleted_at IS NULL
@@ -201,7 +201,7 @@ func (s *HierarchyService) CreateWorkspace(ctx context.Context, actor ActorConte
 		return nil, err
 	}
 	slug := defaultSlug(req.Slug, req.Name)
-	row := s.pool.App.QueryRow(ctx, `
+	row := s.pool.Conn(ctx).QueryRow(ctx, `
 		INSERT INTO workspaces (tenant_id, organization_id, name, slug, description)
 		VALUES ($1::uuid, $2::uuid, $3, $4, NULLIF($5, ''))
 		RETURNING id::text, tenant_id::text, organization_id::text, name, slug, COALESCE(description, '')
@@ -211,7 +211,7 @@ func (s *HierarchyService) CreateWorkspace(ctx context.Context, actor ActorConte
 
 func (s *HierarchyService) UpdateWorkspace(ctx context.Context, actor ActorContext, id string, req *UpdateWorkspaceRequest) (*Workspace, error) {
 	slug := defaultSlug(req.Slug, req.Name)
-	row := s.pool.App.QueryRow(ctx, `
+	row := s.pool.Conn(ctx).QueryRow(ctx, `
 		UPDATE workspaces
 		SET name = $3, slug = $4, description = NULLIF($5, ''), updated_at = now()
 		WHERE id = $1::uuid AND tenant_id = $2::uuid AND deleted_at IS NULL
@@ -225,7 +225,7 @@ func (s *HierarchyService) CreateTeam(ctx context.Context, actor ActorContext, r
 		return nil, err
 	}
 	slug := defaultSlug(req.Slug, req.Name)
-	row := s.pool.App.QueryRow(ctx, `
+	row := s.pool.Conn(ctx).QueryRow(ctx, `
 		INSERT INTO teams (tenant_id, workspace_id, name, slug, description)
 		VALUES ($1::uuid, $2::uuid, $3, $4, NULLIF($5, ''))
 		RETURNING id::text, tenant_id::text, workspace_id::text, name, slug, COALESCE(description, '')
@@ -235,7 +235,7 @@ func (s *HierarchyService) CreateTeam(ctx context.Context, actor ActorContext, r
 
 func (s *HierarchyService) UpdateTeam(ctx context.Context, actor ActorContext, id string, req *UpdateTeamRequest) (*Team, error) {
 	slug := defaultSlug(req.Slug, req.Name)
-	row := s.pool.App.QueryRow(ctx, `
+	row := s.pool.Conn(ctx).QueryRow(ctx, `
 		UPDATE teams
 		SET name = $3, slug = $4, description = NULLIF($5, ''), updated_at = now()
 		WHERE id = $1::uuid AND tenant_id = $2::uuid AND deleted_at IS NULL
@@ -249,7 +249,7 @@ func (s *HierarchyService) CreateProject(ctx context.Context, actor ActorContext
 		return nil, err
 	}
 	slug := defaultSlug(req.Slug, req.Name)
-	row := s.pool.App.QueryRow(ctx, `
+	row := s.pool.Conn(ctx).QueryRow(ctx, `
 		INSERT INTO projects (tenant_id, workspace_id, name, slug, description)
 		VALUES ($1::uuid, $2::uuid, $3, $4, NULLIF($5, ''))
 		RETURNING id::text, tenant_id::text, workspace_id::text, name, slug, COALESCE(description, '')
@@ -259,7 +259,7 @@ func (s *HierarchyService) CreateProject(ctx context.Context, actor ActorContext
 
 func (s *HierarchyService) UpdateProject(ctx context.Context, actor ActorContext, id string, req *UpdateProjectRequest) (*Project, error) {
 	slug := defaultSlug(req.Slug, req.Name)
-	row := s.pool.App.QueryRow(ctx, `
+	row := s.pool.Conn(ctx).QueryRow(ctx, `
 		UPDATE projects
 		SET name = $3, slug = $4, description = NULLIF($5, ''), updated_at = now()
 		WHERE id = $1::uuid AND tenant_id = $2::uuid AND deleted_at IS NULL
@@ -277,7 +277,7 @@ func (s *HierarchyService) CreateEnvironment(ctx context.Context, actor ActorCon
 		typeValue = "staging"
 	}
 	slug := defaultSlug(req.Slug, req.Name)
-	row := s.pool.App.QueryRow(ctx, `
+	row := s.pool.Conn(ctx).QueryRow(ctx, `
 		INSERT INTO environments (tenant_id, project_id, name, slug, type)
 		VALUES ($1::uuid, $2::uuid, $3, $4, $5)
 		RETURNING id::text, tenant_id::text, project_id::text, name, slug, type, agent_status
@@ -291,7 +291,7 @@ func (s *HierarchyService) UpdateEnvironment(ctx context.Context, actor ActorCon
 		typeValue = "staging"
 	}
 	slug := defaultSlug(req.Slug, req.Name)
-	row := s.pool.App.QueryRow(ctx, `
+	row := s.pool.Conn(ctx).QueryRow(ctx, `
 		UPDATE environments
 		SET name = $3, slug = $4, type = $5, updated_at = now()
 		WHERE id = $1::uuid AND tenant_id = $2::uuid AND deleted_at IS NULL
@@ -302,7 +302,7 @@ func (s *HierarchyService) UpdateEnvironment(ctx context.Context, actor ActorCon
 
 func (s *HierarchyService) ensureMembership(ctx context.Context, actor ActorContext) error {
 	var exists bool
-	err := s.pool.App.QueryRow(ctx, `
+	err := s.pool.Conn(ctx).QueryRow(ctx, `
 		SELECT EXISTS(
 			SELECT 1 FROM user_tenants WHERE user_id = $1::uuid AND tenant_id = $2::uuid
 		)
@@ -330,7 +330,7 @@ func (s *HierarchyService) ensureProjectTenant(ctx context.Context, tenantID, pr
 
 func ensureTenantScopedRow(ctx context.Context, pool *database.Pool, query, id, tenantID string) error {
 	var marker int
-	err := pool.App.QueryRow(ctx, query, id, tenantID).Scan(&marker)
+	err := pool.Conn(ctx).QueryRow(ctx, query, id, tenantID).Scan(&marker)
 	if err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
 			return ErrHierarchyNotFound
@@ -341,7 +341,7 @@ func ensureTenantScopedRow(ctx context.Context, pool *database.Pool, query, id, 
 }
 
 func (s *HierarchyService) listOrganizations(ctx context.Context, tenantID string) ([]Organization, error) {
-	rows, err := s.pool.App.Query(ctx, `
+	rows, err := s.pool.Conn(ctx).Query(ctx, `
 		SELECT id::text, tenant_id::text, name, slug, COALESCE(description, '')
 		FROM organizations
 		WHERE tenant_id = $1::uuid AND deleted_at IS NULL
@@ -364,7 +364,7 @@ func (s *HierarchyService) listOrganizations(ctx context.Context, tenantID strin
 }
 
 func (s *HierarchyService) listWorkspaces(ctx context.Context, tenantID string) ([]Workspace, error) {
-	rows, err := s.pool.App.Query(ctx, `
+	rows, err := s.pool.Conn(ctx).Query(ctx, `
 		SELECT id::text, tenant_id::text, organization_id::text, name, slug, COALESCE(description, '')
 		FROM workspaces
 		WHERE tenant_id = $1::uuid AND deleted_at IS NULL
@@ -386,7 +386,7 @@ func (s *HierarchyService) listWorkspaces(ctx context.Context, tenantID string) 
 }
 
 func (s *HierarchyService) listTeams(ctx context.Context, tenantID string) ([]Team, error) {
-	rows, err := s.pool.App.Query(ctx, `
+	rows, err := s.pool.Conn(ctx).Query(ctx, `
 		SELECT id::text, tenant_id::text, workspace_id::text, name, slug, COALESCE(description, '')
 		FROM teams
 		WHERE tenant_id = $1::uuid AND deleted_at IS NULL
@@ -408,7 +408,7 @@ func (s *HierarchyService) listTeams(ctx context.Context, tenantID string) ([]Te
 }
 
 func (s *HierarchyService) listProjects(ctx context.Context, tenantID string) ([]Project, error) {
-	rows, err := s.pool.App.Query(ctx, `
+	rows, err := s.pool.Conn(ctx).Query(ctx, `
 		SELECT id::text, tenant_id::text, workspace_id::text, name, slug, COALESCE(description, '')
 		FROM projects
 		WHERE tenant_id = $1::uuid AND deleted_at IS NULL
@@ -430,7 +430,7 @@ func (s *HierarchyService) listProjects(ctx context.Context, tenantID string) ([
 }
 
 func (s *HierarchyService) listEnvironments(ctx context.Context, tenantID string) ([]Environment, error) {
-	rows, err := s.pool.App.Query(ctx, `
+	rows, err := s.pool.Conn(ctx).Query(ctx, `
 		SELECT id::text, tenant_id::text, project_id::text, name, slug, type, agent_status
 		FROM environments
 		WHERE tenant_id = $1::uuid AND deleted_at IS NULL

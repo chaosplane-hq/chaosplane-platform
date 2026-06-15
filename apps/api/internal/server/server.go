@@ -233,7 +233,8 @@ func New(
 	}
 
 	api := r.Group("/api/v1")
-	api.Use(middleware.APIKey(pool.App))
+	api.Use(middleware.EitherAuth(authService, pool.App), middleware.TenantContext(pool.App))
+	api.Use(middleware.AuditLog(pool.App))
 	if rdb != nil {
 		api.Use(middleware.RateLimit(rdb, pool.App, middleware.DefaultRateLimiterConfig()))
 	}

@@ -72,7 +72,7 @@ func (s *NotificationService) ListChannels(ctx context.Context, actor ActorConte
 	if err := ensureActorMembership(ctx, s.pool, actor); err != nil {
 		return nil, err
 	}
-	rows, err := s.pool.App.Query(ctx, `
+	rows, err := s.pool.Conn(ctx).Query(ctx, `
 		SELECT id::text, tenant_id::text, type, name, config, enabled, created_at
 		FROM notification_channels
 		WHERE tenant_id = $1::uuid
@@ -100,7 +100,7 @@ func (s *NotificationService) CreateChannel(ctx context.Context, actor ActorCont
 	}
 	channelType := strings.ToLower(strings.TrimSpace(req.Type))
 	var ch NotificationChannel
-	err := s.pool.App.QueryRow(ctx, `
+	err := s.pool.Conn(ctx).QueryRow(ctx, `
 		INSERT INTO notification_channels (tenant_id, type, name, config)
 		VALUES ($1::uuid, $2, $3, $4::jsonb)
 		RETURNING id::text, tenant_id::text, type, name, config, enabled, created_at
@@ -117,7 +117,7 @@ func (s *NotificationService) DeleteChannel(ctx context.Context, actor ActorCont
 	if err := ensureActorMembership(ctx, s.pool, actor); err != nil {
 		return err
 	}
-	cmd, err := s.pool.App.Exec(ctx, `
+	cmd, err := s.pool.Conn(ctx).Exec(ctx, `
 		DELETE FROM notification_channels
 		WHERE id = $1::uuid AND tenant_id = $2::uuid
 	`, channelID, actor.TenantID)
@@ -134,7 +134,7 @@ func (s *NotificationService) ListRules(ctx context.Context, actor ActorContext)
 	if err := ensureActorMembership(ctx, s.pool, actor); err != nil {
 		return nil, err
 	}
-	rows, err := s.pool.App.Query(ctx, `
+	rows, err := s.pool.Conn(ctx).Query(ctx, `
 		SELECT id::text, tenant_id::text, channel_id::text, event_type, filters, enabled, created_at
 		FROM notification_rules
 		WHERE tenant_id = $1::uuid
@@ -170,7 +170,7 @@ func (s *NotificationService) CreateRule(ctx context.Context, actor ActorContext
 	}
 
 	var rule NotificationRule
-	err := s.pool.App.QueryRow(ctx, `
+	err := s.pool.Conn(ctx).QueryRow(ctx, `
 		INSERT INTO notification_rules (tenant_id, channel_id, event_type, filters)
 		VALUES ($1::uuid, $2::uuid, $3, $4::jsonb)
 		RETURNING id::text, tenant_id::text, channel_id::text, event_type, filters, enabled, created_at
@@ -187,7 +187,7 @@ func (s *NotificationService) DeleteRule(ctx context.Context, actor ActorContext
 	if err := ensureActorMembership(ctx, s.pool, actor); err != nil {
 		return err
 	}
-	cmd, err := s.pool.App.Exec(ctx, `
+	cmd, err := s.pool.Conn(ctx).Exec(ctx, `
 		DELETE FROM notification_rules
 		WHERE id = $1::uuid AND tenant_id = $2::uuid
 	`, ruleID, actor.TenantID)
@@ -201,7 +201,7 @@ func (s *NotificationService) DeleteRule(ctx context.Context, actor ActorContext
 }
 
 func (s *NotificationService) Dispatch(ctx context.Context, tenantID, eventType string, payload map[string]interface{}) error {
-	rows, err := s.pool.App.Query(ctx, `
+	rows, err := s.pool.Conn(ctx).Query(ctx, `
 		SELECT nc.type, nc.config, nr.id::text
 		FROM notification_rules nr
 		JOIN notification_channels nc ON nc.id = nr.channel_id
@@ -240,7 +240,7 @@ func (s *NotificationService) Dispatch(ctx context.Context, tenantID, eventType 
 			errMsg = &msg
 		}
 
-		_, _ = s.pool.App.Exec(ctx, `
+		_, _ = s.pool.Conn(ctx).Exec(ctx, `
 			INSERT INTO notification_history (tenant_id, channel_id, rule_id, event_type, status, payload, error_message, sent_at)
 			SELECT $1::uuid, nr.channel_id, $2::uuid, $3, $4, $5::jsonb, $6,
 			       CASE WHEN $4 = 'sent' THEN now() ELSE NULL END

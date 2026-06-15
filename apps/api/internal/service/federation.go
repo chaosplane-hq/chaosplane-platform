@@ -47,7 +47,7 @@ func (s *FederationService) List(ctx context.Context, actor ActorContext) (*Fede
 	if err := ensureActorMembership(ctx, s.pool, actor); err != nil {
 		return nil, err
 	}
-	rows, err := s.pool.App.Query(ctx, `
+	rows, err := s.pool.Conn(ctx).Query(ctx, `
 		SELECT id::text, name, region, provider, api_endpoint, status, metadata, created_at
 		FROM federation_clusters WHERE tenant_id = $1::uuid ORDER BY created_at DESC
 	`, actor.TenantID)
@@ -75,7 +75,7 @@ func (s *FederationService) Register(ctx context.Context, actor ActorContext, re
 		metadata = string(req.Metadata)
 	}
 	var c FederationCluster
-	err := s.pool.App.QueryRow(ctx, `
+	err := s.pool.Conn(ctx).QueryRow(ctx, `
 		INSERT INTO federation_clusters (tenant_id, name, region, provider, api_endpoint, metadata)
 		VALUES ($1::uuid, $2, $3, $4, $5, $6::jsonb)
 		RETURNING id::text, name, region, provider, api_endpoint, status, metadata, created_at
@@ -91,7 +91,7 @@ func (s *FederationService) Remove(ctx context.Context, actor ActorContext, clus
 	if err := ensureActorMembership(ctx, s.pool, actor); err != nil {
 		return err
 	}
-	cmd, err := s.pool.App.Exec(ctx, `DELETE FROM federation_clusters WHERE id = $1::uuid AND tenant_id = $2::uuid`, clusterID, actor.TenantID)
+	cmd, err := s.pool.Conn(ctx).Exec(ctx, `DELETE FROM federation_clusters WHERE id = $1::uuid AND tenant_id = $2::uuid`, clusterID, actor.TenantID)
 	if err != nil {
 		return fmt.Errorf("remove federation cluster: %w", err)
 	}

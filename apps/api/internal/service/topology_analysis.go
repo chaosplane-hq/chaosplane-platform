@@ -109,7 +109,7 @@ func (s *TopologyAnalysisService) GetDependencyMap(ctx context.Context, actor Ac
 		return nil, err
 	}
 
-	rows, err := s.pool.App.Query(ctx, `
+	rows, err := s.pool.Conn(ctx).Query(ctx, `
 		SELECT id::text, source_kind, source_name, source_namespace,
 		       target_kind, target_name, target_namespace, protocol, port, last_seen_at
 		FROM service_dependencies
@@ -158,7 +158,7 @@ func (s *TopologyAnalysisService) GetDrifts(ctx context.Context, actor ActorCont
 	query += " ORDER BY detected_at DESC LIMIT $3"
 	args = append(args, limit)
 
-	rows, err := s.pool.App.Query(ctx, query, args...)
+	rows, err := s.pool.Conn(ctx).Query(ctx, query, args...)
 	if err != nil {
 		return nil, fmt.Errorf("get drifts: %w", err)
 	}
@@ -179,7 +179,7 @@ func (s *TopologyAnalysisService) GetDrifts(ctx context.Context, actor ActorCont
 	if unackedOnly {
 		countQuery += " AND acknowledged_at IS NULL"
 	}
-	_ = s.pool.App.QueryRow(ctx, countQuery, environmentID, actor.TenantID).Scan(&total)
+	_ = s.pool.Conn(ctx).QueryRow(ctx, countQuery, environmentID, actor.TenantID).Scan(&total)
 
 	return &DriftListResponse{Items: items, TotalCount: total}, rows.Err()
 }
@@ -188,7 +188,7 @@ func (s *TopologyAnalysisService) AcknowledgeDrift(ctx context.Context, actor Ac
 	if err := ensureActorMembership(ctx, s.pool, actor); err != nil {
 		return err
 	}
-	cmd, err := s.pool.App.Exec(ctx, `
+	cmd, err := s.pool.Conn(ctx).Exec(ctx, `
 		UPDATE topology_drifts
 		SET acknowledged_at = now(), acknowledged_by = $3::uuid
 		WHERE id = $1::uuid AND tenant_id = $2::uuid AND acknowledged_at IS NULL
@@ -225,7 +225,7 @@ func (s *TopologyAnalysisService) GetMetrics(ctx context.Context, actor ActorCon
 	}
 	args = append(args, limit)
 
-	rows, err := s.pool.App.Query(ctx, query, args...)
+	rows, err := s.pool.Conn(ctx).Query(ctx, query, args...)
 	if err != nil {
 		return nil, fmt.Errorf("get metrics: %w", err)
 	}
@@ -247,7 +247,7 @@ func (s *TopologyAnalysisService) SubmitDependencies(ctx context.Context, tenant
 	for _, dep := range req.Dependencies {
 		labels := "{}"
 		if dep.Protocol != nil || dep.Port != nil {
-			_, err := s.pool.App.Exec(ctx, `
+			_, err := s.pool.Conn(ctx).Exec(ctx, `
 				INSERT INTO service_dependencies (tenant_id, environment_id, source_kind, source_name, source_namespace,
 					target_kind, target_name, target_namespace, protocol, port)
 				VALUES ($1::uuid, $2::uuid, $3, $4, $5, $6, $7, $8, $9, $10)
@@ -261,7 +261,7 @@ func (s *TopologyAnalysisService) SubmitDependencies(ctx context.Context, tenant
 				return count, fmt.Errorf("upsert dependency: %w", err)
 			}
 		} else {
-			_, err := s.pool.App.Exec(ctx, `
+			_, err := s.pool.Conn(ctx).Exec(ctx, `
 				INSERT INTO service_dependencies (tenant_id, environment_id, source_kind, source_name, source_namespace,
 					target_kind, target_name, target_namespace)
 				VALUES ($1::uuid, $2::uuid, $3, $4, $5, $6, $7, $8)
@@ -286,7 +286,7 @@ func (s *TopologyAnalysisService) SubmitMetrics(ctx context.Context, tenantID st
 		if len(m.Labels) > 0 {
 			labels = string(m.Labels)
 		}
-		_, err := s.pool.App.Exec(ctx, `
+		_, err := s.pool.Conn(ctx).Exec(ctx, `
 			INSERT INTO environment_metrics (tenant_id, environment_id, metric_name, metric_value, labels)
 			VALUES ($1::uuid, $2::uuid, $3, $4, $5::jsonb)
 		`, tenantID, req.EnvironmentID, m.Name, m.Value, labels)
@@ -309,7 +309,7 @@ func (s *TopologyAnalysisService) SubmitDrift(ctx context.Context, tenantID stri
 	}
 
 	var drift TopologyDrift
-	err := s.pool.App.QueryRow(ctx, `
+	err := s.pool.Conn(ctx).QueryRow(ctx, `
 		INSERT INTO topology_drifts (tenant_id, environment_id, drift_type, resource_kind, resource_name, resource_namespace, previous_state, current_state)
 		VALUES ($1::uuid, $2::uuid, $3, $4, $5, $6, $7::jsonb, $8::jsonb)
 		RETURNING id::text, drift_type, resource_kind, resource_name, resource_namespace, previous_state, current_state, detected_at, acknowledged_at

@@ -37,7 +37,7 @@ func (s *EmailChangeService) Request(ctx context.Context, actor ActorContext, re
 
 	newEmail := strings.ToLower(strings.TrimSpace(req.NewEmail))
 	var existingID string
-	err := s.pool.App.QueryRow(ctx, `SELECT id::text FROM users WHERE lower(email) = $1 AND deleted_at IS NULL`, newEmail).Scan(&existingID)
+	err := s.pool.Conn(ctx).QueryRow(ctx, `SELECT id::text FROM users WHERE lower(email) = $1 AND deleted_at IS NULL`, newEmail).Scan(&existingID)
 	if err == nil {
 		return nil, fmt.Errorf("email already in use")
 	}
@@ -51,9 +51,9 @@ func (s *EmailChangeService) Request(ctx context.Context, actor ActorContext, re
 	}
 	expiresAt := time.Now().Add(24 * time.Hour)
 
-	_, _ = s.pool.App.Exec(ctx, `DELETE FROM email_change_requests WHERE user_id = $1::uuid AND confirmed_at IS NULL`, actor.UserID)
+	_, _ = s.pool.Conn(ctx).Exec(ctx, `DELETE FROM email_change_requests WHERE user_id = $1::uuid AND confirmed_at IS NULL`, actor.UserID)
 
-	if _, err := s.pool.App.Exec(ctx, `
+	if _, err := s.pool.Conn(ctx).Exec(ctx, `
 		INSERT INTO email_change_requests (user_id, new_email, token_hash, expires_at)
 		VALUES ($1::uuid, $2, $3, $4)
 	`, actor.UserID, newEmail, tokenHash, expiresAt); err != nil {
@@ -62,7 +62,7 @@ func (s *EmailChangeService) Request(ctx context.Context, actor ActorContext, re
 
 	if s.email != nil {
 		var currentEmail string
-		_ = s.pool.App.QueryRow(ctx, `SELECT email FROM users WHERE id = $1::uuid`, actor.UserID).Scan(&currentEmail)
+		_ = s.pool.Conn(ctx).QueryRow(ctx, `SELECT email FROM users WHERE id = $1::uuid`, actor.UserID).Scan(&currentEmail)
 		go s.email.SendEmailChangeNotification(context.Background(), currentEmail, newEmail, plain)
 	}
 
@@ -72,7 +72,7 @@ func (s *EmailChangeService) Request(ctx context.Context, actor ActorContext, re
 func (s *EmailChangeService) Confirm(ctx context.Context, token string) error {
 	var userID, newEmail string
 	var expiresAt time.Time
-	err := s.pool.App.QueryRow(ctx, `
+	err := s.pool.Conn(ctx).QueryRow(ctx, `
 		SELECT user_id::text, new_email, expires_at
 		FROM email_change_requests
 		WHERE token_hash = $1 AND confirmed_at IS NULL
@@ -87,10 +87,10 @@ func (s *EmailChangeService) Confirm(ctx context.Context, token string) error {
 		return ErrTokenExpired
 	}
 
-	if _, err := s.pool.App.Exec(ctx, `UPDATE users SET email = $2 WHERE id = $1::uuid`, userID, newEmail); err != nil {
+	if _, err := s.pool.Conn(ctx).Exec(ctx, `UPDATE users SET email = $2 WHERE id = $1::uuid`, userID, newEmail); err != nil {
 		return fmt.Errorf("update email: %w", err)
 	}
-	if _, err := s.pool.App.Exec(ctx, `UPDATE email_change_requests SET confirmed_at = now() WHERE token_hash = $1`, hashToken(token)); err != nil {
+	if _, err := s.pool.Conn(ctx).Exec(ctx, `UPDATE email_change_requests SET confirmed_at = now() WHERE token_hash = $1`, hashToken(token)); err != nil {
 		return fmt.Errorf("confirm email change: %w", err)
 	}
 	return nil

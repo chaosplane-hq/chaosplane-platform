@@ -69,7 +69,7 @@ func (s *PredictiveAnalysisService) List(ctx context.Context, actor ActorContext
 		argIdx++
 	}
 	query += " ORDER BY predicted_at DESC LIMIT 50"
-	rows, err := s.pool.App.Query(ctx, query, args...)
+	rows, err := s.pool.Conn(ctx).Query(ctx, query, args...)
 	if err != nil {
 		return nil, fmt.Errorf("list predictions: %w", err)
 	}
@@ -94,7 +94,7 @@ func (s *PredictiveAnalysisService) Run(ctx context.Context, tenantID string, re
 		if len(p.AutoRemediation) > 0 {
 			remediation = string(p.AutoRemediation)
 		}
-		_, err := s.pool.App.Exec(ctx, `
+		_, err := s.pool.Conn(ctx).Exec(ctx, `
 			INSERT INTO predictive_analyses (tenant_id, environment_id, prediction_type, severity, title, description, confidence, recommended_action, auto_remediation)
 			VALUES ($1::uuid, $2::uuid, $3, $4, $5, $6, $7, $8, $9::jsonb)
 		`, tenantID, req.EnvironmentID, p.PredictionType, p.Severity, p.Title, p.Description, p.Confidence, p.RecommendedAction, remediation)
@@ -109,7 +109,7 @@ func (s *PredictiveAnalysisService) UpdateStatus(ctx context.Context, actor Acto
 	if err := ensureActorMembership(ctx, s.pool, actor); err != nil {
 		return err
 	}
-	cmd, err := s.pool.App.Exec(ctx, `UPDATE predictive_analyses SET status = $3 WHERE id = $1::uuid AND tenant_id = $2::uuid`, predictionID, actor.TenantID, newStatus)
+	cmd, err := s.pool.Conn(ctx).Exec(ctx, `UPDATE predictive_analyses SET status = $3 WHERE id = $1::uuid AND tenant_id = $2::uuid`, predictionID, actor.TenantID, newStatus)
 	if err != nil {
 		return fmt.Errorf("update prediction status: %w", err)
 	}
@@ -121,7 +121,7 @@ func (s *PredictiveAnalysisService) UpdateStatus(ctx context.Context, actor Acto
 
 func (s *PredictiveAnalysisService) generatePredictions(ctx context.Context, tenantID, envID string) []PredictiveAnalysis {
 	var openVulns int
-	_ = s.pool.App.QueryRow(ctx, `SELECT COUNT(*) FROM vulnerability_findings WHERE environment_id = $1::uuid AND tenant_id = $2::uuid AND status = 'open' AND severity IN ('critical','high')`, envID, tenantID).Scan(&openVulns)
+	_ = s.pool.Conn(ctx).QueryRow(ctx, `SELECT COUNT(*) FROM vulnerability_findings WHERE environment_id = $1::uuid AND tenant_id = $2::uuid AND status = 'open' AND severity IN ('critical','high')`, envID, tenantID).Scan(&openVulns)
 
 	var predictions []PredictiveAnalysis
 	if openVulns > 3 {

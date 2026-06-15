@@ -61,7 +61,7 @@ func (s *ResultAnalysisService) List(ctx context.Context, actor ActorContext, en
 	}
 	query += " ORDER BY analyzed_at DESC LIMIT 50"
 
-	rows, err := s.pool.App.Query(ctx, query, args...)
+	rows, err := s.pool.Conn(ctx).Query(ctx, query, args...)
 	if err != nil {
 		return nil, fmt.Errorf("list result analyses: %w", err)
 	}
@@ -85,7 +85,7 @@ func (s *ResultAnalysisService) Get(ctx context.Context, actor ActorContext, ana
 	}
 
 	var r ResultAnalysis
-	err := s.pool.App.QueryRow(ctx, `
+	err := s.pool.Conn(ctx).QueryRow(ctx, `
 		SELECT id::text, experiment_name, environment_id::text, summary, impact_analysis,
 		       recommendations, severity_assessment, affected_services, metrics_impact, analyzed_at
 		FROM experiment_results_analysis
@@ -121,7 +121,7 @@ func (s *ResultAnalysisService) Analyze(ctx context.Context, tenantID string, re
 	metricsImpact := "{}"
 
 	var r ResultAnalysis
-	err := s.pool.App.QueryRow(ctx, `
+	err := s.pool.Conn(ctx).QueryRow(ctx, `
 		INSERT INTO experiment_results_analysis (tenant_id, experiment_name, environment_id, summary,
 			impact_analysis, recommendations, severity_assessment, affected_services, metrics_impact)
 		VALUES ($1::uuid, $2, $3::uuid, $4, $5, $6, $7, $8::jsonb, $9::jsonb)

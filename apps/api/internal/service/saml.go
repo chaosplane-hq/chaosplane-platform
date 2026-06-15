@@ -69,7 +69,7 @@ func (s *SAMLService) List(ctx context.Context, actor ActorContext) (*SAMLProvid
 	if err := ensureActorMembership(ctx, s.pool, actor); err != nil {
 		return nil, err
 	}
-	rows, err := s.pool.App.Query(ctx, `
+	rows, err := s.pool.Conn(ctx).Query(ctx, `
 		SELECT id::text, tenant_id::text, name, entity_id, sso_url, metadata_url, enabled, jit_provisioning, default_role, created_at
 		FROM saml_providers WHERE tenant_id = $1::uuid ORDER BY created_at DESC
 	`, actor.TenantID)
@@ -102,7 +102,7 @@ func (s *SAMLService) Create(ctx context.Context, actor ActorContext, req *Creat
 		role = "viewer"
 	}
 	var p SAMLProvider
-	err := s.pool.App.QueryRow(ctx, `
+	err := s.pool.Conn(ctx).QueryRow(ctx, `
 		INSERT INTO saml_providers (tenant_id, name, entity_id, sso_url, certificate, metadata_url, jit_provisioning, default_role)
 		VALUES ($1::uuid, $2, $3, $4, $5, $6, $7, $8)
 		RETURNING id::text, tenant_id::text, name, entity_id, sso_url, metadata_url, enabled, jit_provisioning, default_role, created_at
@@ -118,7 +118,7 @@ func (s *SAMLService) Delete(ctx context.Context, actor ActorContext, providerID
 	if err := ensureActorMembership(ctx, s.pool, actor); err != nil {
 		return err
 	}
-	cmd, err := s.pool.App.Exec(ctx, `DELETE FROM saml_providers WHERE id = $1::uuid AND tenant_id = $2::uuid`, providerID, actor.TenantID)
+	cmd, err := s.pool.Conn(ctx).Exec(ctx, `DELETE FROM saml_providers WHERE id = $1::uuid AND tenant_id = $2::uuid`, providerID, actor.TenantID)
 	if err != nil {
 		return fmt.Errorf("delete saml provider: %w", err)
 	}
@@ -130,7 +130,7 @@ func (s *SAMLService) Delete(ctx context.Context, actor ActorContext, providerID
 
 func (s *SAMLService) InitiateLogin(ctx context.Context, tenantID, providerID string) (*SAMLLoginResponse, error) {
 	var entityID, ssoURL string
-	err := s.pool.App.QueryRow(ctx, `
+	err := s.pool.Conn(ctx).QueryRow(ctx, `
 		SELECT entity_id, sso_url
 		FROM saml_providers
 		WHERE id = $1::uuid AND tenant_id = $2::uuid AND enabled = true
@@ -170,7 +170,7 @@ func (s *SAMLService) InitiateLogin(ctx context.Context, tenantID, providerID st
 
 func (s *SAMLService) ProcessAssertion(ctx context.Context, tenantID, providerID string, r *http.Request) (*SAMLAssertionResult, error) {
 	var entityID, ssoURL, certificate, defaultRole string
-	err := s.pool.App.QueryRow(ctx, `
+	err := s.pool.Conn(ctx).QueryRow(ctx, `
 		SELECT entity_id, sso_url, certificate, default_role
 		FROM saml_providers
 		WHERE id = $1::uuid AND tenant_id = $2::uuid AND enabled = true

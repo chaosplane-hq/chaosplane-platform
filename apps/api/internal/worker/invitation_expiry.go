@@ -35,7 +35,7 @@ func (w *InvitationExpiryWorker) Start(ctx context.Context) {
 }
 
 func (w *InvitationExpiryWorker) expire(ctx context.Context) {
-	cmd, err := w.pool.App.Exec(ctx, `
+	cmd, err := w.pool.Conn(ctx).Exec(ctx, `
 		UPDATE invitations
 		SET status = 'expired'
 		WHERE status = 'pending' AND expires_at < now()

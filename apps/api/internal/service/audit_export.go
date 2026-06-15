@@ -40,7 +40,7 @@ func (s *AuditExportService) List(ctx context.Context, actor ActorContext) (*Aud
 	if err := ensureActorMembership(ctx, s.pool, actor); err != nil {
 		return nil, err
 	}
-	rows, err := s.pool.App.Query(ctx, `
+	rows, err := s.pool.Conn(ctx).Query(ctx, `
 		SELECT id::text, destination, config, status, records_exported, error_message, created_at
 		FROM audit_log_exports WHERE tenant_id = $1::uuid ORDER BY created_at DESC LIMIT 50
 	`, actor.TenantID)
@@ -64,7 +64,7 @@ func (s *AuditExportService) Create(ctx context.Context, actor ActorContext, req
 		return nil, err
 	}
 	var e AuditExport
-	err := s.pool.App.QueryRow(ctx, `
+	err := s.pool.Conn(ctx).QueryRow(ctx, `
 		INSERT INTO audit_log_exports (tenant_id, destination, config)
 		VALUES ($1::uuid, $2, $3::jsonb)
 		RETURNING id::text, destination, config, status, records_exported, error_message, created_at

@@ -92,7 +92,7 @@ func (s *GameDayService) List(ctx context.Context, actor ActorContext) (*GameDay
 	if err := ensureActorMembership(ctx, s.pool, actor); err != nil {
 		return nil, err
 	}
-	rows, err := s.pool.App.Query(ctx, `
+	rows, err := s.pool.Conn(ctx).Query(ctx, `
 		SELECT id::text, environment_id::text, title, description, status, scheduled_at, started_at, ended_at, created_by::text, created_at
 		FROM gamedays WHERE tenant_id = $1::uuid ORDER BY created_at DESC LIMIT 50
 	`, actor.TenantID)
@@ -116,7 +116,7 @@ func (s *GameDayService) Get(ctx context.Context, actor ActorContext, gamedayID 
 		return nil, err
 	}
 	var g GameDay
-	err := s.pool.App.QueryRow(ctx, `
+	err := s.pool.Conn(ctx).QueryRow(ctx, `
 		SELECT id::text, environment_id::text, title, description, status, scheduled_at, started_at, ended_at, created_by::text, created_at
 		FROM gamedays WHERE id = $1::uuid AND tenant_id = $2::uuid
 	`, gamedayID, actor.TenantID).Scan(&g.ID, &g.EnvironmentID, &g.Title, &g.Description, &g.Status, &g.ScheduledAt, &g.StartedAt, &g.EndedAt, &g.CreatedBy, &g.CreatedAt)
@@ -127,7 +127,7 @@ func (s *GameDayService) Get(ctx context.Context, actor ActorContext, gamedayID 
 		return nil, err
 	}
 
-	eventRows, err := s.pool.App.Query(ctx, `
+	eventRows, err := s.pool.Conn(ctx).Query(ctx, `
 		SELECT id::text, event_type, title, description, user_id::text, metadata, created_at
 		FROM gameday_events WHERE gameday_id = $1::uuid ORDER BY created_at ASC
 	`, gamedayID)
@@ -145,7 +145,7 @@ func (s *GameDayService) Get(ctx context.Context, actor ActorContext, gamedayID 
 
 	var postmortem *GameDayPostmortem
 	var pm GameDayPostmortem
-	err = s.pool.App.QueryRow(ctx, `
+	err = s.pool.Conn(ctx).QueryRow(ctx, `
 		SELECT id::text, summary, what_went_well, what_went_wrong, action_items, created_by::text, created_at
 		FROM gameday_postmortems WHERE gameday_id = $1::uuid
 	`, gamedayID).Scan(&pm.ID, &pm.Summary, &pm.WhatWentWell, &pm.WhatWentWrong, &pm.ActionItems, &pm.CreatedBy, &pm.CreatedAt)
@@ -161,7 +161,7 @@ func (s *GameDayService) Create(ctx context.Context, actor ActorContext, req *Cr
 		return nil, err
 	}
 	var g GameDay
-	err := s.pool.App.QueryRow(ctx, `
+	err := s.pool.Conn(ctx).QueryRow(ctx, `
 		INSERT INTO gamedays (tenant_id, environment_id, title, description, scheduled_at, created_by)
 		VALUES ($1::uuid, $2::uuid, $3, $4, $5, $6::uuid)
 		RETURNING id::text, environment_id::text, title, description, status, scheduled_at, started_at, ended_at, created_by::text, created_at
@@ -188,7 +188,7 @@ func (s *GameDayService) UpdateStatus(ctx context.Context, actor ActorContext, g
 	}
 
 	var g GameDay
-	err := s.pool.App.QueryRow(ctx, `
+	err := s.pool.Conn(ctx).QueryRow(ctx, `
 		UPDATE gamedays SET status = $3, started_at = COALESCE($4, started_at), ended_at = COALESCE($5, ended_at)
 		WHERE id = $1::uuid AND tenant_id = $2::uuid
 		RETURNING id::text, environment_id::text, title, description, status, scheduled_at, started_at, ended_at, created_by::text, created_at
@@ -212,7 +212,7 @@ func (s *GameDayService) AddEvent(ctx context.Context, actor ActorContext, gamed
 		metadata = string(req.Metadata)
 	}
 	var e GameDayEvent
-	err := s.pool.App.QueryRow(ctx, `
+	err := s.pool.Conn(ctx).QueryRow(ctx, `
 		INSERT INTO gameday_events (gameday_id, event_type, title, description, user_id, metadata)
 		VALUES ($1::uuid, $2, $3, $4, $5::uuid, $6::jsonb)
 		RETURNING id::text, event_type, title, description, user_id::text, metadata, created_at
@@ -233,7 +233,7 @@ func (s *GameDayService) CreatePostmortem(ctx context.Context, actor ActorContex
 		actionItems = string(req.ActionItems)
 	}
 	var pm GameDayPostmortem
-	err := s.pool.App.QueryRow(ctx, `
+	err := s.pool.Conn(ctx).QueryRow(ctx, `
 		INSERT INTO gameday_postmortems (gameday_id, summary, what_went_well, what_went_wrong, action_items, created_by)
 		VALUES ($1::uuid, $2, $3, $4, $5::jsonb, $6::uuid)
 		RETURNING id::text, summary, what_went_well, what_went_wrong, action_items, created_by::text, created_at

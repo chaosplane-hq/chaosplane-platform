@@ -62,7 +62,7 @@ func (s *ABACService) List(ctx context.Context, actor ActorContext) (*ABACPolicy
 	if err := ensureActorMembership(ctx, s.pool, actor); err != nil {
 		return nil, err
 	}
-	rows, err := s.pool.App.Query(ctx, `
+	rows, err := s.pool.Conn(ctx).Query(ctx, `
 		SELECT id::text, tenant_id::text, name, description, effect, subjects, resources, actions, conditions, priority, enabled, created_at
 		FROM abac_policies WHERE tenant_id = $1::uuid ORDER BY priority DESC, created_at DESC
 	`, actor.TenantID)
@@ -90,7 +90,7 @@ func (s *ABACService) Create(ctx context.Context, actor ActorContext, req *Creat
 		conditions = string(req.Conditions)
 	}
 	var p ABACPolicy
-	err := s.pool.App.QueryRow(ctx, `
+	err := s.pool.Conn(ctx).QueryRow(ctx, `
 		INSERT INTO abac_policies (tenant_id, name, description, effect, subjects, resources, actions, conditions, priority)
 		VALUES ($1::uuid, $2, $3, $4, $5::jsonb, $6::jsonb, $7::jsonb, $8::jsonb, $9)
 		RETURNING id::text, tenant_id::text, name, description, effect, subjects, resources, actions, conditions, priority, enabled, created_at
@@ -106,7 +106,7 @@ func (s *ABACService) Delete(ctx context.Context, actor ActorContext, policyID s
 	if err := ensureActorMembership(ctx, s.pool, actor); err != nil {
 		return err
 	}
-	cmd, err := s.pool.App.Exec(ctx, `DELETE FROM abac_policies WHERE id = $1::uuid AND tenant_id = $2::uuid`, policyID, actor.TenantID)
+	cmd, err := s.pool.Conn(ctx).Exec(ctx, `DELETE FROM abac_policies WHERE id = $1::uuid AND tenant_id = $2::uuid`, policyID, actor.TenantID)
 	if err != nil {
 		return fmt.Errorf("delete abac policy: %w", err)
 	}
@@ -121,7 +121,7 @@ func (s *ABACService) Evaluate(ctx context.Context, actor ActorContext, req *Eva
 		return nil, err
 	}
 
-	rows, err := s.pool.App.Query(ctx, `
+	rows, err := s.pool.Conn(ctx).Query(ctx, `
 		SELECT effect, subjects, resources, actions, conditions, priority
 		FROM abac_policies
 		WHERE tenant_id = $1::uuid AND enabled = true

@@ -60,7 +60,7 @@ func (s *AIChatService) ListSessions(ctx context.Context, actor ActorContext) (*
 		return nil, err
 	}
 
-	rows, err := s.pool.App.Query(ctx, `
+	rows, err := s.pool.Conn(ctx).Query(ctx, `
 		SELECT id::text, title, created_at, updated_at
 		FROM ai_chat_sessions
 		WHERE tenant_id = $1::uuid AND user_id = $2::uuid
@@ -94,7 +94,7 @@ func (s *AIChatService) CreateSession(ctx context.Context, actor ActorContext, r
 	}
 
 	var session ChatSession
-	err := s.pool.App.QueryRow(ctx, `
+	err := s.pool.Conn(ctx).QueryRow(ctx, `
 		INSERT INTO ai_chat_sessions (tenant_id, user_id, title)
 		VALUES ($1::uuid, $2::uuid, $3)
 		RETURNING id::text, title, created_at, updated_at
@@ -113,7 +113,7 @@ func (s *AIChatService) GetMessages(ctx context.Context, actor ActorContext, ses
 		return nil, err
 	}
 
-	rows, err := s.pool.App.Query(ctx, `
+	rows, err := s.pool.Conn(ctx).Query(ctx, `
 		SELECT id::text, role, content, created_at
 		FROM ai_chat_messages
 		WHERE session_id = $1::uuid
@@ -144,7 +144,7 @@ func (s *AIChatService) SendMessage(ctx context.Context, actor ActorContext, ses
 	}
 
 	var userMsg ChatMessage
-	err := s.pool.App.QueryRow(ctx, `
+	err := s.pool.Conn(ctx).QueryRow(ctx, `
 		INSERT INTO ai_chat_messages (session_id, role, content)
 		VALUES ($1::uuid, 'user', $2)
 		RETURNING id::text, role, content, created_at
@@ -159,7 +159,7 @@ func (s *AIChatService) SendMessage(ctx context.Context, actor ActorContext, ses
 	}
 
 	var assistantMsg ChatMessage
-	err = s.pool.App.QueryRow(ctx, `
+	err = s.pool.Conn(ctx).QueryRow(ctx, `
 		INSERT INTO ai_chat_messages (session_id, role, content)
 		VALUES ($1::uuid, 'assistant', $2)
 		RETURNING id::text, role, content, created_at
@@ -168,7 +168,7 @@ func (s *AIChatService) SendMessage(ctx context.Context, actor ActorContext, ses
 		return nil, fmt.Errorf("store assistant message: %w", err)
 	}
 
-	_, _ = s.pool.App.Exec(ctx, `UPDATE ai_chat_sessions SET updated_at = now() WHERE id = $1::uuid`, sessionID)
+	_, _ = s.pool.Conn(ctx).Exec(ctx, `UPDATE ai_chat_sessions SET updated_at = now() WHERE id = $1::uuid`, sessionID)
 
 	return &SendMessageResponse{UserMessage: userMsg, AssistantMessage: assistantMsg}, nil
 }
@@ -177,7 +177,7 @@ func (s *AIChatService) DeleteSession(ctx context.Context, actor ActorContext, s
 	if err := ensureActorMembership(ctx, s.pool, actor); err != nil {
 		return err
 	}
-	cmd, err := s.pool.App.Exec(ctx, `
+	cmd, err := s.pool.Conn(ctx).Exec(ctx, `
 		DELETE FROM ai_chat_sessions
 		WHERE id = $1::uuid AND tenant_id = $2::uuid AND user_id = $3::uuid
 	`, sessionID, actor.TenantID, actor.UserID)
@@ -192,7 +192,7 @@ func (s *AIChatService) DeleteSession(ctx context.Context, actor ActorContext, s
 
 func (s *AIChatService) ensureSessionOwner(ctx context.Context, actor ActorContext, sessionID string) error {
 	var exists bool
-	err := s.pool.App.QueryRow(ctx, `
+	err := s.pool.Conn(ctx).QueryRow(ctx, `
 		SELECT EXISTS(
 			SELECT 1 FROM ai_chat_sessions
 			WHERE id = $1::uuid AND tenant_id = $2::uuid AND user_id = $3::uuid
@@ -216,7 +216,7 @@ func (s *AIChatService) generateResponse(ctx context.Context, sessionID, userMes
 		return generateAssistantResponse(userMessage), nil
 	}
 
-	rows, err := s.pool.App.Query(ctx, `
+	rows, err := s.pool.Conn(ctx).Query(ctx, `
 		SELECT role, content FROM ai_chat_messages
 		WHERE session_id = $1::uuid
 		ORDER BY created_at ASC

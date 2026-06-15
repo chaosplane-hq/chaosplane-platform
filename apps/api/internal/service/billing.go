@@ -136,7 +136,7 @@ func (s *BillingService) Cancel(ctx context.Context, actor ActorContext) (*Subsc
 		return nil, err
 	}
 
-	row := s.pool.App.QueryRow(ctx, `
+	row := s.pool.Conn(ctx).QueryRow(ctx, `
 		UPDATE subscriptions
 		SET status = 'cancelled', cancelled_at = now()
 		WHERE tenant_id = $1::uuid AND status IN ('active','trialing','past_due')
@@ -152,7 +152,7 @@ func (s *BillingService) Reactivate(ctx context.Context, actor ActorContext) (*S
 		return nil, err
 	}
 
-	row := s.pool.App.QueryRow(ctx, `
+	row := s.pool.Conn(ctx).QueryRow(ctx, `
 		UPDATE subscriptions
 		SET status = 'active', cancelled_at = NULL, suspended_at = NULL
 		WHERE tenant_id = $1::uuid AND status = 'cancelled'
@@ -169,7 +169,7 @@ func (s *BillingService) RecordUsage(ctx context.Context, tenantID, metric strin
 	periodStart := time.Date(now.Year(), now.Month(), 1, 0, 0, 0, 0, time.UTC)
 	periodEnd := periodStart.AddDate(0, 1, 0)
 
-	_, err := s.pool.App.Exec(ctx, `
+	_, err := s.pool.Conn(ctx).Exec(ctx, `
 		INSERT INTO usage_records (tenant_id, metric, quantity, period_start, period_end)
 		VALUES ($1::uuid, $2, $3, $4, $5)
 		ON CONFLICT (tenant_id, metric, period_start)
@@ -209,7 +209,7 @@ func (s *BillingService) CheckUsageLimit(ctx context.Context, tenantID, metric s
 }
 
 func (s *BillingService) ProcessWebhookEvent(ctx context.Context, gateway, eventType string, payload []byte) error {
-	_, err := s.pool.App.Exec(ctx, `
+	_, err := s.pool.Conn(ctx).Exec(ctx, `
 		INSERT INTO billing_events (tenant_id, event_type, gateway, payload)
 		VALUES ('00000000-0000-0000-0000-000000000000'::uuid, $1, $2, $3::jsonb)
 	`, eventType, gateway, string(payload))
@@ -220,7 +220,7 @@ func (s *BillingService) ProcessWebhookEvent(ctx context.Context, gateway, event
 }
 
 func (s *BillingService) getOrCreateSubscription(ctx context.Context, tenantID string) (*Subscription, error) {
-	row := s.pool.App.QueryRow(ctx, `
+	row := s.pool.Conn(ctx).QueryRow(ctx, `
 		SELECT id::text, tenant_id::text, plan, status, gateway,
 		       current_period_start, current_period_end, trial_ends_at,
 		       cancelled_at, suspended_at, created_at
@@ -237,7 +237,7 @@ func (s *BillingService) getOrCreateSubscription(ctx context.Context, tenantID s
 	}
 
 	trialEnd := time.Now().Add(14 * 24 * time.Hour)
-	row = s.pool.App.QueryRow(ctx, `
+	row = s.pool.Conn(ctx).QueryRow(ctx, `
 		INSERT INTO subscriptions (tenant_id, plan, status, trial_ends_at)
 		VALUES ($1::uuid, 'free', 'trialing', $2)
 		ON CONFLICT (tenant_id) DO UPDATE SET tenant_id = subscriptions.tenant_id
@@ -252,7 +252,7 @@ func (s *BillingService) transitionPlan(ctx context.Context, tenantID, plan, gat
 	now := time.Now()
 	periodEnd := now.AddDate(0, 1, 0)
 
-	row := s.pool.App.QueryRow(ctx, `
+	row := s.pool.Conn(ctx).QueryRow(ctx, `
 		UPDATE subscriptions
 		SET plan = $2, status = 'active', gateway = $3,
 		    current_period_start = $4, current_period_end = $5,
@@ -267,7 +267,7 @@ func (s *BillingService) transitionPlan(ctx context.Context, tenantID, plan, gat
 		return nil, err
 	}
 
-	if _, err := s.pool.App.Exec(ctx, `UPDATE tenants SET plan = $2 WHERE id = $1::uuid`, tenantID, plan); err != nil {
+	if _, err := s.pool.Conn(ctx).Exec(ctx, `UPDATE tenants SET plan = $2 WHERE id = $1::uuid`, tenantID, plan); err != nil {
 		return nil, fmt.Errorf("sync tenant plan: %w", err)
 	}
 
@@ -278,7 +278,7 @@ func (s *BillingService) getCurrentUsage(ctx context.Context, tenantID string) (
 	now := time.Now()
 	periodStart := time.Date(now.Year(), now.Month(), 1, 0, 0, 0, 0, time.UTC)
 
-	rows, err := s.pool.App.Query(ctx, `
+	rows, err := s.pool.Conn(ctx).Query(ctx, `
 		SELECT metric, quantity
 		FROM usage_records
 		WHERE tenant_id = $1::uuid AND period_start = $2

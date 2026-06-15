@@ -382,7 +382,7 @@ func (s *AuthService) Refresh(ctx context.Context, req *RefreshRequest, ip net.I
 
 func (s *AuthService) ForgotPassword(ctx context.Context, req *ForgotPasswordRequest) (*PasswordResetTokenResponse, error) {
 	var userID string
-	err := s.pool.App.QueryRow(ctx, `
+	err := s.pool.Conn(ctx).QueryRow(ctx, `
 		SELECT id::text
 		FROM users
 		WHERE lower(email) = lower($1) AND deleted_at IS NULL
@@ -568,7 +568,7 @@ func (s *AuthService) Logout(ctx context.Context, claims *AccessTokenClaims, req
 	if claims != nil && claims.ID != "" {
 		expiresAt := claims.ExpiresAt.Time
 		if expiresAt.After(time.Now()) {
-			_, err := s.pool.App.Exec(ctx, `
+			_, err := s.pool.Conn(ctx).Exec(ctx, `
 				INSERT INTO jwt_blacklist (jti, user_id, reason, expires_at)
 				VALUES ($1::uuid, $2::uuid, 'logout', $3)
 				ON CONFLICT (jti) DO NOTHING
@@ -580,7 +580,7 @@ func (s *AuthService) Logout(ctx context.Context, claims *AccessTokenClaims, req
 	}
 
 	if req.RefreshToken != "" {
-		if _, err := s.pool.App.Exec(ctx, `
+		if _, err := s.pool.Conn(ctx).Exec(ctx, `
 			UPDATE refresh_tokens
 			SET revoked_at = now()
 			WHERE token_hash = $1 AND revoked_at IS NULL
@@ -593,7 +593,7 @@ func (s *AuthService) Logout(ctx context.Context, claims *AccessTokenClaims, req
 }
 
 func (s *AuthService) CurrentUser(ctx context.Context, req *CurrentUserRequest) (*CurrentUserResponse, error) {
-	row := s.pool.App.QueryRow(ctx, `
+	row := s.pool.Conn(ctx).QueryRow(ctx, `
 		SELECT
 			u.id::text,
 			u.email,
@@ -647,7 +647,7 @@ func (s *AuthService) IsBlacklisted(ctx context.Context, jti string) (bool, erro
 		}
 	}
 	var exists bool
-	err := s.pool.App.QueryRow(ctx, `
+	err := s.pool.Conn(ctx).QueryRow(ctx, `
 		SELECT EXISTS(
 			SELECT 1 FROM jwt_blacklist WHERE jti = $1::uuid AND expires_at > now()
 		)
@@ -690,7 +690,7 @@ func (s *AuthService) ValidateCSRFToken(userID, tenantID, token string) error {
 }
 
 func (s *AuthService) lookupIdentityByEmail(ctx context.Context, email string) (authIdentity, error) {
-	row := s.pool.App.QueryRow(ctx, `
+	row := s.pool.Conn(ctx).QueryRow(ctx, `
 		SELECT
 			u.id::text,
 			u.email,
@@ -864,7 +864,7 @@ func (s *AuthService) lookupRefreshToken(ctx context.Context, tx pgx.Tx, plainTo
 }
 
 func (s *AuthService) recordFailedLogin(ctx context.Context, userID string) {
-	_, _ = s.pool.App.Exec(ctx, `
+	_, _ = s.pool.Conn(ctx).Exec(ctx, `
 		UPDATE users
 		SET
 			failed_login_count = failed_login_count + 1,
@@ -883,7 +883,7 @@ func (s *AuthService) recordFailedLogin(ctx context.Context, userID string) {
 }
 
 func (s *AuthService) clearFailedLogin(ctx context.Context, userID string, ip net.IP) error {
-	_, err := s.pool.App.Exec(ctx, `
+	_, err := s.pool.Conn(ctx).Exec(ctx, `
 		UPDATE users
 		SET
 			failed_login_count = 0,

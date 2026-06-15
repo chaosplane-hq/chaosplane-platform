@@ -53,7 +53,7 @@ func (s *TopologyService) Latest(ctx context.Context, actor ActorContext, enviro
 	}
 
 	var snap TopologySnapshot
-	err := s.pool.App.QueryRow(ctx, `
+	err := s.pool.Conn(ctx).QueryRow(ctx, `
 		SELECT id::text, environment_id::text, nodes, namespaces, services, deployments, pods, collected_at
 		FROM topology_snapshots
 		WHERE environment_id = $1::uuid AND tenant_id = $2::uuid
@@ -80,7 +80,7 @@ func (s *TopologyService) List(ctx context.Context, actor ActorContext, environm
 		limit = 10
 	}
 
-	rows, err := s.pool.App.Query(ctx, `
+	rows, err := s.pool.Conn(ctx).Query(ctx, `
 		SELECT id::text, environment_id::text, nodes, namespaces, services, deployments, pods, collected_at
 		FROM topology_snapshots
 		WHERE environment_id = $1::uuid AND tenant_id = $2::uuid
@@ -112,7 +112,7 @@ func (s *TopologyService) Submit(ctx context.Context, tenantID string, req *Subm
 	}
 
 	var snap TopologySnapshot
-	err := s.pool.App.QueryRow(ctx, `
+	err := s.pool.Conn(ctx).QueryRow(ctx, `
 		INSERT INTO topology_snapshots (tenant_id, environment_id, nodes, namespaces, services, deployments, pods)
 		VALUES ($1::uuid, $2::uuid, $3::jsonb, $4::jsonb, $5::jsonb, $6::jsonb, $7::jsonb)
 		RETURNING id::text, environment_id::text, nodes, namespaces, services, deployments, pods, collected_at

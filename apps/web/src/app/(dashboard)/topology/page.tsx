@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import dynamic from 'next/dynamic';
 import {
   Grid,
   Column,
@@ -20,8 +20,11 @@ import {
   Button,
   SkeletonText,
   InlineNotification,
+  Tile,
 } from '@carbon/react';
 import { Checkmark } from '@carbon/icons-react';
+import { VizContainer } from '@/components/viz';
+import { useDefaultEnvironmentId } from '@/lib/hooks/use-environments';
 import {
   useTopologyDependencies,
   useTopologyDrifts,
@@ -29,6 +32,16 @@ import {
   useAcknowledgeDrift,
 } from '@/lib/hooks/use-topology';
 import type { ServiceDependency, TopologyDrift, TopologyMetric } from '@/lib/types';
+
+// d3-force measures the DOM, so load it client-only to keep it out of the
+// server bundle and avoid hydration drift (matches the viz-smoke pattern).
+const ServiceTopologyGraph = dynamic(
+  () =>
+    import('@/components/topology/service-topology-graph').then(
+      (m) => m.ServiceTopologyGraph,
+    ),
+  { ssr: false },
+);
 
 const depHeaders = [
   { key: 'source', header: 'Source' },
@@ -53,12 +66,15 @@ const metricHeaders = [
 ];
 
 export default function TopologyPage() {
-  const deps = useTopologyDependencies();
-  const drifts = useTopologyDrifts();
-  const metrics = useTopologyMetrics();
+  const { environmentId } = useDefaultEnvironmentId();
+  const deps = useTopologyDependencies(environmentId);
+  const drifts = useTopologyDrifts(environmentId);
+  const metrics = useTopologyMetrics(environmentId);
   const acknowledge = useAcknowledgeDrift();
 
-  const depRows = (deps.data?.dependencies ?? []).map((d: ServiceDependency) => ({
+  const dependencies = (deps.data?.dependencies ?? []) as ServiceDependency[];
+
+  const depRows = dependencies.map((d) => ({
     id: d.id,
     source: `${d.sourceName} (${d.sourceNamespace})`,
     target: `${d.targetName} (${d.targetNamespace})`,
@@ -83,6 +99,13 @@ export default function TopologyPage() {
     collectedAt: m.collectedAt ? new Date(m.collectedAt).toLocaleString() : '—',
   }));
 
+  const graphSummary =
+    dependencies.length > 0
+      ? `Force-directed service topology graph with ${
+          deps.data?.nodeCount ?? '—'
+        } services and ${dependencies.length} dependencies. Use the Dependencies tab for an accessible table view.`
+      : 'Service topology graph. No dependencies to display.';
+
   return (
     <Grid fullWidth>
       <Column lg={16} md={8} sm={4}>
@@ -90,6 +113,28 @@ export default function TopologyPage() {
           <h2 style={{ fontSize: '1.75rem', fontWeight: 600, marginBottom: '0.25rem' }}>Topology</h2>
           <p style={{ color: 'var(--cds-text-secondary)' }}>Service dependencies, configuration drifts, and metrics.</p>
         </div>
+      </Column>
+
+      <Column lg={16} md={8} sm={4} style={{ marginBottom: '1rem' }}>
+        {!environmentId ? (
+          <Tile style={{ textAlign: 'center', padding: '3rem' }}>
+            <p style={{ color: 'var(--cds-text-secondary)' }}>
+              No environment available. Connect an environment to map your service topology.
+            </p>
+          </Tile>
+        ) : deps.isError ? (
+          <InlineNotification kind="error" title="Failed to load topology" subtitle="" />
+        ) : (
+          <VizContainer
+            label={graphSummary}
+            height={560}
+            isLoading={deps.isLoading}
+            isEmpty={!deps.isLoading && dependencies.length === 0}
+            emptyLabel="No service dependencies discovered yet for this environment."
+          >
+            {(size) => <ServiceTopologyGraph size={size} dependencies={dependencies} />}
+          </VizContainer>
+        )}
       </Column>
 
       <Column lg={16} md={8} sm={4}>

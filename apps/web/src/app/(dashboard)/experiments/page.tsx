@@ -20,7 +20,7 @@ import {
   SkeletonText,
   Link,
 } from '@carbon/react';
-import { Add } from '@carbon/icons-react';
+import { Add, Flow } from '@carbon/icons-react';
 import NextLink from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useExperiments } from '@/lib/hooks/use-experiments';
@@ -160,6 +160,13 @@ export default function ExperimentsPage() {
                       }}
                       placeholder="Search by name or namespace"
                     />
+                    <Button
+                      kind="tertiary"
+                      renderIcon={Flow}
+                      onClick={() => router.push('/experiments/scenario')}
+                    >
+                      Scenario builder
+                    </Button>
                     <Button
                       renderIcon={Add}
                       onClick={() => router.push('/experiments/create')}

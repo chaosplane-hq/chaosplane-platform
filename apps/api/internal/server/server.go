@@ -280,9 +280,11 @@ func NewRedisClient(cfg *config.Config) *redis.Client {
 		slog.Error("failed to parse REDIS_URL, rate limiting disabled", "error", err)
 		return nil
 	}
-	opts.DialTimeout = 300 * time.Millisecond
-	opts.ReadTimeout = 300 * time.Millisecond
-	opts.WriteTimeout = 300 * time.Millisecond
-	opts.MaxRetries = -1
+	opts.DialTimeout = 2 * time.Second
+	opts.ReadTimeout = 500 * time.Millisecond
+	opts.WriteTimeout = 500 * time.Millisecond
+	opts.PoolSize = 10
+	opts.MinIdleConns = 2
+	opts.MaxRetries = 1
 	return redis.NewClient(opts)
 }

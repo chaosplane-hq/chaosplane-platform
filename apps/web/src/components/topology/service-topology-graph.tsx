@@ -19,6 +19,11 @@ import {
 import { useVizTheme, categoricalColor } from '@/components/viz/theme';
 import type { VizSize } from '@/components/viz/viz-container';
 import type { ServiceDependency } from '@/lib/types';
+import type { FaultModel } from '@/lib/topology/fault-model';
+import {
+  FaultPropagationOverlay,
+  type NodePosition,
+} from './fault-propagation-overlay';
 import styles from './service-topology-graph.module.scss';
 
 interface GraphNode extends SimulationNodeDatum {
@@ -59,14 +64,21 @@ function asNode(end: string | GraphNode): GraphNode {
 export function ServiceTopologyGraph({
   size,
   dependencies,
+  faultModel = null,
 }: {
   size: VizSize;
   dependencies: ServiceDependency[];
+  faultModel?: FaultModel | null;
 }) {
   const svgRef = useRef<SVGSVGElement>(null);
   const tokens = useVizTheme();
   const [tooltip, setTooltip] = useState<TooltipState | null>(null);
   const [focusedId, setFocusedId] = useState<string | null>(null);
+
+  // Live D3 layout is mirrored into refs each tick so the Framer overlay can
+  // track node positions and zoom without re-rendering React every frame.
+  const positionsRef = useRef<Map<string, NodePosition>>(new Map());
+  const transformRef = useRef<{ x: number; y: number; k: number }>({ x: 0, y: 0, k: 1 });
 
   // Selections are stored in refs so the focus-highlight effect can restyle
   // existing DOM without tearing down and rebuilding the whole simulation.
@@ -254,7 +266,10 @@ export function ServiceTopologyGraph({
 
     const zoomBehavior = d3zoom<SVGSVGElement, unknown>()
       .scaleExtent([0.25, 4])
-      .on('zoom', (event) => zoomG.attr('transform', event.transform.toString()));
+      .on('zoom', (event) => {
+        zoomG.attr('transform', event.transform.toString());
+        transformRef.current = { x: event.transform.x, y: event.transform.y, k: event.transform.k };
+      });
     svg.call(zoomBehavior);
     svg.on('click', () => setFocusedId(null));
 
@@ -283,6 +298,12 @@ export function ServiceTopologyGraph({
         });
       nodeSel.attr('cx', (d) => d.x ?? 0).attr('cy', (d) => d.y ?? 0);
       labelSel.attr('x', (d) => d.x ?? 0).attr('y', (d) => (d.y ?? 0) - nodeRadius(d.degree) - 6);
+
+      const positions = positionsRef.current;
+      positions.clear();
+      for (const n of simNodes) {
+        positions.set(n.id, { x: n.x ?? 0, y: n.y ?? 0, r: nodeRadius(n.degree) });
+      }
     });
 
     return () => {
@@ -326,9 +347,33 @@ export function ServiceTopologyGraph({
       });
   }, [focusedId, tokens]);
 
+  // Recolor node fills to match fault state so the static graph reads correctly
+  // even with motion disabled; the animated halos layer on top via the overlay.
+  useEffect(() => {
+    const nodeSel = nodeSelRef.current;
+    if (!nodeSel) return;
+    nodeSel.attr('fill', (d) => {
+      const fault = faultModel?.nodes.get(d.id);
+      if (!fault || faultModel?.recovered) {
+        return namespaceColor.get(d.namespace) ?? tokens.interactive;
+      }
+      if (fault.state === 'source' || fault.state === 'failed') return tokens['support-error'];
+      if (fault.state === 'degraded') return tokens['support-warning'];
+      return namespaceColor.get(d.namespace) ?? tokens.interactive;
+    });
+  }, [faultModel, namespaceColor, tokens]);
+
   return (
     <div className={styles.wrap}>
       <svg ref={svgRef} width={size.width} height={size.height} role="presentation" />
+
+      <FaultPropagationOverlay
+        model={faultModel}
+        positionsRef={positionsRef}
+        transformRef={transformRef}
+        size={size}
+        tokens={tokens}
+      />
 
       {namespaces.length > 0 && (
         <ul className={styles.legend} aria-label="Namespace legend">

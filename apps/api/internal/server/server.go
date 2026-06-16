@@ -258,6 +258,8 @@ func New(
 		api.DELETE("/experiments/:name", experiments.Delete)
 		api.POST("/experiments/:name/abort", experiments.Abort)
 
+		api.GET("/fault-catalog", experiments.FaultCatalog)
+
 		api.GET("/policies", policies.List)
 		api.GET("/policies/:name", policies.Get)
 		api.POST("/policies", policies.Create)

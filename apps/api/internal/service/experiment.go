@@ -24,16 +24,21 @@ func NewExperimentService(pool *database.Pool) *ExperimentService {
 	return &ExperimentService{pool: pool}
 }
 
+// CreateExperimentRequest accepts either a single fault (Action+Target) or a
+// multi-step DAG scenario (Steps). Binding tags only require Name; the single
+// vs workflow shape is validated in the service against the fault registry so a
+// workflow request need not carry a top-level action/target.
 type CreateExperimentRequest struct {
-	Name      string        `json:"name" binding:"required"`
-	Namespace string        `json:"namespace"`
-	Action    ActionRequest `json:"action" binding:"required"`
-	Target    TargetRequest `json:"target" binding:"required"`
-	Duration  string        `json:"duration"`
+	Name      string         `json:"name" binding:"required"`
+	Namespace string         `json:"namespace"`
+	Action    ActionRequest  `json:"action"`
+	Target    TargetRequest  `json:"target"`
+	Steps     []ScenarioStep `json:"steps,omitempty"`
+	Duration  string         `json:"duration"`
 }
 
 type ActionRequest struct {
-	Type       string          `json:"type" binding:"required"`
+	Type       string          `json:"type"`
 	Parameters json.RawMessage `json:"parameters,omitempty"`
 }
 
@@ -66,14 +71,16 @@ type ExperimentStatus struct {
 }
 
 type ExperimentResponse struct {
-	ID        string           `json:"id"`
-	Name      string           `json:"name"`
-	Namespace string           `json:"namespace"`
-	Action    ExperimentAction `json:"action"`
-	Target    ExperimentTarget `json:"target"`
-	Status    ExperimentStatus `json:"status"`
-	Duration  string           `json:"duration,omitempty"`
-	CreatedAt string           `json:"createdAt,omitempty"`
+	ID             string           `json:"id"`
+	Name           string           `json:"name"`
+	Namespace      string           `json:"namespace"`
+	ExperimentType string           `json:"experimentType"`
+	Action         ExperimentAction `json:"action"`
+	Target         ExperimentTarget `json:"target"`
+	Steps          []ScenarioStep   `json:"steps,omitempty"`
+	Status         ExperimentStatus `json:"status"`
+	Duration       string           `json:"duration,omitempty"`
+	CreatedAt      string           `json:"createdAt,omitempty"`
 }
 
 type ExperimentListResponse struct {
@@ -84,15 +91,17 @@ type ExperimentListResponse struct {
 }
 
 type experimentRow struct {
-	id        string
-	name      string
-	status    string
-	target    []byte
-	action    []byte
-	duration  int
-	createdAt time.Time
-	startedAt *time.Time
-	endedAt   *time.Time
+	id             string
+	name           string
+	experimentType string
+	status         string
+	target         []byte
+	action         []byte
+	steps          []byte
+	duration       int
+	createdAt      time.Time
+	startedAt      *time.Time
+	endedAt        *time.Time
 }
 
 func (s *ExperimentService) List(ctx context.Context, actor ActorContext, statusFilter, actionFilter string, limit, offset int) (*ExperimentListResponse, error) {
@@ -108,7 +117,7 @@ func (s *ExperimentService) List(ctx context.Context, actor ActorContext, status
 	}
 
 	rows, err := s.pool.Conn(ctx).Query(ctx, `
-		SELECT id::text, name, status, target, action, duration_seconds, created_at, run_started_at, run_ended_at
+		SELECT id::text, name, experiment_type, status, target, action, steps, duration_seconds, created_at, run_started_at, run_ended_at
 		FROM experiments
 		WHERE tenant_id = $1::uuid AND deleted_at IS NULL
 		ORDER BY created_at DESC
@@ -122,7 +131,7 @@ func (s *ExperimentService) List(ctx context.Context, actor ActorContext, status
 	items := []ExperimentResponse{}
 	for rows.Next() {
 		var r experimentRow
-		if err := rows.Scan(&r.id, &r.name, &r.status, &r.target, &r.action, &r.duration, &r.createdAt, &r.startedAt, &r.endedAt); err != nil {
+		if err := rows.Scan(&r.id, &r.name, &r.experimentType, &r.status, &r.target, &r.action, &r.steps, &r.duration, &r.createdAt, &r.startedAt, &r.endedAt); err != nil {
 			return nil, fmt.Errorf("scan experiment: %w", err)
 		}
 		resp := toExperimentResponse(&r)
@@ -159,6 +168,11 @@ func (s *ExperimentService) Get(ctx context.Context, actor ActorContext, id stri
 }
 
 func (s *ExperimentService) Create(ctx context.Context, actor ActorContext, req *CreateExperimentRequest) (*ExperimentResponse, error) {
+	isWorkflow := len(req.Steps) > 0
+	if err := validateCreateRequest(req, isWorkflow); err != nil {
+		return nil, err
+	}
+
 	if err := ensureActorMembership(ctx, s.pool, actor); err != nil {
 		return nil, err
 	}
@@ -168,48 +182,96 @@ func (s *ExperimentService) Create(ctx context.Context, actor ActorContext, req 
 		return nil, err
 	}
 
-	targetSpec := ExperimentTarget{
+	durationSeconds := parseDurationSeconds(req.Duration)
+
+	var r experimentRow
+	if isWorkflow {
+		r, err = s.insertWorkflow(ctx, actor, envID, req, durationSeconds)
+	} else {
+		r, err = s.insertSingle(ctx, actor, envID, req, durationSeconds)
+	}
+	if err != nil {
+		return nil, err
+	}
+
+	resp := toExperimentResponse(&r)
+	return &resp, nil
+}
+
+func validateCreateRequest(req *CreateExperimentRequest, isWorkflow bool) error {
+	if isWorkflow {
+		if req.Action.Type != "" {
+			return newValidationError("provide either a single action or steps, not both")
+		}
+		return ValidateSteps(req.Steps)
+	}
+	if req.Action.Type == "" {
+		return newValidationError("action.type is required")
+	}
+	return ValidateAction(req.Action.Type, req.Action.Parameters)
+}
+
+func (s *ExperimentService) insertSingle(ctx context.Context, actor ActorContext, envID string, req *CreateExperimentRequest, durationSeconds int) (experimentRow, error) {
+	targetJSON, err := json.Marshal(ExperimentTarget{
 		Namespace:     req.Target.Namespace,
 		LabelSelector: req.Target.LabelSelector,
 		Mode:          req.Target.Mode,
 		Value:         req.Target.Value,
-	}
-	targetJSON, err := json.Marshal(targetSpec)
+	})
 	if err != nil {
-		return nil, fmt.Errorf("marshal target: %w", err)
+		return experimentRow{}, fmt.Errorf("marshal target: %w", err)
 	}
 
 	actionParams := req.Action.Parameters
 	if len(actionParams) == 0 {
 		actionParams = json.RawMessage(`{}`)
 	}
-	actionSpec := ExperimentAction{Type: req.Action.Type, Parameters: actionParams}
-	actionJSON, err := json.Marshal(actionSpec)
+	actionJSON, err := json.Marshal(ExperimentAction{Type: req.Action.Type, Parameters: actionParams})
 	if err != nil {
-		return nil, fmt.Errorf("marshal action: %w", err)
-	}
-
-	durationSeconds := 60
-	if req.Duration != "" {
-		if d, derr := time.ParseDuration(req.Duration); derr == nil && d > 0 {
-			durationSeconds = int(d.Seconds())
-		}
+		return experimentRow{}, fmt.Errorf("marshal action: %w", err)
 	}
 
 	var r experimentRow
 	err = s.pool.Conn(ctx).QueryRow(ctx, `
-		INSERT INTO experiments (tenant_id, environment_id, name, target, action, duration_seconds, status, created_by)
-		VALUES ($1::uuid, $2::uuid, $3, $4::jsonb, $5::jsonb, $6, 'scheduled', $7::uuid)
-		RETURNING id::text, name, status, target, action, duration_seconds, created_at, run_started_at, run_ended_at
+		INSERT INTO experiments (tenant_id, environment_id, name, experiment_type, target, action, duration_seconds, status, created_by)
+		VALUES ($1::uuid, $2::uuid, $3, 'single', $4::jsonb, $5::jsonb, $6, 'scheduled', $7::uuid)
+		RETURNING id::text, name, experiment_type, status, target, action, steps, duration_seconds, created_at, run_started_at, run_ended_at
 	`, actor.TenantID, envID, req.Name, targetJSON, actionJSON, durationSeconds, actor.UserID).Scan(
-		&r.id, &r.name, &r.status, &r.target, &r.action, &r.duration, &r.createdAt, &r.startedAt, &r.endedAt,
+		&r.id, &r.name, &r.experimentType, &r.status, &r.target, &r.action, &r.steps, &r.duration, &r.createdAt, &r.startedAt, &r.endedAt,
 	)
 	if err != nil {
-		return nil, fmt.Errorf("create experiment: %w", err)
+		return experimentRow{}, fmt.Errorf("create experiment: %w", err)
+	}
+	return r, nil
+}
+
+func (s *ExperimentService) insertWorkflow(ctx context.Context, actor ActorContext, envID string, req *CreateExperimentRequest, durationSeconds int) (experimentRow, error) {
+	stepsJSON, err := json.Marshal(req.Steps)
+	if err != nil {
+		return experimentRow{}, fmt.Errorf("marshal steps: %w", err)
 	}
 
-	resp := toExperimentResponse(&r)
-	return &resp, nil
+	var r experimentRow
+	err = s.pool.Conn(ctx).QueryRow(ctx, `
+		INSERT INTO experiments (tenant_id, environment_id, name, experiment_type, steps, duration_seconds, status, created_by)
+		VALUES ($1::uuid, $2::uuid, $3, 'workflow', $4::jsonb, $5, 'scheduled', $6::uuid)
+		RETURNING id::text, name, experiment_type, status, target, action, steps, duration_seconds, created_at, run_started_at, run_ended_at
+	`, actor.TenantID, envID, req.Name, stepsJSON, durationSeconds, actor.UserID).Scan(
+		&r.id, &r.name, &r.experimentType, &r.status, &r.target, &r.action, &r.steps, &r.duration, &r.createdAt, &r.startedAt, &r.endedAt,
+	)
+	if err != nil {
+		return experimentRow{}, fmt.Errorf("create experiment: %w", err)
+	}
+	return r, nil
+}
+
+func parseDurationSeconds(duration string) int {
+	if duration != "" {
+		if d, derr := time.ParseDuration(duration); derr == nil && d > 0 {
+			return int(d.Seconds())
+		}
+	}
+	return 60
 }
 
 func (s *ExperimentService) Delete(ctx context.Context, actor ActorContext, id string) error {
@@ -260,10 +322,10 @@ func (s *ExperimentService) fetchRow(ctx context.Context, actor ActorContext, id
 	}
 	var r experimentRow
 	err := s.pool.Conn(ctx).QueryRow(ctx, `
-		SELECT id::text, name, status, target, action, duration_seconds, created_at, run_started_at, run_ended_at
+		SELECT id::text, name, experiment_type, status, target, action, steps, duration_seconds, created_at, run_started_at, run_ended_at
 		FROM experiments
 		WHERE id = $1::uuid AND tenant_id = $2::uuid AND deleted_at IS NULL
-	`, id, actor.TenantID).Scan(&r.id, &r.name, &r.status, &r.target, &r.action, &r.duration, &r.createdAt, &r.startedAt, &r.endedAt)
+	`, id, actor.TenantID).Scan(&r.id, &r.name, &r.experimentType, &r.status, &r.target, &r.action, &r.steps, &r.duration, &r.createdAt, &r.startedAt, &r.endedAt)
 	if err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
 			return nil, ErrExperimentNotFound
@@ -328,16 +390,27 @@ func toExperimentResponse(r *experimentRow) ExperimentResponse {
 	if len(r.action) > 0 {
 		_ = json.Unmarshal(r.action, &action)
 	}
+	var steps []ScenarioStep
+	if len(r.steps) > 0 {
+		_ = json.Unmarshal(r.steps, &steps)
+	}
+
+	expType := r.experimentType
+	if expType == "" {
+		expType = "single"
+	}
 
 	resp := ExperimentResponse{
-		ID:        r.id,
-		Name:      r.name,
-		Namespace: target.Namespace,
-		Action:    action,
-		Target:    target,
-		Status:    ExperimentStatus{Phase: phaseFromStatus(r.status)},
-		Duration:  fmt.Sprintf("%ds", r.duration),
-		CreatedAt: r.createdAt.UTC().Format(time.RFC3339),
+		ID:             r.id,
+		Name:           r.name,
+		Namespace:      target.Namespace,
+		ExperimentType: expType,
+		Action:         action,
+		Target:         target,
+		Steps:          steps,
+		Status:         ExperimentStatus{Phase: phaseFromStatus(r.status)},
+		Duration:       fmt.Sprintf("%ds", r.duration),
+		CreatedAt:      r.createdAt.UTC().Format(time.RFC3339),
 	}
 	if r.startedAt != nil {
 		t := r.startedAt.UTC().Format(time.RFC3339)

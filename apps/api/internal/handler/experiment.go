@@ -92,7 +92,16 @@ func (h *ExperimentHandler) Abort(c *gin.Context) {
 	c.JSON(http.StatusOK, resp)
 }
 
+func (h *ExperimentHandler) FaultCatalog(c *gin.Context) {
+	c.JSON(http.StatusOK, gin.H{"groups": service.FaultCatalog()})
+}
+
 func writeExperimentError(c *gin.Context, err error) {
+	var verr *service.ValidationError
+	if errors.As(err, &verr) {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
 	if errors.Is(err, service.ErrExperimentNotFound) {
 		c.JSON(http.StatusNotFound, gin.H{"error": err.Error()})
 		return

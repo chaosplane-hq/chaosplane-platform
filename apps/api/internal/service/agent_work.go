@@ -32,6 +32,7 @@ type AgentWorkItem struct {
 	ExperimentType  string          `json:"experimentType"`
 	Target          json.RawMessage `json:"target"`
 	Action          json.RawMessage `json:"action"`
+	Steps           json.RawMessage `json:"steps,omitempty"`
 	SteadyState     json.RawMessage `json:"steadyState,omitempty"`
 	Rollback        json.RawMessage `json:"rollback,omitempty"`
 	AbortConditions json.RawMessage `json:"abortConditions,omitempty"`
@@ -90,11 +91,11 @@ func (s *AgentWorkService) ClaimWork(ctx context.Context, environmentID, agentIn
 		    last_agent_report_at = now()
 		FROM claimable
 		WHERE e.id = claimable.id
-		RETURNING e.id::text, e.name, e.experiment_type, e.target, e.action,
+		RETURNING e.id::text, e.name, e.experiment_type, e.target, e.action, e.steps,
 		          e.steady_state, e.rollback, e.abort_conditions, e.duration_seconds,
 		          e.desired_state, e.generation, e.claim_expires_at
 	`, environmentID, agentInstance, claimLeaseWindow.Seconds()).Scan(
-		&w.ID, &w.Name, &w.ExperimentType, &w.Target, &w.Action,
+		&w.ID, &w.Name, &w.ExperimentType, &w.Target, &w.Action, &w.Steps,
 		&w.SteadyState, &w.Rollback, &w.AbortConditions, &w.DurationSeconds,
 		&w.DesiredState, &w.Generation, &w.ClaimExpiresAt,
 	)

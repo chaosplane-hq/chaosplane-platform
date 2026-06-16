@@ -1,0 +1,22 @@
+.container {
+  position: relative;
+  width: 100%;
+  background: var(--cds-layer-01);
+  border: 1px solid var(--cds-border-subtle);
+}
+
+.state {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  color: var(--cds-text-secondary);
+  font-size: var(--cds-body-short-01-font-size);
+  line-height: var(--cds-body-short-01-line-height);
+  padding: var(--cds-spacing-05);
+}
+
+.canvas {
+  width: 100%;
+  height: 100%;
+}

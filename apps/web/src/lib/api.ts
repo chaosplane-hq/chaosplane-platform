@@ -3,6 +3,8 @@ import {
   type ExperimentListResponse,
   type ExperimentListParams,
   type CreateExperimentRequest,
+  type CreateScenarioRequest,
+  type FaultCatalogResponse,
   type Policy,
   type PolicyListResponse,
   type CreatePolicyRequest,
@@ -129,6 +131,14 @@ export const experimentsApi = {
       method: 'POST',
       body: JSON.stringify(data),
     }),
+
+  createScenario: (data: CreateScenarioRequest) =>
+    apiFetch<Experiment>('/api/v1/experiments', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    }),
+
+  faultCatalog: () => apiFetch<FaultCatalogResponse>('/api/v1/fault-catalog'),
 
   delete: (name: string) =>
     apiFetch<void>(`/api/v1/experiments/${name}`, { method: 'DELETE' }),

@@ -126,6 +126,47 @@ export interface CreateExperimentRequest {
   duration?: string;
 }
 
+// Mirrors service.ScenarioStep (apps/api .../service/scenario.go): one node in a
+// chaos DAG. `dependsOn` references other steps by `name`; the API rejects cycles.
+export interface ScenarioStep {
+  name: string;
+  dependsOn?: string[];
+  action: ExperimentAction;
+  target: ExperimentTarget;
+  duration?: string;
+}
+
+// Workflow shape of the create endpoint. The API rejects a body carrying both a
+// top-level action and steps, so this deliberately omits action.
+export interface CreateScenarioRequest {
+  name: string;
+  namespace?: string;
+  steps: ScenarioStep[];
+  duration?: string;
+}
+
+// Mirrors service.ParamSpec from GET /api/v1/fault-catalog. `required` follows
+// the web convention: a param without a default value is required.
+export interface FaultParamSpec {
+  key: string;
+  required: boolean;
+}
+
+export interface FaultCatalogType {
+  type: string;
+  group: string;
+  params?: FaultParamSpec[];
+}
+
+export interface FaultCatalogGroup {
+  group: string;
+  types: FaultCatalogType[];
+}
+
+export interface FaultCatalogResponse {
+  groups: FaultCatalogGroup[];
+}
+
 export type PolicyEnforcement = 'enforce' | 'audit' | 'disabled';
 
 export interface Policy {

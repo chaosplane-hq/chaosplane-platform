@@ -281,10 +281,17 @@ func NewRedisClient(cfg *config.Config) *redis.Client {
 		return nil
 	}
 	opts.DialTimeout = 2 * time.Second
-	opts.ReadTimeout = 500 * time.Millisecond
-	opts.WriteTimeout = 500 * time.Millisecond
-	opts.PoolSize = 10
-	opts.MinIdleConns = 2
+	opts.ReadTimeout = 1 * time.Second
+	opts.WriteTimeout = 1 * time.Second
+	opts.ContextTimeoutEnabled = true
+	opts.PoolSize = 20
+	opts.MinIdleConns = 10
+	opts.MaxIdleConns = 20
+	opts.PoolTimeout = 1 * time.Second
+	opts.ConnMaxIdleTime = 5 * time.Minute
+	opts.ConnMaxLifetime = 30 * time.Minute
 	opts.MaxRetries = 1
+	opts.MinRetryBackoff = 8 * time.Millisecond
+	opts.MaxRetryBackoff = 50 * time.Millisecond
 	return redis.NewClient(opts)
 }

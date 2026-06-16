@@ -47,7 +47,9 @@ func RateLimit(rdb *redis.Client, pool *pgxpool.Pool, cfg RateLimiterConfig) gin
 		now := time.Now()
 		windowStart := now.Add(-cfg.Window)
 
-		allowed, remaining, err := checkRateLimit(c.Request.Context(), rdb, subject.Key, now, windowStart, subject.Limit)
+		rlCtx, cancel := context.WithTimeout(context.Background(), 800*time.Millisecond)
+		allowed, remaining, err := checkRateLimit(rlCtx, rdb, subject.Key, now, windowStart, subject.Limit)
+		cancel()
 		if err != nil {
 			slog.Warn("rate limiter redis error, failing open", "error", err)
 			c.Next()

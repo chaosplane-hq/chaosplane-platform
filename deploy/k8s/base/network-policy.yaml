@@ -82,6 +82,10 @@ spec:
     - to:
         - ipBlock:
             cidr: 10.0.48.0/20
+        - ipBlock:
+            cidr: 10.0.64.0/20
+        - ipBlock:
+            cidr: 10.0.80.0/20
       ports:
         - protocol: TCP
           port: 5432

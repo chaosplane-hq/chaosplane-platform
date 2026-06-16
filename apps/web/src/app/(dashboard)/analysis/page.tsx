@@ -24,6 +24,8 @@ import {
 } from '@carbon/react';
 import { Add, ChevronRight } from '@carbon/icons-react';
 import { useResultAnalyses, useResultAnalysis, useTriggerAnalysis } from '@/lib/hooks/use-result-analysis';
+import { useResilienceScore } from '@/lib/hooks/use-resilience';
+import { ResilienceComparisonPanel } from '@/components/metrics/metrics-panels';
 import type { ResultAnalysis } from '@/lib/types';
 
 function severityTagType(s?: string): 'blue' | 'green' | 'red' | 'gray' {
@@ -43,6 +45,8 @@ const headers = [
 
 function AnalysisDetail({ id }: { id: string }) {
   const { data, isLoading, isError } = useResultAnalysis(id);
+  const envParams = data?.environmentId ? { environmentId: data.environmentId } : undefined;
+  const { data: resilience, isLoading: resilienceLoading } = useResilienceScore(envParams);
 
   if (isLoading) return <SkeletonText paragraph lineCount={6} />;
   if (isError || !data) return <InlineNotification kind="error" title="Failed to load analysis detail" subtitle="" />;
@@ -62,6 +66,12 @@ function AnalysisDetail({ id }: { id: string }) {
           <p style={{ fontWeight: 600, marginBottom: '0.5rem' }}>Recommendations</p>
           <p style={{ color: 'var(--cds-text-secondary)', whiteSpace: 'pre-wrap' }}>{data.recommendations}</p>
         </div>
+      )}
+      {data.environmentId && (
+        <ResilienceComparisonPanel
+          history={resilience?.history ?? []}
+          isLoading={resilienceLoading}
+        />
       )}
     </div>
   );

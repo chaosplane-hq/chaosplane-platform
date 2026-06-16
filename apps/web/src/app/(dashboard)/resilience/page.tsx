@@ -23,6 +23,11 @@ import {
 import { Renew } from '@carbon/icons-react';
 import { useResilienceScore, useCalculateResilienceScore } from '@/lib/hooks/use-resilience';
 import type { ResilienceGrade, ResilienceScore } from '@/lib/types';
+import {
+  ResilienceDimensionPanel,
+  ResilienceTrendPanel,
+  ResilienceComparisonPanel,
+} from '@/components/metrics/metrics-panels';
 import styles from '@/components/experiments/experiments.module.scss';
 
 const GRADE_COLOR: Record<ResilienceGrade, 'green' | 'teal' | 'blue' | 'red' | 'purple'> = {
@@ -43,12 +48,6 @@ function formatDate(iso?: string) {
   if (!iso) return '—';
   return new Date(iso).toLocaleString();
 }
-
-const DIMENSION_LABELS: Record<string, string> = {
-  availability: 'Availability',
-  fault_tolerance: 'Fault Tolerance',
-  recoverability: 'Recoverability',
-};
 
 export default function ResiliencePage() {
   const [environmentId, setEnvironmentId] = useState('');
@@ -77,15 +76,6 @@ export default function ResiliencePage() {
     score: s.overallScore,
     calculatedAt: formatDate(s.calculatedAt),
   }));
-
-  const breakdown: Record<string, number> = score
-    ? {
-        availability: score.availability,
-        fault_tolerance: score.faultTolerance,
-        recoverability: score.recoverability,
-      }
-    : {};
-  const dimensionKeys = Object.keys(breakdown);
 
   return (
     <Grid fullWidth>
@@ -162,42 +152,19 @@ export default function ResiliencePage() {
 
       <Column lg={12} md={4} sm={4}>
         <Tile style={{ height: '100%' }}>
-          <h3 className={styles.sectionTitle}>Dimensional Scores</h3>
-          {scoreLoading ? (
-            <SkeletonText paragraph lineCount={4} />
-          ) : dimensionKeys.length === 0 ? (
-            <p style={{ color: 'var(--cds-text-secondary)', fontSize: 'var(--cds-label-01-font-size)' }}>
-              No dimensional data available.
-            </p>
-          ) : (
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--cds-spacing-05)' }}>
-              {dimensionKeys.map((key) => {
-                const val = breakdown[key] ?? 0;
-                const label = DIMENSION_LABELS[key] ?? key;
-                return (
-                  <div key={key}>
-                    <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 'var(--cds-spacing-02)' }}>
-                      <span style={{ fontSize: 'var(--cds-label-01-font-size)', color: 'var(--cds-text-secondary)' }}>{label}</span>
-                      <span style={{ fontSize: 'var(--cds-label-01-font-size)', fontWeight: 600, color: 'var(--cds-text-primary)' }}>
-                        {val}%
-                      </span>
-                    </div>
-                    <div style={{ height: 8, background: 'var(--cds-layer-02)', borderRadius: 4, overflow: 'hidden' }}>
-                      <div
-                        style={{
-                          height: '100%',
-                          width: `${Math.min(val, 100)}%`,
-                          background: val >= 80 ? 'var(--cds-support-success)' : val >= 60 ? 'var(--cds-support-warning)' : 'var(--cds-support-error)',
-                          borderRadius: 4,
-                          transition: 'width 0.4s ease',
-                        }}
-                      />
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
-          )}
+          <ResilienceDimensionPanel score={score} isLoading={scoreLoading} />
+        </Tile>
+      </Column>
+
+      <Column lg={16} md={8} sm={4} style={{ marginTop: 'var(--cds-spacing-06)' }}>
+        <Tile>
+          <ResilienceTrendPanel history={history} isLoading={scoreLoading} />
+        </Tile>
+      </Column>
+
+      <Column lg={16} md={8} sm={4} style={{ marginTop: 'var(--cds-spacing-06)' }}>
+        <Tile>
+          <ResilienceComparisonPanel history={history} isLoading={scoreLoading} />
         </Tile>
       </Column>
 

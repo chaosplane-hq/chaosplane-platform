@@ -1,6 +1,7 @@
 'use client';
 
 import dynamic from 'next/dynamic';
+import { useMemo, useState } from 'react';
 import {
   Grid,
   Column,
@@ -21,17 +22,26 @@ import {
   SkeletonText,
   InlineNotification,
   Tile,
+  Dropdown,
+  Tag,
 } from '@carbon/react';
 import { Checkmark } from '@carbon/icons-react';
 import { VizContainer } from '@/components/viz';
 import { useDefaultEnvironmentId } from '@/lib/hooks/use-environments';
+import { useExperiments } from '@/lib/hooks/use-experiments';
 import {
   useTopologyDependencies,
   useTopologyDrifts,
   useTopologyMetrics,
   useAcknowledgeDrift,
 } from '@/lib/hooks/use-topology';
-import type { ServiceDependency, TopologyDrift, TopologyMetric } from '@/lib/types';
+import { deriveFaultModel } from '@/lib/topology/fault-model';
+import type {
+  Experiment,
+  ServiceDependency,
+  TopologyDrift,
+  TopologyMetric,
+} from '@/lib/types';
 
 // d3-force measures the DOM, so load it client-only to keep it out of the
 // server bundle and avoid hydration drift (matches the viz-smoke pattern).
@@ -71,8 +81,37 @@ export default function TopologyPage() {
   const drifts = useTopologyDrifts(environmentId);
   const metrics = useTopologyMetrics(environmentId);
   const acknowledge = useAcknowledgeDrift();
+  const experiments = useExperiments({ limit: 50 });
 
   const dependencies = (deps.data?.dependencies ?? []) as ServiceDependency[];
+
+  const experimentList = useMemo<Experiment[]>(
+    () => experiments.data?.experiments ?? [],
+    [experiments.data],
+  );
+
+  const [selectedExperimentName, setSelectedExperimentName] = useState<string | null>(null);
+
+  // Default to a live experiment so the cascade is visible on first load without
+  // a manual pick; fall back to the most recent one otherwise.
+  const activeExperiment = useMemo<Experiment | null>(() => {
+    if (experimentList.length === 0) return null;
+    if (selectedExperimentName) {
+      return experimentList.find((e) => e.name === selectedExperimentName) ?? null;
+    }
+    return (
+      experimentList.find((e) => e.status.phase === 'Running') ??
+      experimentList.find((e) => e.status.phase === 'Pending') ??
+      experimentList[0]
+    );
+  }, [experimentList, selectedExperimentName]);
+
+  const faultModel = useMemo(
+    () => deriveFaultModel(activeExperiment, dependencies),
+    [activeExperiment, dependencies],
+  );
+
+  const impactedCount = faultModel ? faultModel.nodes.size : 0;
 
   const depRows = dependencies.map((d) => ({
     id: d.id,
@@ -125,15 +164,68 @@ export default function TopologyPage() {
         ) : deps.isError ? (
           <InlineNotification kind="error" title="Failed to load topology" subtitle="" />
         ) : (
-          <VizContainer
-            label={graphSummary}
-            height={560}
-            isLoading={deps.isLoading}
-            isEmpty={!deps.isLoading && dependencies.length === 0}
-            emptyLabel="No service dependencies discovered yet for this environment."
-          >
-            {(size) => <ServiceTopologyGraph size={size} dependencies={dependencies} />}
-          </VizContainer>
+          <>
+            {dependencies.length > 0 && experimentList.length > 0 && (
+              <div
+                style={{
+                  display: 'flex',
+                  alignItems: 'flex-end',
+                  flexWrap: 'wrap',
+                  gap: 'var(--cds-spacing-05)',
+                  marginBottom: 'var(--cds-spacing-04)',
+                }}
+              >
+                <div style={{ minWidth: '20rem' }}>
+                  <Dropdown
+                    id="fault-experiment"
+                    titleText="Fault propagation"
+                    label="Select an experiment"
+                    items={experimentList}
+                    selectedItem={activeExperiment}
+                    itemToString={(e) =>
+                      e ? `${e.name} · ${e.action.type} (${e.status.phase})` : ''
+                    }
+                    onChange={({ selectedItem }) =>
+                      setSelectedExperimentName(selectedItem?.name ?? null)
+                    }
+                  />
+                </div>
+                {faultModel && (
+                  <div
+                    style={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: 'var(--cds-spacing-03)',
+                      paddingBottom: '2px',
+                    }}
+                  >
+                    <Tag type={faultModel.recovered ? 'green' : 'red'} size="sm">
+                      {faultModel.recovered ? 'Recovered' : 'Cascading'}
+                    </Tag>
+                    <span style={{ color: 'var(--cds-text-secondary)', fontSize: '0.75rem' }}>
+                      {faultModel.sourceIds.length} source ·{' '}
+                      {Math.max(0, impactedCount - faultModel.sourceIds.length)} downstream impacted
+                    </span>
+                  </div>
+                )}
+              </div>
+            )}
+            <VizContainer
+              label={graphSummary}
+              height={560}
+              isLoading={deps.isLoading}
+              isEmpty={!deps.isLoading && dependencies.length === 0}
+              emptyLabel="No service dependencies discovered yet for this environment."
+            >
+              {(size) => (
+                <ServiceTopologyGraph
+                  size={size}
+                  dependencies={dependencies}
+                  faultModel={faultModel}
+                />
+              )}
+            </VizContainer>
+          </>
         )}
       </Column>
 

@@ -1,11 +1,13 @@
 package server
 
 import (
+	"context"
 	"log/slog"
 	"time"
 
 	"github.com/gin-gonic/gin"
 	"github.com/redis/go-redis/v9"
+	"golang.org/x/sync/errgroup"
 
 	"github.com/chaosplane-hq/chaosplane-platform/apps/api/internal/config"
 	"github.com/chaosplane-hq/chaosplane-platform/apps/api/internal/database"
@@ -18,6 +20,7 @@ type Server struct {
 	Router *gin.Engine
 	Config *config.Config
 	Pool   *database.Pool
+	RDB    *redis.Client
 }
 
 func New(
@@ -267,6 +270,7 @@ func New(
 		Router: r,
 		Config: cfg,
 		Pool:   pool,
+		RDB:    rdb,
 	}
 }
 
@@ -294,4 +298,21 @@ func NewRedisClient(cfg *config.Config) *redis.Client {
 	opts.MinRetryBackoff = 8 * time.Millisecond
 	opts.MaxRetryBackoff = 50 * time.Millisecond
 	return redis.NewClient(opts)
+}
+
+// WarmRedis fills the idle connection pool before traffic arrives. go-redis
+// opens connections lazily, so without this the first rate-limit checks pay the
+// full TLS handshake cost (~seconds against ElastiCache TLS) and fail open.
+func WarmRedis(ctx context.Context, rdb *redis.Client) error {
+	if rdb == nil {
+		return nil
+	}
+	n := max(rdb.Options().MinIdleConns, 1)
+	var g errgroup.Group
+	for i := 0; i < n; i++ {
+		g.Go(func() error {
+			return rdb.Ping(ctx).Err()
+		})
+	}
+	return g.Wait()
 }

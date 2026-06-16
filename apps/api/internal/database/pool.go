@@ -105,3 +105,43 @@ func (p *Pool) Close() {
 func (p *Pool) Ping(ctx context.Context) error {
 	return p.App.Ping(ctx)
 }
+
+// Warm eagerly establishes MinConns connections on both pools before the
+// server accepts traffic. pgxpool opens connections lazily, so the MinConns
+// floor is otherwise not reached until requests arrive, making the first hits
+// pay the multi-second TLS+auth cost of a fresh RDS connection.
+func (p *Pool) Warm(ctx context.Context) error {
+	if err := warmPool(ctx, p.App); err != nil {
+		return fmt.Errorf("warm app pool: %w", err)
+	}
+	if p.Superadmin != nil {
+		if err := warmPool(ctx, p.Superadmin); err != nil {
+			return fmt.Errorf("warm superadmin pool: %w", err)
+		}
+	}
+	return nil
+}
+
+// warmPool forces the pool to open MinConns physical connections by holding
+// each acquired connection until the next is acquired, so the pool cannot
+// satisfy them by reusing one idle connection.
+func warmPool(ctx context.Context, pool *pgxpool.Pool) error {
+	n := max(int(pool.Config().MinConns), 1)
+	conns := make([]*pgxpool.Conn, 0, n)
+	defer func() {
+		for _, c := range conns {
+			c.Release()
+		}
+	}()
+	for i := 0; i < n; i++ {
+		c, err := pool.Acquire(ctx)
+		if err != nil {
+			return err
+		}
+		if err := c.Ping(ctx); err != nil {
+			return err
+		}
+		conns = append(conns, c)
+	}
+	return nil
+}

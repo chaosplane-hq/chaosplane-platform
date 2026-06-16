@@ -23,6 +23,15 @@ func main() {
 	}
 	defer srv.Pool.Close()
 
+	warmCtx, warmCancel := context.WithTimeout(ctx, 15*time.Second)
+	if err := srv.Pool.Warm(warmCtx); err != nil {
+		slog.Warn("database pool warm-up incomplete, continuing", "error", err)
+	}
+	if err := server.WarmRedis(warmCtx, srv.RDB); err != nil {
+		slog.Warn("redis pool warm-up incomplete, continuing", "error", err)
+	}
+	warmCancel()
+
 	workerCtx, workerCancel := context.WithCancel(ctx)
 	defer workerCancel()
 

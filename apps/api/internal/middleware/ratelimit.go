@@ -21,7 +21,7 @@ type RateLimiterConfig struct {
 
 func DefaultRateLimiterConfig() RateLimiterConfig {
 	return RateLimiterConfig{
-		RequestsPerSecond: 10,
+		RequestsPerSecond: 30,
 		Window:            time.Second,
 	}
 }
@@ -111,7 +111,7 @@ func tenantRateLimit(ctx context.Context, pool *pgxpool.Pool, tenantID string, f
 	}
 	switch strings.ToLower(strings.TrimSpace(plan)) {
 	case "free":
-		return 10, nil
+		return 30, nil
 	case "team":
 		return 50, nil
 	case "business":

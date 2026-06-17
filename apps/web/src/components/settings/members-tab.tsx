@@ -74,7 +74,7 @@ export function MembersTab() {
 
   const members = membersData?.items ?? [];
   const invitations = invitesData?.items ?? [];
-  const organizationId = hierarchy?.organizations[0]?.id;
+  const organizationId = hierarchy?.organizations?.[0]?.id;
 
   async function handleInvite() {
     if (!email) return;

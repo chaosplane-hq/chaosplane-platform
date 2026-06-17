@@ -88,8 +88,8 @@ export function AppHeader() {
         </HeaderPanel>
       </Header>
       <AppSidebar
-        isExpanded={isSideNavExpanded}
-        onToggle={() => setIsSideNavExpanded(false)}
+        isSideNavExpanded={isSideNavExpanded}
+        onOverlayClose={() => setIsSideNavExpanded(false)}
       />
     </>
   );

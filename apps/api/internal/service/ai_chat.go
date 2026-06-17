@@ -155,7 +155,7 @@ func (s *AIChatService) SendMessage(ctx context.Context, actor ActorContext, ses
 
 	assistantContent, err := s.generateResponse(ctx, sessionID, req.Content)
 	if err != nil {
-		assistantContent = fmt.Sprintf("Error generating response: %v", err)
+		assistantContent = "I'm unable to generate a response right now. Please try again later."
 	}
 
 	var assistantMsg ChatMessage

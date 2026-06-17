@@ -19,6 +19,10 @@ import {
   Warning,
 } from '@carbon/icons-react';
 import { useTestAgentConnection, useQuickSetup } from '@/lib/hooks/use-onboarding';
+import { useHierarchy, usePatchOrganization, usePatchWorkspace } from '@/lib/hooks/use-hierarchy';
+import { useCreateInvitation } from '@/lib/hooks/use-invitations';
+import { useCreateAgentToken } from '@/lib/hooks/use-agents';
+import { useDefaultEnvironmentId } from '@/lib/hooks/use-environments';
 import type { OnboardingStepId } from '@/lib/types';
 import styles from './steps.module.scss';
 
@@ -67,6 +71,22 @@ export const STEP_META: Record<OnboardingStepId, { label: string; description: s
 
 export function StepOrg({ onNext, onSkip }: StepProps) {
   const [name, setName] = useState('');
+  const { data } = useHierarchy();
+  const patchOrg = usePatchOrganization();
+
+  const org = data?.organizations?.[0];
+
+  const handleContinue = () => {
+    if (!org) {
+      onNext();
+      return;
+    }
+    patchOrg.mutate(
+      { id: org.id, data: { name: name.trim() } },
+      { onSuccess: () => onNext() },
+    );
+  };
+
   return (
     <div className={styles.step}>
       <p className={styles.desc}>
@@ -79,8 +99,18 @@ export function StepOrg({ onNext, onSkip }: StepProps) {
         value={name}
         onChange={(e) => setName(e.target.value)}
       />
+      {patchOrg.isError && (
+        <InlineNotification
+          kind="error"
+          title="Failed to update organization"
+          subtitle={(patchOrg.error as Error).message}
+          lowContrast
+        />
+      )}
       <div className={styles.actions}>
-        <Button onClick={onNext} disabled={!name.trim()}>Continue</Button>
+        <Button onClick={handleContinue} disabled={!name.trim() || patchOrg.isPending}>
+          {patchOrg.isPending ? 'Saving…' : 'Continue'}
+        </Button>
         {onSkip && <Button kind="ghost" onClick={onSkip}>Skip</Button>}
       </div>
     </div>
@@ -89,6 +119,22 @@ export function StepOrg({ onNext, onSkip }: StepProps) {
 
 export function StepWorkspace({ onNext, onSkip }: StepProps) {
   const [name, setName] = useState('');
+  const { data } = useHierarchy();
+  const patchWorkspace = usePatchWorkspace();
+
+  const workspace = data?.organizations?.[0]?.workspaces?.[0];
+
+  const handleContinue = () => {
+    if (!workspace) {
+      onNext();
+      return;
+    }
+    patchWorkspace.mutate(
+      { id: workspace.id, data: { name: name.trim() } },
+      { onSuccess: () => onNext() },
+    );
+  };
+
   return (
     <div className={styles.step}>
       <p className={styles.desc}>
@@ -101,8 +147,18 @@ export function StepWorkspace({ onNext, onSkip }: StepProps) {
         value={name}
         onChange={(e) => setName(e.target.value)}
       />
+      {patchWorkspace.isError && (
+        <InlineNotification
+          kind="error"
+          title="Failed to update workspace"
+          subtitle={(patchWorkspace.error as Error).message}
+          lowContrast
+        />
+      )}
       <div className={styles.actions}>
-        <Button onClick={onNext} disabled={!name.trim()}>Continue</Button>
+        <Button onClick={handleContinue} disabled={!name.trim() || patchWorkspace.isPending}>
+          {patchWorkspace.isPending ? 'Saving…' : 'Continue'}
+        </Button>
         {onSkip && <Button kind="ghost" onClick={onSkip}>Skip</Button>}
       </div>
     </div>
@@ -133,6 +189,22 @@ export function StepTeam({ onNext, onSkip }: StepProps) {
 
 export function StepInviteMember({ onNext, onSkip }: StepProps) {
   const [email, setEmail] = useState('');
+  const createInvitation = useCreateInvitation();
+  const { data: hierarchy } = useHierarchy();
+
+  const orgId = hierarchy?.organizations?.[0]?.id;
+
+  const handleContinue = () => {
+    if (!email.trim() || !orgId) {
+      onNext();
+      return;
+    }
+    createInvitation.mutate(
+      { email: email.trim(), organizationId: orgId, role: 'member' },
+      { onSuccess: () => onNext() },
+    );
+  };
+
   return (
     <div className={styles.step}>
       <p className={styles.desc}>
@@ -146,9 +218,17 @@ export function StepInviteMember({ onNext, onSkip }: StepProps) {
         value={email}
         onChange={(e) => setEmail(e.target.value)}
       />
+      {createInvitation.isError && (
+        <InlineNotification
+          kind="error"
+          title="Failed to send invitation"
+          subtitle={(createInvitation.error as Error).message}
+          lowContrast
+        />
+      )}
       <div className={styles.actions}>
-        <Button onClick={onNext}>
-          {email.trim() ? 'Send Invite & Continue' : 'Continue'}
+        <Button onClick={handleContinue} disabled={createInvitation.isPending}>
+          {createInvitation.isPending ? 'Sending…' : email.trim() ? 'Send Invite & Continue' : 'Continue'}
         </Button>
         {onSkip && <Button kind="ghost" onClick={onSkip}>Skip</Button>}
       </div>
@@ -158,16 +238,65 @@ export function StepInviteMember({ onNext, onSkip }: StepProps) {
 
 export function StepConnectCluster({ onNext, onSkip }: StepProps) {
   const { mutate: testConnection, isPending, data, error, reset } = useTestAgentConnection();
+  const { environmentId } = useDefaultEnvironmentId();
+  const createToken = useCreateAgentToken();
+
+  const platformUrl = typeof window !== 'undefined' ? window.location.origin : 'https://app.chaosplane.dev';
+
+  const handleGenerateToken = () => {
+    if (!environmentId) return;
+    createToken.mutate({ environmentId, name: 'onboarding-agent' });
+  };
+
+  const helmCommand = createToken.data?.plaintext
+    ? `helm repo add chaosplane https://charts.chaosplane.dev
+helm install chaosplane-agent chaosplane/agent \\
+  --namespace chaosplane-system --create-namespace \\
+  --set agent.token="${createToken.data.plaintext}" \\
+  --set agent.platformUrl="${platformUrl}" \\
+  --set agent.environmentId="${environmentId}"`
+    : `helm repo add chaosplane https://charts.chaosplane.dev
+helm install chaosplane-agent chaosplane/agent \\
+  --namespace chaosplane-system --create-namespace`;
 
   return (
     <div className={styles.step}>
       <p className={styles.desc}>
         Install the ChaosPlane agent in your Kubernetes cluster to start running experiments.
       </p>
+      {!createToken.data?.plaintext && (
+        <div className={styles.actions} style={{ marginBottom: '1rem' }}>
+          <Button
+            kind="tertiary"
+            onClick={handleGenerateToken}
+            disabled={createToken.isPending || !environmentId}
+          >
+            {createToken.isPending ? 'Generating…' : 'Generate Agent Token'}
+          </Button>
+        </div>
+      )}
+      {createToken.isError && (
+        <InlineNotification
+          kind="error"
+          title="Failed to generate token"
+          subtitle={(createToken.error as Error).message}
+          lowContrast
+        />
+      )}
+      {createToken.data?.plaintext && (
+        <InlineNotification
+          kind="info"
+          title="Token generated"
+          subtitle="Copy the Helm command below. The token is shown only once."
+          lowContrast
+          hideCloseButton
+          style={{ marginBottom: '1rem' }}
+        />
+      )}
       <Tile className={styles.codeTile}>
         <p className={styles.codeLabel}>Install via Helm</p>
         <pre className={styles.code}>
-          {`helm repo add chaosplane https://charts.chaosplane.dev\nhelm install chaosplane-agent chaosplane/agent \\\n  --namespace chaosplane-system --create-namespace`}
+          {helmCommand}
         </pre>
       </Tile>
       {data && (

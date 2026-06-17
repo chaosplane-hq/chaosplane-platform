@@ -106,16 +106,18 @@ export default function FederationPage() {
                 <Table {...getTableProps()}>
                   <TableHead>
                     <TableRow>
-                      {tableHeaders.map((h) => (
-                        <TableHeader {...getHeaderProps({ header: h })}>{h.header}</TableHeader>
-                      ))}
+                      {tableHeaders.map((h) => {
+                        const { key, ...props } = getHeaderProps({ header: h });
+                        return <TableHeader key={key} {...props}>{h.header}</TableHeader>;
+                      })}
                     </TableRow>
                   </TableHead>
                   <TableBody>
                     {tableRows.map((row) => {
                       const cluster = (data?.items ?? []).find((c: FederatedCluster) => c.id === row.id);
+                      const { key: rowKey, ...rowProps } = getRowProps({ row });
                       return (
-                        <TableRow {...getRowProps({ row })}>
+                        <TableRow key={rowKey} {...rowProps}>
                           {row.cells.map((cell) => {
                             if (cell.info.header === 'status') {
                               return (

@@ -28,8 +28,8 @@ import { usePathname } from 'next/navigation';
 import Link from 'next/link';
 
 interface AppSidebarProps {
-  isExpanded: boolean;
-  onToggle: () => void;
+  isSideNavExpanded: boolean;
+  onOverlayClose: () => void;
 }
 
 const navItems = [
@@ -52,14 +52,15 @@ const navItems = [
   { href: '/settings', label: 'Settings', icon: Settings },
 ];
 
-export function AppSidebar({ isExpanded, onToggle }: AppSidebarProps) {
+export function AppSidebar({ isSideNavExpanded, onOverlayClose }: AppSidebarProps) {
   const pathname = usePathname();
 
   return (
     <SideNav
       aria-label="Side navigation"
-      expanded={isExpanded}
-      onSideNavBlur={onToggle}
+      expanded={isSideNavExpanded}
+      onOverlayClick={onOverlayClose}
+      onSideNavBlur={onOverlayClose}
     >
       <SideNavItems>
         {navItems.map(({ href, label, icon: Icon }) => (

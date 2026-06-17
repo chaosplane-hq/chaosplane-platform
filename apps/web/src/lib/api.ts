@@ -181,6 +181,8 @@ export const onboardingApi = {
 export const agentsApi = {
   testConnection: () =>
     apiFetch<AgentTestConnectionResponse>('/api/v1/agents/test-connection', { method: 'POST' }),
+  createToken: (data: { environmentId: string; name: string }) =>
+    apiFetch<{ id: string; environmentId: string; name: string; plaintext: string; createdAt: string }>('/api/v1/agent-tokens', { method: 'POST', body: JSON.stringify(data) }),
 };
 
 export const invitationsApi = {

@@ -121,7 +121,7 @@ func (h *BillingHandler) verifyWebhookSignature(gateway string, headers http.Hea
 func (h *BillingHandler) verifyStripeSignature(headers http.Header, body []byte) error {
 	secret := h.cfg.StripeWebhookSecret
 	if secret == "" {
-		return nil
+		return fmt.Errorf("stripe webhook secret not configured")
 	}
 	sigHeader := headers.Get("Stripe-Signature")
 	if sigHeader == "" {
@@ -167,7 +167,7 @@ func (h *BillingHandler) verifyStripeSignature(headers http.Header, body []byte)
 func (h *BillingHandler) verifyTossSignature(headers http.Header, body []byte) error {
 	secret := h.cfg.TossWebhookSecret
 	if secret == "" {
-		return nil
+		return fmt.Errorf("toss webhook secret not configured")
 	}
 	sig := headers.Get("Toss-Signature")
 	if sig == "" {
@@ -187,7 +187,7 @@ func (h *BillingHandler) verifyTossSignature(headers http.Header, body []byte) e
 func (h *BillingHandler) verifyDodoSignature(headers http.Header, body []byte) error {
 	secret := h.cfg.DodoWebhookSecret
 	if secret == "" {
-		return nil
+		return fmt.Errorf("dodo webhook secret not configured")
 	}
 	sig := headers.Get("X-Dodo-Signature")
 	if sig == "" {

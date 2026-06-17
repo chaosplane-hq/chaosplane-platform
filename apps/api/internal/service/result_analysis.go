@@ -102,10 +102,7 @@ func (s *ResultAnalysisService) Get(ctx context.Context, actor ActorContext, ana
 }
 
 func (s *ResultAnalysisService) Analyze(ctx context.Context, tenantID string, req *AnalyzeResultRequest) (*ResultAnalysis, error) {
-	summary := fmt.Sprintf("Experiment '%s' completed.", req.ExperimentName)
-	impact := "Impact analysis pending."
-	recommendations := "Recommendations pending."
-	severity := "low"
+	var summary, impact, recommendations, severity string
 
 	if s.llm != nil && s.llm.IsConfigured() {
 		prompt := fmt.Sprintf("Analyze the chaos experiment '%s'. Provide: 1) A brief summary 2) Impact analysis 3) Recommendations for improvement. Be concise and technical.", req.ExperimentName)
@@ -114,7 +111,18 @@ func (s *ResultAnalysisService) Analyze(ctx context.Context, tenantID string, re
 			summary = resp
 			impact = "See summary above."
 			recommendations = "See summary above."
+			severity = "low"
+		} else {
+			summary = fmt.Sprintf("Experiment '%s' completed. LLM analysis failed: %v", req.ExperimentName, err)
+			impact = "Automated impact analysis unavailable."
+			recommendations = "Review experiment metrics manually."
+			severity = "unknown"
 		}
+	} else {
+		summary = fmt.Sprintf("Experiment '%s' completed successfully.", req.ExperimentName)
+		impact = "AI-powered impact analysis is not configured. Configure an LLM provider in Settings to enable automated analysis."
+		recommendations = "Review experiment logs and metrics manually, or configure an LLM provider for automated recommendations."
+		severity = "unknown"
 	}
 
 	affectedServices := "[]"

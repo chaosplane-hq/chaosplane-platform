@@ -22,13 +22,14 @@ const (
 )
 
 type WebSocketHandler struct {
-	svc  *service.ExperimentService
-	auth *service.AuthService
-	pool *database.Pool
+	svc     *service.ExperimentService
+	auth    *service.AuthService
+	pool    *database.Pool
+	limiter *ConnectionLimiter
 }
 
 func NewWebSocketHandler(svc *service.ExperimentService, auth *service.AuthService, pool *database.Pool) *WebSocketHandler {
-	return &WebSocketHandler{svc: svc, auth: auth, pool: pool}
+	return &WebSocketHandler{svc: svc, auth: auth, pool: pool, limiter: NewConnectionLimiter()}
 }
 
 func (h *WebSocketHandler) ExperimentStatus(c *gin.Context) {
@@ -44,6 +45,13 @@ func (h *WebSocketHandler) ExperimentStatus(c *gin.Context) {
 		c.JSON(http.StatusUnauthorized, gin.H{"error": "invalid access token"})
 		return
 	}
+
+	if !h.limiter.Acquire(claims.Subject) {
+		c.JSON(http.StatusTooManyRequests, gin.H{"error": "too many WebSocket connections"})
+		return
+	}
+	defer h.limiter.Release(claims.Subject)
+
 	actor := service.ActorContext{UserID: claims.Subject, TenantID: claims.TenantID}
 
 	conn, err := websocket.Accept(c.Writer, c.Request, &websocket.AcceptOptions{

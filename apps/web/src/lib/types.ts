@@ -517,7 +517,7 @@ export interface CreateProjectRequest { name: string; workspaceId: string }
 export interface CreateEnvironmentRequest { name: string; projectId: string }
 
 export interface PatchOrganizationRequest { name?: string }
-export interface PatchWorkspaceRequest { name?: string }
+export interface PatchWorkspaceRequest { name?: string; slug?: string }
 export interface PatchProjectRequest { name?: string }
 export interface PatchEnvironmentRequest { name?: string }
 

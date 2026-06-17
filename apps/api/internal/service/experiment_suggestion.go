@@ -4,7 +4,6 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"strings"
 	"time"
 
 	"github.com/chaosplane-hq/chaosplane-platform/apps/api/internal/database"
@@ -81,11 +80,11 @@ func (s *ExperimentSuggestionService) Generate(ctx context.Context, tenantID str
 		return nil, err
 	}
 
-	bestPractices := s.getBestPracticeSuggestions(req.EnvironmentID)
+	bestPractices := s.getBestPracticeSuggestions(ctx, tenantID, req.EnvironmentID)
 
 	count := 0
 	for _, f := range vulnFindings {
-		if f.SuggestedExperiment == nil || len(f.SuggestedExperiment) == 0 {
+		if len(f.SuggestedExperiment) == 0 {
 			continue
 		}
 		var exp struct {
@@ -175,31 +174,88 @@ func (s *ExperimentSuggestionService) getOpenFindings(ctx context.Context, tenan
 	return items, rows.Err()
 }
 
-func (s *ExperimentSuggestionService) getBestPracticeSuggestions(environmentID string) []ExperimentSuggestion {
-	return []ExperimentSuggestion{
-		{
-			Source: "best_practice", Title: "Random pod termination",
-			Description: "Verify that your services recover gracefully from random pod failures.",
-			ActionType:  "pod-kill", TargetNamespace: "default", TargetName: "*",
-			Duration:   "60s",
-			Parameters: json.RawMessage(`{"mode":"random-max-percent","value":"25"}`),
-			Confidence: 0.9,
-		},
-		{
-			Source: "best_practice", Title: "Network latency injection",
-			Description: "Test service behavior under degraded network conditions.",
-			ActionType:  "network-delay", TargetNamespace: "default", TargetName: "*",
-			Duration:   "120s",
-			Parameters: json.RawMessage(`{"latency":"200ms","jitter":"50ms"}`),
-			Confidence: 0.85,
-		},
-		{
-			Source: "best_practice", Title: "DNS failure simulation",
-			Description: strings.ReplaceAll("Verify DNS failure handling and fallback mechanisms.", "'", ""),
-			ActionType:  "pod-dns-error", TargetNamespace: "default", TargetName: "*",
-			Duration:   "30s",
-			Parameters: json.RawMessage(`{"domains":"*.external.com"}`),
-			Confidence: 0.75,
-		},
+func (s *ExperimentSuggestionService) getBestPracticeSuggestions(ctx context.Context, tenantID, environmentID string) []ExperimentSuggestion {
+	type topoEntry struct {
+		Namespace string
+		Name      string
+		Kind      string
 	}
+	var targets []topoEntry
+
+	rows, err := s.pool.Conn(ctx).Query(ctx, `
+		SELECT DISTINCT
+			COALESCE(elem->>'namespace', 'default') AS ns,
+			elem->>'name' AS name,
+			elem->>'kind' AS kind
+		FROM topology_snapshots,
+			jsonb_array_elements(services) AS elem
+		WHERE environment_id = $1::uuid AND tenant_id = $2::uuid
+		ORDER BY ns, name
+		LIMIT 20
+	`, environmentID, tenantID)
+	if err == nil {
+		defer rows.Close()
+		for rows.Next() {
+			var t topoEntry
+			if err := rows.Scan(&t.Namespace, &t.Name, &t.Kind); err == nil && t.Name != "" {
+				targets = append(targets, t)
+			}
+		}
+	}
+
+	if len(targets) == 0 {
+		return []ExperimentSuggestion{
+			{
+				Source: "best_practice", Title: "Random pod termination",
+				Description: "Verify that your services recover gracefully from random pod failures.",
+				ActionType:  "pod-kill", TargetNamespace: "default", TargetName: "*",
+				Duration:   "60s",
+				Parameters: json.RawMessage(`{"mode":"random-max-percent","value":"25"}`),
+				Confidence: 0.7,
+			},
+			{
+				Source: "best_practice", Title: "Network latency injection",
+				Description: "Test service behavior under degraded network conditions.",
+				ActionType:  "network-delay", TargetNamespace: "default", TargetName: "*",
+				Duration:   "120s",
+				Parameters: json.RawMessage(`{"latency":"200ms","jitter":"50ms"}`),
+				Confidence: 0.65,
+			},
+		}
+	}
+
+	var suggestions []ExperimentSuggestion
+	for i, t := range targets {
+		if i >= 5 {
+			break
+		}
+		suggestions = append(suggestions, ExperimentSuggestion{
+			Source:          "topology",
+			Title:           fmt.Sprintf("Pod kill: %s/%s", t.Namespace, t.Name),
+			Description:     fmt.Sprintf("Terminate pods of %s in namespace %s to verify recovery and failover.", t.Name, t.Namespace),
+			ActionType:      "pod-kill",
+			TargetNamespace: t.Namespace,
+			TargetName:      t.Name,
+			Duration:        "60s",
+			Parameters:      json.RawMessage(`{"mode":"one"}`),
+			Confidence:      0.9,
+		})
+	}
+
+	if len(targets) > 0 {
+		t := targets[0]
+		suggestions = append(suggestions, ExperimentSuggestion{
+			Source:          "topology",
+			Title:           fmt.Sprintf("Network delay: %s/%s", t.Namespace, t.Name),
+			Description:     fmt.Sprintf("Inject 200ms latency into %s to observe cascading effects on dependent services.", t.Name),
+			ActionType:      "network-delay",
+			TargetNamespace: t.Namespace,
+			TargetName:      t.Name,
+			Duration:        "120s",
+			Parameters:      json.RawMessage(`{"latency":"200ms","jitter":"50ms"}`),
+			Confidence:      0.85,
+		})
+	}
+
+	return suggestions
 }

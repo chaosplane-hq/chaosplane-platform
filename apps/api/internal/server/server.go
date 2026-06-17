@@ -90,6 +90,7 @@ func New(
 	}
 
 	agentPublic := r.Group("/agent")
+	agentPublic.Use(middleware.AgentAuth(pool.App))
 	{
 		agentPublic.POST("/register", agent.Register)
 		agentPublic.POST("/heartbeat", agent.Heartbeat)

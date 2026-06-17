@@ -1,6 +1,7 @@
 package middleware
 
 import (
+	"context"
 	"log/slog"
 	"strings"
 	"time"
@@ -31,12 +32,21 @@ func AuditLog(pool *pgxpool.Pool) gin.HandlerFunc {
 		action := deriveAction(c.Request.Method, c.FullPath())
 		resourceType, resourceID := deriveResource(c)
 
+		// Capture values before launching goroutine since request context will be cancelled
+		ip := c.ClientIP()
+		ua := c.Request.UserAgent()
+		method := c.Request.Method
+		path := c.Request.URL.Path
+		status := c.Writer.Status()
+
 		go func() {
-			_, err := pool.Exec(c.Request.Context(), `
+			ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+			defer cancel()
+			_, err := pool.Exec(ctx, `
 				INSERT INTO audit_logs (tenant_id, user_id, action, resource_type, resource_id, ip_address, user_agent, request_method, request_path, response_status)
 				VALUES ($1::uuid, NULLIF($2, '')::uuid, $3, $4, NULLIF($5, ''), $6::inet, $7, $8, $9, $10)
 			`, tenantStr, userStr, action, resourceType, resourceID,
-				c.ClientIP(), c.Request.UserAgent(), c.Request.Method, c.Request.URL.Path, c.Writer.Status())
+				ip, ua, method, path, status)
 			if err != nil {
 				slog.Error("audit log write failed", "error", err, "action", action)
 			}

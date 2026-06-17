@@ -249,7 +249,7 @@ export function SecurityTab() {
             <p style={{ color: 'var(--cds-text-secondary)', fontSize: 'var(--cds-label-01-font-size)', margin: 0 }}>
               Remaining codes: <strong style={{ color: 'var(--cds-text-primary)' }}>{mfaData?.remaining ?? 0}</strong>
             </p>
-            {mfaData && mfaData.codes.length > 0 && (
+            {mfaData?.codes && mfaData.codes.length > 0 && (
               <CodeSnippet type="multi" feedback="Copied!">
                 {mfaData.codes.join('\n')}
               </CodeSnippet>

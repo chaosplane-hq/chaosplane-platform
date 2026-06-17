@@ -57,8 +57,20 @@ func (h *TopologyHandler) Submit(c *gin.Context) {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
 	}
-	tenantID, _ := c.Get("tenant_id")
-	resp, err := h.svc.Submit(c.Request.Context(), tenantID.(string), &req)
+	tenantID, exists := c.Get("tenant_id")
+	var tid string
+	if exists && tenantID != nil {
+		tid = tenantID.(string)
+	}
+	if tid == "" {
+		resolved, err := h.svc.TenantIDFromEnvironment(c.Request.Context(), req.EnvironmentID)
+		if err != nil {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "invalid environmentId"})
+			return
+		}
+		tid = resolved
+	}
+	resp, err := h.svc.Submit(c.Request.Context(), tid, &req)
 	if err != nil {
 		writeHierarchyError(c, err)
 		return

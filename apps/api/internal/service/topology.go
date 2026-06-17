@@ -103,6 +103,15 @@ func (s *TopologyService) List(ctx context.Context, actor ActorContext, environm
 	return &ListTopologyResponse{Items: items}, rows.Err()
 }
 
+func (s *TopologyService) TenantIDFromEnvironment(ctx context.Context, environmentID string) (string, error) {
+	var tenantID string
+	err := s.pool.Conn(ctx).QueryRow(ctx, `SELECT tenant_id::text FROM environments WHERE id = $1::uuid AND deleted_at IS NULL`, environmentID).Scan(&tenantID)
+	if err != nil {
+		return "", fmt.Errorf("resolve tenant from environment: %w", err)
+	}
+	return tenantID, nil
+}
+
 func (s *TopologyService) Submit(ctx context.Context, tenantID string, req *SubmitTopologyRequest) (*TopologySnapshot, error) {
 	defaultJSON := func(raw json.RawMessage) string {
 		if len(raw) == 0 {

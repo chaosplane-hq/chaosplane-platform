@@ -41,7 +41,8 @@ export default function ExperimentDetailPage({ params }: PageProps) {
   const { data: experiment, isLoading, error, refetch } = useExperiment(name);
   const abortMutation = useAbortExperiment();
   const deleteMutation = useDeleteExperiment();
-  const { lastMessage, connected } = useExperimentWs(name);
+  const isActive = experiment?.status.phase === 'Running' || experiment?.status.phase === 'Pending';
+  const { lastMessage, connected } = useExperimentWs(isActive ? name : '');
 
   useEffect(() => {
     if (lastMessage) refetch();

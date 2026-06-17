@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import {
   Tile,
   Button,
@@ -25,7 +25,9 @@ import {
 } from '@carbon/react';
 import { Download } from '@carbon/icons-react';
 import { useAuditLogs, useAuditExports, useCreateAuditExport } from '@/lib/hooks/use-audit';
-import type { AuditLogListParams } from '@/lib/types';
+import { useQuery } from '@tanstack/react-query';
+import { invitationsApi } from '@/lib/api';
+import type { AuditLogListParams, TeamMember } from '@/lib/types';
 
 const logHeaders = [
   { key: 'action', header: 'Action' },
@@ -47,6 +49,19 @@ export function AuditLogsTab() {
   const { data, isLoading } = useAuditLogs(filters);
   const { data: exportsData, isLoading: exportsLoading } = useAuditExports();
   const createExport = useCreateAuditExport();
+  const { data: membersData } = useQuery({
+    queryKey: ['members'],
+    queryFn: () => invitationsApi.listMembers(),
+    staleTime: 60_000,
+  });
+
+  const memberMap = useMemo(() => {
+    const map = new Map<string, string>();
+    for (const m of membersData?.items ?? []) {
+      map.set(m.id, m.name || m.email);
+    }
+    return map;
+  }, [membersData]);
 
   const [exportError, setExportError] = useState('');
 
@@ -57,7 +72,7 @@ export function AuditLogsTab() {
     id: l.id,
     action: l.action,
     resource: l.resourceId ? `${l.resourceType}/${l.resourceId}` : l.resourceType,
-    userEmail: l.userId ?? '—',
+    userEmail: l.userId ? (memberMap.get(l.userId) ?? l.userId) : '—',
     createdAt: formatDate(l.createdAt),
   }));
 

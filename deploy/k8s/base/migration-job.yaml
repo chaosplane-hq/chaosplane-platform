@@ -1,7 +1,7 @@
 apiVersion: batch/v1
 kind: Job
 metadata:
-  name: migrate
+  name: migrate-9867d18
   namespace: chaosplane-system
   annotations:
     argocd.argoproj.io/hook: PreSync

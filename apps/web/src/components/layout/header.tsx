@@ -21,9 +21,13 @@ export function AppHeader() {
   const [isSideNavExpanded, setIsSideNavExpanded] = useState(false);
   const [isUserPanelOpen, setIsUserPanelOpen] = useState(false);
   const [user, setUser] = useState<CurrentUserResponse | null>(null);
+  const [userLoading, setUserLoading] = useState(true);
 
   useEffect(() => {
-    getCurrentUser().then(setUser).catch(() => setUser(null));
+    getCurrentUser()
+      .then(setUser)
+      .catch(() => setUser(null))
+      .finally(() => setUserLoading(false));
   }, []);
 
   async function handleLogout() {
@@ -58,9 +62,9 @@ export function AppHeader() {
         </HeaderGlobalBar>
         <HeaderPanel expanded={isUserPanelOpen}>
           <div style={{ padding: 'var(--cds-spacing-05)', color: 'var(--cds-text-primary)' }}>
-            <p style={{ margin: 0, fontWeight: 600 }}>{user?.user.name ?? 'Not signed in'}</p>
+            <p style={{ margin: 0, fontWeight: 600 }}>{userLoading ? '' : (user?.user.name ?? 'Not signed in')}</p>
             <p style={{ margin: '4px 0 0', fontSize: '0.875rem', color: 'var(--cds-text-secondary)' }}>
-              {user?.user.email ?? ''}
+              {userLoading ? '' : (user?.user.email ?? '')}
             </p>
             {user?.tenant && (
               <p style={{ margin: '4px 0 0', fontSize: '0.75rem', color: 'var(--cds-text-helper)' }}>

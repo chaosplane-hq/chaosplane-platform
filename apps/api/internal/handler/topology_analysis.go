@@ -10,11 +10,12 @@ import (
 )
 
 type TopologyAnalysisHandler struct {
-	svc *service.TopologyAnalysisService
+	svc     *service.TopologyAnalysisService
+	topoSvc *service.TopologyService
 }
 
-func NewTopologyAnalysisHandler(svc *service.TopologyAnalysisService) *TopologyAnalysisHandler {
-	return &TopologyAnalysisHandler{svc: svc}
+func NewTopologyAnalysisHandler(svc *service.TopologyAnalysisService, topoSvc *service.TopologyService) *TopologyAnalysisHandler {
+	return &TopologyAnalysisHandler{svc: svc, topoSvc: topoSvc}
 }
 
 func (h *TopologyAnalysisHandler) GetDependencyMap(c *gin.Context) {
@@ -86,8 +87,19 @@ func (h *TopologyAnalysisHandler) SubmitDependencies(c *gin.Context) {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
 	}
-	tenantID, _ := c.Get("tenant_id")
-	count, err := h.svc.SubmitDependencies(c.Request.Context(), tenantID.(string), &req)
+	var tid string
+	if v, exists := c.Get("tenant_id"); exists && v != nil {
+		tid = v.(string)
+	}
+	if tid == "" {
+		resolved, err := h.topoSvc.TenantIDFromEnvironment(c.Request.Context(), req.EnvironmentID)
+		if err != nil {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "invalid environmentId"})
+			return
+		}
+		tid = resolved
+	}
+	count, err := h.svc.SubmitDependencies(c.Request.Context(), tid, &req)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
@@ -101,8 +113,19 @@ func (h *TopologyAnalysisHandler) SubmitMetrics(c *gin.Context) {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
 	}
-	tenantID, _ := c.Get("tenant_id")
-	count, err := h.svc.SubmitMetrics(c.Request.Context(), tenantID.(string), &req)
+	var tid string
+	if v, exists := c.Get("tenant_id"); exists && v != nil {
+		tid = v.(string)
+	}
+	if tid == "" {
+		resolved, err := h.topoSvc.TenantIDFromEnvironment(c.Request.Context(), req.EnvironmentID)
+		if err != nil {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "invalid environmentId"})
+			return
+		}
+		tid = resolved
+	}
+	count, err := h.svc.SubmitMetrics(c.Request.Context(), tid, &req)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
@@ -116,8 +139,19 @@ func (h *TopologyAnalysisHandler) SubmitDrift(c *gin.Context) {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
 	}
-	tenantID, _ := c.Get("tenant_id")
-	resp, err := h.svc.SubmitDrift(c.Request.Context(), tenantID.(string), &req)
+	var tid string
+	if v, exists := c.Get("tenant_id"); exists && v != nil {
+		tid = v.(string)
+	}
+	if tid == "" {
+		resolved, err := h.topoSvc.TenantIDFromEnvironment(c.Request.Context(), req.EnvironmentID)
+		if err != nil {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "invalid environmentId"})
+			return
+		}
+		tid = resolved
+	}
+	resp, err := h.svc.SubmitDrift(c.Request.Context(), tid, &req)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return

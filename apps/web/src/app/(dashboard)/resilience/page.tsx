@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import {
   Grid,
   Column,
@@ -22,6 +22,7 @@ import {
 } from '@carbon/react';
 import { Renew } from '@carbon/icons-react';
 import { useResilienceScore, useCalculateResilienceScore } from '@/lib/hooks/use-resilience';
+import { useEnvironmentsList } from '@/lib/hooks/use-environments';
 import type { ResilienceGrade, ResilienceScore } from '@/lib/types';
 import {
   ResilienceDimensionPanel,
@@ -50,7 +51,14 @@ function formatDate(iso?: string) {
 }
 
 export default function ResiliencePage() {
+  const { data: environments = [], isLoading: envsLoading } = useEnvironmentsList();
   const [environmentId, setEnvironmentId] = useState('');
+
+  useEffect(() => {
+    if (!environmentId && environments.length > 0) {
+      setEnvironmentId(environments[0].id);
+    }
+  }, [environments, environmentId]);
 
   const params = environmentId ? { environmentId } : undefined;
   const { data, isLoading: scoreLoading } = useResilienceScore(params);
@@ -93,14 +101,20 @@ export default function ResiliencePage() {
               onChange={(e) => setEnvironmentId(e.target.value)}
               style={{ minWidth: 200 }}
             >
-              <SelectItem value="" text="All environments" />
-              <SelectItem value="production" text="Production" />
-              <SelectItem value="staging" text="Staging" />
+              {envsLoading ? (
+                <SelectItem value="" text="Loading…" />
+              ) : environments.length === 0 ? (
+                <SelectItem value="" text="No environments" />
+              ) : (
+                environments.map((env) => (
+                  <SelectItem key={env.id} value={env.id} text={env.name} />
+                ))
+              )}
             </Select>
             <Button
               renderIcon={Renew}
               onClick={handleCalculate}
-              disabled={calculate.isPending}
+              disabled={!environmentId || calculate.isPending}
               kind="secondary"
             >
               Recalculate

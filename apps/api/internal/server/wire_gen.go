@@ -49,7 +49,7 @@ func InitializeServer(ctx context.Context) (*Server, error) {
 	topologyService := service.NewTopologyService(pool)
 	topologyHandler := handler.NewTopologyHandler(topologyService)
 	topoAnalysisService := service.NewTopologyAnalysisService(pool)
-	topoAnalysisHandler := handler.NewTopologyAnalysisHandler(topoAnalysisService)
+	topoAnalysisHandler := handler.NewTopologyAnalysisHandler(topoAnalysisService, topologyService)
 	vulnerabilityService := service.NewVulnerabilityService(pool)
 	vulnerabilityHandler := handler.NewVulnerabilityHandler(vulnerabilityService)
 	suggestionService := service.NewExperimentSuggestionService(pool)

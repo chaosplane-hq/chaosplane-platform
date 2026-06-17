@@ -27,9 +27,11 @@ func (h *AIChatHandler) ListSessions(c *gin.Context) {
 
 func (h *AIChatHandler) CreateSession(c *gin.Context) {
 	var req service.CreateChatSessionRequest
-	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
-		return
+	if c.Request.ContentLength > 0 {
+		if err := c.ShouldBindJSON(&req); err != nil {
+			c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+			return
+		}
 	}
 	resp, err := h.svc.CreateSession(c.Request.Context(), actorFromContext(c), &req)
 	if err != nil {

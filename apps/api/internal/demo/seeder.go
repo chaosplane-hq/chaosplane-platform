@@ -56,6 +56,9 @@ func Seed(ctx context.Context, pool *database.Pool) error {
 	if err := seedTopologySnapshot(ctx, tx, now); err != nil {
 		return err
 	}
+	if err := seedServiceDependencies(ctx, tx, now); err != nil {
+		return err
+	}
 	if err := seedResilienceScore(ctx, tx, now); err != nil {
 		return err
 	}
@@ -333,6 +336,49 @@ func seedTopologySnapshot(ctx context.Context, tx pgx.Tx, now time.Time) error {
 		ON CONFLICT (id) DO NOTHING`,
 		TenantID, EnvironmentID, services, pods, deployments, nodes, namespaces, now)
 	return err
+}
+
+func seedServiceDependencies(ctx context.Context, tx pgx.Tx, now time.Time) error {
+	type dep struct {
+		srcKind, srcName, srcNs string
+		tgtKind, tgtName, tgtNs string
+		protocol                string
+		port                    int
+	}
+
+	deps := []dep{
+		{"Deployment", "api-gateway", "default", "Deployment", "auth-svc", "default", "HTTP", 8080},
+		{"Deployment", "api-gateway", "default", "Deployment", "user-svc", "default", "HTTP", 8080},
+		{"Deployment", "api-gateway", "default", "Deployment", "order-svc", "default", "HTTP", 8080},
+		{"Deployment", "api-gateway", "default", "Deployment", "payment-svc", "default", "HTTP", 8080},
+		{"Deployment", "api-gateway", "default", "Deployment", "inventory-svc", "default", "HTTP", 8080},
+		{"Deployment", "api-gateway", "default", "Deployment", "search-svc", "default", "HTTP", 8080},
+		{"Deployment", "order-svc", "default", "Deployment", "payment-svc", "default", "gRPC", 9090},
+		{"Deployment", "order-svc", "default", "Deployment", "inventory-svc", "default", "gRPC", 9090},
+		{"Deployment", "order-svc", "default", "StatefulSet", "message-queue", "default", "AMQP", 5672},
+		{"Deployment", "payment-svc", "default", "StatefulSet", "postgres-primary", "default", "TCP", 5432},
+		{"Deployment", "user-svc", "default", "StatefulSet", "postgres-primary", "default", "TCP", 5432},
+		{"Deployment", "order-svc", "default", "StatefulSet", "postgres-primary", "default", "TCP", 5432},
+		{"Deployment", "inventory-svc", "default", "StatefulSet", "postgres-primary", "default", "TCP", 5432},
+		{"Deployment", "auth-svc", "default", "StatefulSet", "cache-layer", "default", "TCP", 6379},
+		{"Deployment", "api-gateway", "default", "StatefulSet", "cache-layer", "default", "TCP", 6379},
+		{"Deployment", "search-svc", "default", "StatefulSet", "cache-layer", "default", "TCP", 6379},
+		{"Deployment", "notification-svc", "default", "StatefulSet", "message-queue", "default", "AMQP", 5672},
+		{"Deployment", "analytics-svc", "default", "StatefulSet", "message-queue", "default", "AMQP", 5672},
+		{"Deployment", "analytics-svc", "default", "StatefulSet", "postgres-primary", "default", "TCP", 5432},
+	}
+
+	for _, d := range deps {
+		_, err := tx.Exec(ctx, `
+			INSERT INTO service_dependencies (tenant_id, environment_id, source_kind, source_name, source_namespace, target_kind, target_name, target_namespace, protocol, port, discovered_at, last_seen_at)
+			VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $11)
+			ON CONFLICT (environment_id, source_kind, source_name, source_namespace, target_kind, target_name, target_namespace) DO UPDATE SET last_seen_at = EXCLUDED.last_seen_at`,
+			TenantID, EnvironmentID, d.srcKind, d.srcName, d.srcNs, d.tgtKind, d.tgtName, d.tgtNs, d.protocol, d.port, now)
+		if err != nil {
+			return err
+		}
+	}
+	return nil
 }
 
 func seedResilienceScore(ctx context.Context, tx pgx.Tx, now time.Time) error {

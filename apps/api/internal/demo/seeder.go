@@ -21,6 +21,10 @@ func Seed(ctx context.Context, pool *database.Pool) error {
 	}
 	defer tx.Rollback(ctx)
 
+	if _, err := tx.Exec(ctx, "SET LOCAL app.current_tenant_id = '"+TenantID+"'"); err != nil {
+		return fmt.Errorf("demo seed: set tenant context: %w", err)
+	}
+
 	now := time.Now()
 
 	if err := seedTenant(ctx, tx); err != nil {

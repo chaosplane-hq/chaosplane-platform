@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"github.com/gin-gonic/gin"
+	"github.com/jackc/pgx/v5/pgxpool"
 
 	"github.com/chaosplane-hq/chaosplane-platform/apps/api/internal/config"
 	"github.com/chaosplane-hq/chaosplane-platform/apps/api/internal/database"
@@ -21,6 +22,13 @@ type Simulator struct {
 
 func NewSimulator(pool *database.Pool) *Simulator {
 	return &Simulator{pool: pool}
+}
+
+func (s *Simulator) db() *pgxpool.Pool {
+	if s.pool.Superadmin != nil {
+		return s.pool.Superadmin
+	}
+	return s.pool.App
 }
 
 func (s *Simulator) Start(ctx context.Context) {
@@ -40,7 +48,7 @@ func (s *Simulator) Start(ctx context.Context) {
 }
 
 func (s *Simulator) poll(ctx context.Context) {
-	rows, err := s.pool.Superadmin.Query(ctx,
+	rows, err := s.db().Query(ctx,
 		`SELECT id::text, name FROM experiments WHERE tenant_id = $1 AND status = 'scheduled'`,
 		TenantID,
 	)
@@ -72,7 +80,7 @@ func (s *Simulator) simulateExperiment(ctx context.Context, id, name string) {
 		return
 	}
 
-	_, err := s.pool.Superadmin.Exec(ctx,
+	_, err := s.db().Exec(ctx,
 		`UPDATE experiments SET status = 'running', start_time = now(), updated_at = now() WHERE id = $1`,
 		id,
 	)
@@ -89,7 +97,7 @@ func (s *Simulator) simulateExperiment(ctx context.Context, id, name string) {
 		return
 	}
 
-	_, err = s.pool.Superadmin.Exec(ctx,
+	_, err = s.db().Exec(ctx,
 		`UPDATE experiments SET status = 'completed', completion_time = now(), updated_at = now() WHERE id = $1`,
 		id,
 	)
@@ -99,7 +107,7 @@ func (s *Simulator) simulateExperiment(ctx context.Context, id, name string) {
 	}
 	slog.Info("demo: experiment transitioned", "id", id, "name", name, "status", "completed")
 
-	_, err = s.pool.Superadmin.Exec(ctx,
+	_, err = s.db().Exec(ctx,
 		`INSERT INTO experiment_results (experiment_id, tenant_id, steady_state_met, impact_summary) VALUES ($1, $2, true, 'Experiment completed successfully. No service degradation detected.')`,
 		id, TenantID,
 	)

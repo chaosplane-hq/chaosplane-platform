@@ -11,7 +11,11 @@ import (
 )
 
 func Seed(ctx context.Context, pool *database.Pool) error {
-	tx, err := pool.Superadmin.Begin(ctx)
+	db := pool.Superadmin
+	if db == nil {
+		db = pool.App
+	}
+	tx, err := db.Begin(ctx)
 	if err != nil {
 		return fmt.Errorf("demo seed: begin tx: %w", err)
 	}

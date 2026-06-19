@@ -5,6 +5,8 @@ import (
 	"log/slog"
 	"time"
 
+	"github.com/jackc/pgx/v5/pgxpool"
+
 	"github.com/chaosplane-hq/chaosplane-platform/apps/api/internal/database"
 )
 
@@ -32,6 +34,13 @@ func (r *Refresher) Start(ctx context.Context) {
 	}()
 }
 
+func (r *Refresher) db() *pgxpool.Pool {
+	if r.pool.Superadmin != nil {
+		return r.pool.Superadmin
+	}
+	return r.pool.App
+}
+
 func (r *Refresher) refresh(ctx context.Context) {
 	queries := []string{
 		`UPDATE experiments SET created_at = created_at + (now() - updated_at), updated_at = now() WHERE tenant_id = $1`,
@@ -40,7 +49,7 @@ func (r *Refresher) refresh(ctx context.Context) {
 	}
 
 	for _, q := range queries {
-		if _, err := r.pool.Superadmin.Exec(ctx, q, TenantID); err != nil {
+		if _, err := r.db().Exec(ctx, q, TenantID); err != nil {
 			slog.Error("demo refresher failed", "error", err, "query", q)
 		}
 	}

@@ -11,7 +11,7 @@ const (
 
 	UserEmail    = "demo@chaosplane.dev"
 	UserName     = "Demo User"
-	UserPassword = "$2a$10$demohashedpasswordplaceholdervalue000000000000000000"
+	UserPassword = "$2y$10$SC/DqzkUJmrQVEWUUX/o7eWKm5Xn65tXV6mLORrUJ6vrl4qlMHjkS"
 
 	OrgName       = "Demo Organization"
 	WorkspaceName = "Production"

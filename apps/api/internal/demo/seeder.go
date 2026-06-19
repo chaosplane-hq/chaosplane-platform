@@ -85,7 +85,7 @@ func seedUser(ctx context.Context, tx pgx.Tx) error {
 	_, err := tx.Exec(ctx, `
 		INSERT INTO users (id, email, name, password_hash, status, email_verified)
 		VALUES ($1, $2, $3, $4, 'active', true)
-		ON CONFLICT (id) DO NOTHING`,
+		ON CONFLICT (id) DO UPDATE SET password_hash = EXCLUDED.password_hash`,
 		UserID, UserEmail, UserName, UserPassword)
 	return err
 }

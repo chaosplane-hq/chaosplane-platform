@@ -178,7 +178,7 @@ function ChatArea({ sessionId }: { sessionId: string }) {
 }
 
 export default function AIChatPage() {
-  const { data, isLoading } = useChatSessions();
+  const { data, isLoading, isError, error } = useChatSessions();
   const createSession = useCreateChatSession();
   const deleteSession = useDeleteChatSession();
   const [selectedId, setSelectedId] = useState<string | null>(null);
@@ -200,7 +200,16 @@ export default function AIChatPage() {
   }
 
   return (
-    <div style={{ display: 'flex', height: 'calc(100vh - 3rem)', overflow: 'hidden' }}>
+    <div style={{ display: 'flex', flexDirection: 'column', height: 'calc(100vh - 3rem)', overflow: 'hidden' }}>
+      {isError && (
+        <InlineNotification
+          kind="error"
+          title="Failed to load chat sessions"
+          subtitle={(error as Error)?.message ?? ''}
+          style={{ marginBottom: 'var(--cds-spacing-05)' }}
+        />
+      )}
+      <div style={{ display: 'flex', flex: 1, overflow: 'hidden' }}>
       <div style={{ width: '280px', flexShrink: 0 }}>
         {isLoading ? (
           <div style={{ padding: '1rem' }}><SkeletonText paragraph lineCount={5} /></div>
@@ -226,6 +235,7 @@ export default function AIChatPage() {
             </Button>
           </div>
         )}
+      </div>
       </div>
     </div>
   );

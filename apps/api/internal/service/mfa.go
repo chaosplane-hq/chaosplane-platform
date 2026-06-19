@@ -6,6 +6,7 @@ import (
 	"crypto/sha256"
 	"encoding/hex"
 	"fmt"
+	"log/slog"
 
 	"github.com/chaosplane-hq/chaosplane-platform/apps/api/internal/database"
 )
@@ -32,7 +33,9 @@ func (s *MFAService) GenerateRecoveryCodes(ctx context.Context, actor ActorConte
 		return nil, err
 	}
 
-	_, _ = s.pool.Conn(ctx).Exec(ctx, `DELETE FROM mfa_recovery_codes WHERE user_id = $1::uuid`, actor.UserID)
+	if _, err := s.pool.Conn(ctx).Exec(ctx, `DELETE FROM mfa_recovery_codes WHERE user_id = $1::uuid`, actor.UserID); err != nil {
+		return nil, fmt.Errorf("delete old recovery codes: %w", err)
+	}
 
 	codes := make([]RecoveryCode, 10)
 	for i := range codes {
@@ -71,9 +74,12 @@ func (s *MFAService) VerifyRecoveryCode(ctx context.Context, userID, code string
 	}
 
 	var remaining int
-	_ = s.pool.Conn(ctx).QueryRow(ctx, `
+	if err := s.pool.Conn(ctx).QueryRow(ctx, `
 		SELECT COUNT(*) FROM mfa_recovery_codes WHERE user_id = $1::uuid AND used_at IS NULL
-	`, userID).Scan(&remaining)
+	`, userID).Scan(&remaining); err != nil {
+		slog.Error("count remaining recovery codes", "error", err)
+		return true, 0, nil
+	}
 
 	return true, remaining, nil
 }

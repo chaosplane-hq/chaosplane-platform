@@ -19,6 +19,7 @@ import {
   Dropdown,
   SkeletonText,
   Link,
+  InlineNotification,
 } from '@carbon/react';
 import { Add, Flow } from '@carbon/icons-react';
 import NextLink from 'next/link';
@@ -71,7 +72,7 @@ export default function ExperimentsPage() {
   const [actionFilter, setActionFilter] = useState<ActionType | ''>('');
   const [search, setSearch] = useState('');
 
-  const { data, isLoading } = useExperiments({
+  const { data, isLoading, isError, error } = useExperiments({
     limit: 100,
     status: statusFilter || undefined,
     action: actionFilter || undefined,
@@ -141,6 +142,17 @@ export default function ExperimentsPage() {
           </div>
         </div>
       </Column>
+
+      {isError && (
+        <Column lg={16} md={8} sm={4}>
+          <InlineNotification
+            kind="error"
+            title="Failed to load experiments"
+            subtitle={(error as Error)?.message ?? ''}
+            style={{ marginBottom: 'var(--cds-spacing-05)' }}
+          />
+        </Column>
+      )}
 
       <Column lg={16} md={8} sm={4}>
         {isLoading ? (

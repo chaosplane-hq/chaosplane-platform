@@ -16,6 +16,7 @@ import {
   Button,
   SkeletonText,
   Tag,
+  InlineNotification,
 } from '@carbon/react';
 import { Add, TrashCan } from '@carbon/icons-react';
 import { useRouter } from 'next/navigation';
@@ -45,7 +46,7 @@ const headers = [
 
 export default function PoliciesPage() {
   const router = useRouter();
-  const { data, isLoading } = usePolicies();
+  const { data, isLoading, isError, error } = usePolicies();
   const deleteMutation = useDeletePolicy();
 
   const policies = data?.policies ?? [];
@@ -75,6 +76,17 @@ export default function PoliciesPage() {
           </p>
         </div>
       </Column>
+
+      {isError && (
+        <Column lg={16} md={8} sm={4}>
+          <InlineNotification
+            kind="error"
+            title="Failed to load policies"
+            subtitle={(error as Error)?.message ?? ''}
+            style={{ marginBottom: 'var(--cds-spacing-05)' }}
+          />
+        </Column>
+      )}
 
       <Column lg={16} md={8} sm={4}>
         {isLoading ? (

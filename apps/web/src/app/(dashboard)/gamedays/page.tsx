@@ -50,7 +50,7 @@ function formatDate(iso?: string) {
 
 export default function GameDaysPage() {
   const router = useRouter();
-  const { data, isLoading } = useGameDays();
+  const { data, isLoading, isError: queryError, error: queryErrorObj } = useGameDays();
   const createGameDay = useCreateGameDay();
   const { environmentId } = useDefaultEnvironmentId();
 
@@ -103,6 +103,15 @@ export default function GameDaysPage() {
       </Column>
 
       <Column lg={16} md={8} sm={4}>
+        {queryError && (
+          <InlineNotification
+            kind="error"
+            title="Failed to load game days"
+            subtitle={(queryErrorObj as Error)?.message ?? ''}
+            style={{ marginBottom: 'var(--cds-spacing-05)' }}
+          />
+        )}
+
         {error && (
           <InlineNotification
             kind="error"

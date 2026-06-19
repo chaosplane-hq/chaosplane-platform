@@ -57,18 +57,21 @@ const sessionHeaders = [
 ];
 
 export function SecurityTab() {
-  const { data: ssoData, isLoading: ssoLoading } = useSSOProviders();
+  const { data: ssoData, isLoading: ssoLoading, isError: ssoError, error: ssoErrorObj } = useSSOProviders();
   const createSSO = useCreateSSOProvider();
   const deleteSSO = useDeleteSSOProvider();
 
-  const { data: abacData, isLoading: abacLoading } = useABACPolicies();
+  const { data: abacData, isLoading: abacLoading, isError: abacError, error: abacErrorObj } = useABACPolicies();
   const createABAC = useCreateABACPolicy();
   const deleteABAC = useDeleteABACPolicy();
 
-  const { data: mfaData, isLoading: mfaLoading } = useMFARecoveryCodes();
+  const { data: mfaData, isLoading: mfaLoading, isError: mfaError, error: mfaErrorObj } = useMFARecoveryCodes();
   const generateMFA = useGenerateMFACodes();
 
-  const { data: sessionsData, isLoading: sessionsLoading } = useActiveSessions();
+  const { data: sessionsData, isLoading: sessionsLoading, isError: sessionsError, error: sessionsErrorObj } = useActiveSessions();
+
+  const hasQueryError = ssoError || abacError || mfaError || sessionsError;
+  const queryErrorMessage = (ssoErrorObj as Error)?.message ?? (abacErrorObj as Error)?.message ?? (mfaErrorObj as Error)?.message ?? (sessionsErrorObj as Error)?.message ?? '';
   const revokeSession = useRevokeSession();
   const revokeAll = useRevokeAllSessions();
 
@@ -165,6 +168,15 @@ export function SecurityTab() {
 
   return (
     <div style={{ paddingTop: 'var(--cds-spacing-06)', display: 'flex', flexDirection: 'column', gap: 'var(--cds-spacing-06)' }}>
+      {hasQueryError && (
+        <InlineNotification
+          kind="error"
+          title="Failed to load security settings"
+          subtitle={queryErrorMessage}
+          style={{ marginBottom: 'var(--cds-spacing-05)' }}
+        />
+      )}
+
       {error && (
         <InlineNotification kind="error" title={error} onCloseButtonClick={() => setError('')} />
       )}

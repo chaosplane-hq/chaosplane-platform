@@ -40,7 +40,7 @@ const DEFAULT_SPEC = `{
 }`;
 
 export default function WorkflowsPage() {
-  const { data, isLoading } = useWorkflowTemplates();
+  const { data, isLoading, isError: queryError, error: queryErrorObj } = useWorkflowTemplates();
   const createTemplate = useCreateWorkflowTemplate();
   const deleteTemplate = useDeleteWorkflowTemplate();
 
@@ -99,6 +99,17 @@ export default function WorkflowsPage() {
           </Button>
         </div>
       </Column>
+
+      {queryError && (
+        <Column lg={16} md={8} sm={4}>
+          <InlineNotification
+            kind="error"
+            title="Failed to load workflow templates"
+            subtitle={(queryErrorObj as Error)?.message ?? ''}
+            style={{ marginBottom: 'var(--cds-spacing-05)' }}
+          />
+        </Column>
+      )}
 
       {error && (
         <Column lg={16} md={8} sm={4}>

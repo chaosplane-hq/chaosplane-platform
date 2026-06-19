@@ -47,7 +47,7 @@ export function BillingTab() {
   const [upgradeOpen, setUpgradeOpen] = useState(false);
   const [errorMsg, setErrorMsg] = useState('');
 
-  const { data, isLoading } = useBilling();
+  const { data, isLoading, isError, error } = useBilling();
   const upgradePlan = useUpgradePlan();
   const cancelPlan = useCancelPlan();
 
@@ -78,6 +78,15 @@ export function BillingTab() {
 
   return (
     <div style={{ paddingTop: 'var(--cds-spacing-06)', maxWidth: '720px' }}>
+      {isError && (
+        <InlineNotification
+          kind="error"
+          title="Failed to load billing data"
+          subtitle={(error as Error)?.message ?? ''}
+          style={{ marginBottom: 'var(--cds-spacing-05)' }}
+        />
+      )}
+
       {errorMsg && (
         <InlineNotification
           kind="error"

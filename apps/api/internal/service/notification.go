@@ -9,6 +9,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"log/slog"
 	"net/http"
 	"strings"
 	"time"
@@ -240,12 +241,14 @@ func (s *NotificationService) Dispatch(ctx context.Context, tenantID, eventType 
 			errMsg = &msg
 		}
 
-		_, _ = s.pool.Conn(ctx).Exec(ctx, `
+		if _, err := s.pool.Conn(ctx).Exec(ctx, `
 			INSERT INTO notification_history (tenant_id, channel_id, rule_id, event_type, status, payload, error_message, sent_at)
 			SELECT $1::uuid, nr.channel_id, $2::uuid, $3, $4, $5::jsonb, $6,
 			       CASE WHEN $4 = 'sent' THEN now() ELSE NULL END
 			FROM notification_rules nr WHERE nr.id = $2::uuid
-		`, tenantID, ruleID, eventType, status, string(payloadJSON), errMsg)
+		`, tenantID, ruleID, eventType, status, string(payloadJSON), errMsg); err != nil {
+			slog.Error("insert notification history", "error", err)
+		}
 	}
 	return rows.Err()
 }

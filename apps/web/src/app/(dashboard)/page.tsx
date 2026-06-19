@@ -59,11 +59,14 @@ const SEVERITY_TYPE: Record<VulnerabilitySeverity, 'red' | 'purple' | 'gray' | '
 };
 
 export default function DashboardPage() {
-  const { data, isLoading } = useExperiments({ limit: 100 });
+  const { data, isLoading, isError: expError, error: expErrorObj } = useExperiments({ limit: 100 });
   const { data: onboarding } = useOnboarding();
-  const { data: resilience, isLoading: resilienceLoading } = useResilienceScore();
-  const { data: vulnData, isLoading: vulnLoading } = useVulnerabilities({ limit: 5 });
-  const { data: suggestionsData, isLoading: suggestionsLoading } = useSuggestions({ limit: 3 });
+  const { data: resilience, isLoading: resilienceLoading, isError: resError, error: resErrorObj } = useResilienceScore();
+  const { data: vulnData, isLoading: vulnLoading, isError: vulnError, error: vulnErrorObj } = useVulnerabilities({ limit: 5 });
+  const { data: suggestionsData, isLoading: suggestionsLoading, isError: sugError, error: sugErrorObj } = useSuggestions({ limit: 3 });
+
+  const hasQueryError = expError || resError || vulnError || sugError;
+  const queryErrorMessage = (expErrorObj as Error)?.message ?? (resErrorObj as Error)?.message ?? (vulnErrorObj as Error)?.message ?? (sugErrorObj as Error)?.message ?? '';
 
   const experiments = data?.experiments ?? [];
   const total = data?.total ?? 0;
@@ -84,6 +87,17 @@ export default function DashboardPage() {
           <p className={styles.pageSubtitle}>Monitor and manage your chaos experiments.</p>
         </div>
       </Column>
+
+      {hasQueryError && (
+        <Column lg={16} md={8} sm={4}>
+          <InlineNotification
+            kind="error"
+            title="Failed to load dashboard data"
+            subtitle={queryErrorMessage}
+            style={{ marginBottom: 'var(--cds-spacing-05)' }}
+          />
+        </Column>
+      )}
 
       {showOnboarding && (
         <Column lg={16} md={8} sm={4} style={{ marginBottom: 'var(--cds-spacing-05)' }}>

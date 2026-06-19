@@ -9,6 +9,7 @@ import (
 	"encoding/hex"
 	"errors"
 	"fmt"
+	"log/slog"
 	"net"
 	"regexp"
 	"strings"
@@ -864,7 +865,7 @@ func (s *AuthService) lookupRefreshToken(ctx context.Context, tx pgx.Tx, plainTo
 }
 
 func (s *AuthService) recordFailedLogin(ctx context.Context, userID string) {
-	_, _ = s.pool.Conn(ctx).Exec(ctx, `
+	if _, err := s.pool.Conn(ctx).Exec(ctx, `
 		UPDATE users
 		SET
 			failed_login_count = failed_login_count + 1,
@@ -879,7 +880,9 @@ func (s *AuthService) recordFailedLogin(ctx context.Context, userID string) {
 				ELSE status
 			END
 		WHERE id = $1::uuid
-	`, userID)
+	`, userID); err != nil {
+		slog.Error("failed to record login failure", "userId", userID, "error", err)
+	}
 }
 
 func (s *AuthService) clearFailedLogin(ctx context.Context, userID string, ip net.IP) error {

@@ -51,7 +51,9 @@ func (s *EmailChangeService) Request(ctx context.Context, actor ActorContext, re
 	}
 	expiresAt := time.Now().Add(24 * time.Hour)
 
-	_, _ = s.pool.Conn(ctx).Exec(ctx, `DELETE FROM email_change_requests WHERE user_id = $1::uuid AND confirmed_at IS NULL`, actor.UserID)
+	if _, err := s.pool.Conn(ctx).Exec(ctx, `DELETE FROM email_change_requests WHERE user_id = $1::uuid AND confirmed_at IS NULL`, actor.UserID); err != nil {
+		return nil, fmt.Errorf("delete pending email change requests: %w", err)
+	}
 
 	if _, err := s.pool.Conn(ctx).Exec(ctx, `
 		INSERT INTO email_change_requests (user_id, new_email, token_hash, expires_at)
@@ -62,7 +64,9 @@ func (s *EmailChangeService) Request(ctx context.Context, actor ActorContext, re
 
 	if s.email != nil {
 		var currentEmail string
-		_ = s.pool.Conn(ctx).QueryRow(ctx, `SELECT email FROM users WHERE id = $1::uuid`, actor.UserID).Scan(&currentEmail)
+		if err := s.pool.Conn(ctx).QueryRow(ctx, `SELECT email FROM users WHERE id = $1::uuid`, actor.UserID).Scan(&currentEmail); err != nil {
+			return nil, fmt.Errorf("lookup current email for change notification: %w", err)
+		}
 		go s.email.SendEmailChangeNotification(context.Background(), currentEmail, newEmail, plain)
 	}
 

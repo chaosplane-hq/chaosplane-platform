@@ -182,8 +182,11 @@ func (s *InvitationService) Accept(ctx context.Context, actor ActorContext, req 
 		return nil, err
 	}
 	if invitation.ExpiresAt.Before(time.Now()) {
-		if _, err := tx.Exec(ctx, `UPDATE invitations SET status = 'expired' WHERE id = $1::uuid`, invitation.ID); err == nil {
-			_ = tx.Commit(ctx)
+		if _, err := tx.Exec(ctx, `UPDATE invitations SET status = 'expired' WHERE id = $1::uuid`, invitation.ID); err != nil {
+			return nil, fmt.Errorf("expire invitation: %w", err)
+		}
+		if err := tx.Commit(ctx); err != nil {
+			return nil, fmt.Errorf("commit expire invitation tx: %w", err)
 		}
 		return nil, ErrTokenExpired
 	}
@@ -388,8 +391,12 @@ func (s *InvitationService) AcceptByToken(ctx context.Context, req *AcceptByToke
 		return nil, fmt.Errorf("lookup invitation for accept-by-token: %w", err)
 	}
 	if inv.ExpiresAt.Before(time.Now()) {
-		_, _ = tx.Exec(ctx, `UPDATE invitations SET status = 'expired' WHERE id = $1::uuid`, inv.ID)
-		_ = tx.Commit(ctx)
+		if _, err := tx.Exec(ctx, `UPDATE invitations SET status = 'expired' WHERE id = $1::uuid`, inv.ID); err != nil {
+			return nil, fmt.Errorf("expire invitation by token: %w", err)
+		}
+		if err := tx.Commit(ctx); err != nil {
+			return nil, fmt.Errorf("commit expire invitation by token tx: %w", err)
+		}
 		return nil, ErrTokenExpired
 	}
 	if !strings.EqualFold(inv.Email, strings.ToLower(strings.TrimSpace(req.Email))) {

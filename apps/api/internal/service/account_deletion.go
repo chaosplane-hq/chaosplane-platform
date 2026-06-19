@@ -50,7 +50,9 @@ func (s *AccountDeletionService) Request(ctx context.Context, actor ActorContext
 		return nil, fmt.Errorf("request account deletion: %w", err)
 	}
 
-	_, _ = s.pool.Conn(ctx).Exec(ctx, `UPDATE users SET status = 'pending_deletion' WHERE id = $1::uuid`, actor.UserID)
+	if _, err := s.pool.Conn(ctx).Exec(ctx, `UPDATE users SET status = 'pending_deletion' WHERE id = $1::uuid`, actor.UserID); err != nil {
+		return nil, fmt.Errorf("mark user pending_deletion: %w", err)
+	}
 	return &dr, nil
 }
 
@@ -68,7 +70,9 @@ func (s *AccountDeletionService) Cancel(ctx context.Context, actor ActorContext)
 	if cmd.RowsAffected() == 0 {
 		return ErrHierarchyNotFound
 	}
-	_, _ = s.pool.Conn(ctx).Exec(ctx, `UPDATE users SET status = 'active', deleted_at = NULL WHERE id = $1::uuid`, actor.UserID)
+	if _, err := s.pool.Conn(ctx).Exec(ctx, `UPDATE users SET status = 'active', deleted_at = NULL WHERE id = $1::uuid`, actor.UserID); err != nil {
+		return fmt.Errorf("restore user status: %w", err)
+	}
 	return nil
 }
 
@@ -91,7 +95,9 @@ func (s *AccountDeletionService) ExecuteExpired(ctx context.Context) (int, error
 		if err := s.anonymizeUser(ctx, userID); err != nil {
 			continue
 		}
-		_, _ = s.pool.Conn(ctx).Exec(ctx, `UPDATE account_deletion_requests SET executed_at = now() WHERE id = $1::uuid`, reqID)
+		if _, err := s.pool.Conn(ctx).Exec(ctx, `UPDATE account_deletion_requests SET executed_at = now() WHERE id = $1::uuid`, reqID); err != nil {
+			continue
+		}
 		count++
 	}
 	return count, rows.Err()

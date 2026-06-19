@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"log/slog"
 	"math"
 	"time"
 
@@ -102,7 +103,7 @@ func (s *ResilienceScoreService) Calculate(ctx context.Context, tenantID string,
 func (s *ResilienceScoreService) calculateAvailability(ctx context.Context, tenantID, envID string) float64 {
 	var replicaScore float64
 	var total, multiReplica int
-	rows, _ := s.pool.Conn(ctx).Query(ctx, `
+	rows, err := s.pool.Conn(ctx).Query(ctx, `
 		SELECT replicas FROM (
 			SELECT (d->>'replicas')::int as replicas
 			FROM topology_snapshots, jsonb_array_elements(deployments) d
@@ -110,15 +111,17 @@ func (s *ResilienceScoreService) calculateAvailability(ctx context.Context, tena
 			ORDER BY collected_at DESC LIMIT 1
 		) sub
 	`, envID, tenantID)
-	if rows != nil {
-		defer rows.Close()
-		for rows.Next() {
-			var r int
-			if rows.Scan(&r) == nil {
-				total++
-				if r >= 2 {
-					multiReplica++
-				}
+	if err != nil {
+		slog.Error("query availability replicas", "error", err)
+		return -1
+	}
+	defer rows.Close()
+	for rows.Next() {
+		var r int
+		if rows.Scan(&r) == nil {
+			total++
+			if r >= 2 {
+				multiReplica++
 			}
 		}
 	}
@@ -130,10 +133,13 @@ func (s *ResilienceScoreService) calculateAvailability(ctx context.Context, tena
 
 func (s *ResilienceScoreService) calculateFaultTolerance(ctx context.Context, tenantID, envID string) float64 {
 	var openVulns int
-	_ = s.pool.Conn(ctx).QueryRow(ctx, `
+	if err := s.pool.Conn(ctx).QueryRow(ctx, `
 		SELECT COUNT(*) FROM vulnerability_findings
 		WHERE environment_id = $1::uuid AND tenant_id = $2::uuid AND status = 'open'
-	`, envID, tenantID).Scan(&openVulns)
+	`, envID, tenantID).Scan(&openVulns); err != nil {
+		slog.Error("query fault tolerance vulns", "error", err)
+		return -1
+	}
 
 	score := 100.0 - float64(openVulns)*10
 	return math.Max(score, 0)
@@ -141,10 +147,13 @@ func (s *ResilienceScoreService) calculateFaultTolerance(ctx context.Context, te
 
 func (s *ResilienceScoreService) calculateRecoverability(ctx context.Context, tenantID, envID string) float64 {
 	var completedExperiments int
-	_ = s.pool.Conn(ctx).QueryRow(ctx, `
+	if err := s.pool.Conn(ctx).QueryRow(ctx, `
 		SELECT COUNT(*) FROM experiment_results_analysis
 		WHERE environment_id = $1::uuid AND tenant_id = $2::uuid
-	`, envID, tenantID).Scan(&completedExperiments)
+	`, envID, tenantID).Scan(&completedExperiments); err != nil {
+		slog.Error("query recoverability experiments", "error", err)
+		return -1
+	}
 
 	score := math.Min(float64(completedExperiments)*20, 100)
 	return score

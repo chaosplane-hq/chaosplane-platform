@@ -41,7 +41,7 @@ export function APIKeysTab() {
   const [newKeyName, setNewKeyName] = useState('');
   const [errorMsg, setErrorMsg] = useState('');
 
-  const { data, isLoading } = useAPIKeys();
+  const { data, isLoading, isError: queryError, error: queryErrorObj } = useAPIKeys();
   const createKey = useCreateAPIKey();
   const rotateKey = useRotateAPIKey();
   const revokeKey = useRevokeAPIKey();
@@ -81,6 +81,15 @@ export function APIKeysTab() {
 
   return (
     <div style={{ paddingTop: 'var(--cds-spacing-06)' }}>
+      {queryError && (
+        <InlineNotification
+          kind="error"
+          title="Failed to load API keys"
+          subtitle={(queryErrorObj as Error)?.message ?? ''}
+          style={{ marginBottom: 'var(--cds-spacing-05)' }}
+        />
+      )}
+
       {errorMsg && (
         <InlineNotification
           kind="error"

@@ -61,7 +61,7 @@ export default function ResiliencePage() {
   }, [environments, environmentId]);
 
   const params = environmentId ? { environmentId } : undefined;
-  const { data, isLoading: scoreLoading } = useResilienceScore(params);
+  const { data, isLoading: scoreLoading, isError: scoreError, error: scoreErrorObj } = useResilienceScore(params);
   const calculate = useCalculateResilienceScore();
 
   const [calcError, setCalcError] = useState('');
@@ -122,6 +122,17 @@ export default function ResiliencePage() {
           </div>
         </div>
       </Column>
+
+      {scoreError && (
+        <Column lg={16} md={8} sm={4}>
+          <InlineNotification
+            kind="error"
+            title="Failed to load resilience score"
+            subtitle={(scoreErrorObj as Error)?.message ?? ''}
+            style={{ marginBottom: 'var(--cds-spacing-05)' }}
+          />
+        </Column>
+      )}
 
       {calcError && (
         <Column lg={16} md={8} sm={4}>

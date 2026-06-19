@@ -235,10 +235,10 @@ func seedExperiments(ctx context.Context, tx pgx.Tx, now time.Time) error {
 			createdAt = *e.start
 		}
 		_, err := tx.Exec(ctx, `
-			INSERT INTO experiments (id, tenant_id, environment_id, name, experiment_type, target, action, duration_seconds, status, created_by, created_at, updated_at)
-			VALUES ($1, $2, $3, $4, 'single', $5::jsonb, $6::jsonb, $7, $8, $9, $10, $10)
+			INSERT INTO experiments (id, tenant_id, environment_id, name, experiment_type, target, action, duration_seconds, status, run_started_at, run_ended_at, created_by, created_at, updated_at)
+			VALUES ($1, $2, $3, $4, 'single', $5::jsonb, $6::jsonb, $7, $8, $9, $10, $11, $12, $12)
 			ON CONFLICT (id) DO NOTHING`,
-			e.id, TenantID, EnvironmentID, e.name, e.target, e.action, e.dur, e.status, UserID, createdAt)
+			e.id, TenantID, EnvironmentID, e.name, e.target, e.action, e.dur, e.status, e.start, e.end, UserID, createdAt)
 		if err != nil {
 			return err
 		}

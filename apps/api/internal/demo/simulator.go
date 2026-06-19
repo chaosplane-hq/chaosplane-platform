@@ -81,7 +81,7 @@ func (s *Simulator) simulateExperiment(ctx context.Context, id, name string) {
 	}
 
 	_, err := s.db().Exec(ctx,
-		`UPDATE experiments SET status = 'running', start_time = now(), updated_at = now() WHERE id = $1`,
+		`UPDATE experiments SET status = 'running', run_started_at = now(), updated_at = now() WHERE id = $1`,
 		id,
 	)
 	if err != nil {
@@ -98,7 +98,7 @@ func (s *Simulator) simulateExperiment(ctx context.Context, id, name string) {
 	}
 
 	_, err = s.db().Exec(ctx,
-		`UPDATE experiments SET status = 'completed', completion_time = now(), updated_at = now() WHERE id = $1`,
+		`UPDATE experiments SET status = 'completed', run_ended_at = now(), updated_at = now() WHERE id = $1`,
 		id,
 	)
 	if err != nil {

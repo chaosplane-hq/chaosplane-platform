@@ -11,6 +11,7 @@ import (
 
 	"github.com/chaosplane-hq/chaosplane-platform/apps/api/internal/config"
 	"github.com/chaosplane-hq/chaosplane-platform/apps/api/internal/database"
+	"github.com/chaosplane-hq/chaosplane-platform/apps/api/internal/demo"
 	"github.com/chaosplane-hq/chaosplane-platform/apps/api/internal/handler"
 	"github.com/chaosplane-hq/chaosplane-platform/apps/api/internal/middleware"
 	"github.com/chaosplane-hq/chaosplane-platform/apps/api/internal/service"
@@ -78,6 +79,7 @@ func New(
 	{
 		authPublic.POST("/register", auth.Register)
 		authPublic.POST("/login", auth.Login)
+		authPublic.POST("/demo-login", demo.DemoLoginHandler(authService, cfg))
 		authPublic.POST("/refresh", auth.Refresh)
 		authPublic.POST("/forgot-password", auth.ForgotPassword)
 		authPublic.POST("/reset-password", auth.ResetPassword)
@@ -130,6 +132,7 @@ func New(
 	saas := r.Group("/api/v1")
 	saas.Use(middleware.JWT(authService), middleware.TenantContext(pool.App))
 	saas.Use(middleware.AuditLog(pool.App))
+	saas.Use(demo.WriteProtection(cfg))
 	if rdb != nil {
 		saas.Use(middleware.RateLimit(rdb, pool.App, middleware.DefaultRateLimiterConfig()))
 	}
@@ -187,7 +190,7 @@ func New(
 			manage.PATCH("/projects/:id", hierarchy.UpdateProject)
 			manage.POST("/environments", hierarchy.CreateEnvironment)
 			manage.PATCH("/environments/:id", hierarchy.UpdateEnvironment)
-			manage.POST("/agents/test-connection", onboarding.TestAgentConnection)
+			manage.POST("/agents/test-connection", demo.TestConnectionHandler(cfg), onboarding.TestAgentConnection)
 			manage.POST("/invitations", invitations.Create)
 			manage.POST("/invitations/:id/resend", invitations.Resend)
 			manage.DELETE("/invitations/:id", invitations.Revoke)
@@ -249,6 +252,7 @@ func New(
 	api := r.Group("/api/v1")
 	api.Use(middleware.EitherAuth(authService, pool.App), middleware.TenantContext(pool.App))
 	api.Use(middleware.AuditLog(pool.App))
+	api.Use(demo.WriteProtection(cfg))
 	if rdb != nil {
 		api.Use(middleware.RateLimit(rdb, pool.App, middleware.DefaultRateLimiterConfig()))
 	}

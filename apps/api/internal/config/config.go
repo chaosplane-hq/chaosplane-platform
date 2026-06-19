@@ -40,6 +40,8 @@ type Config struct {
 	StripeWebhookSecret string
 	TossWebhookSecret   string
 	DodoWebhookSecret   string
+
+	Demo bool
 }
 
 func New() *Config {
@@ -76,6 +78,8 @@ func New() *Config {
 		StripeWebhookSecret: getEnv("STRIPE_WEBHOOK_SECRET", ""),
 		TossWebhookSecret:   getEnv("TOSS_WEBHOOK_SECRET", ""),
 		DodoWebhookSecret:   getEnv("DODO_WEBHOOK_SECRET", ""),
+
+		Demo: getBoolEnv("DEMO", false),
 	}
 }
 
@@ -93,4 +97,16 @@ func getDurationEnv(key string, fallback time.Duration) time.Duration {
 		}
 	}
 	return fallback
+}
+
+func getBoolEnv(key string, fallback bool) bool {
+	v := strings.ToLower(strings.TrimSpace(os.Getenv(key)))
+	switch v {
+	case "true", "1", "yes":
+		return true
+	case "false", "0", "no":
+		return false
+	default:
+		return fallback
+	}
 }

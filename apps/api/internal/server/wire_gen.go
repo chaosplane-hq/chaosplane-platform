@@ -8,9 +8,11 @@ package server
 
 import (
 	"context"
+	"log/slog"
 
 	"github.com/chaosplane-hq/chaosplane-platform/apps/api/internal/config"
 	"github.com/chaosplane-hq/chaosplane-platform/apps/api/internal/database"
+	"github.com/chaosplane-hq/chaosplane-platform/apps/api/internal/demo"
 	"github.com/chaosplane-hq/chaosplane-platform/apps/api/internal/handler"
 	"github.com/chaosplane-hq/chaosplane-platform/apps/api/internal/service"
 )
@@ -94,5 +96,17 @@ func InitializeServer(ctx context.Context) (*Server, error) {
 	agentWorkHandler := handler.NewAgentWorkHandler(agentWorkService)
 
 	srv := New(cfg, pool, healthHandler, authHandler, hierarchyHandler, onboardingHandler, invitationHandler, apiKeyHandler, oauthHandler, accountHandler, agentHandler, billingHandler, notificationHandler, auditHandler, topologyHandler, topoAnalysisHandler, vulnerabilityHandler, suggestionHandler, resultAnalysisHandler, aiChatHandler, enterpriseHandler, gamedayHandler, resilienceHandler, wfTemplateHandler, cuiHandler, marketplaceHandler, federationHandler, cicdHandler, predictiveHandler, experimentHandler, policyHandler, wsHandler, agentWorkHandler, rdb, authService)
+
+	if cfg.Demo {
+		slog.Info("demo mode enabled, seeding data and starting simulator")
+		if err := demo.Seed(ctx, pool); err != nil {
+			slog.Error("demo seed failed", "error", err)
+		}
+		simulator := demo.NewSimulator(pool)
+		go simulator.Start(ctx)
+		refresher := demo.NewRefresher(pool)
+		go refresher.Start(ctx)
+	}
+
 	return srv, nil
 }

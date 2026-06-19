@@ -122,7 +122,7 @@ func TestConnectionHandler(cfg *config.Config) gin.HandlerFunc {
 			c.Next()
 			return
 		}
-		c.JSON(http.StatusOK, gin.H{
+		c.AbortWithStatusJSON(http.StatusOK, gin.H{
 			"connected":    true,
 			"agentVersion": "1.2.0-demo",
 			"message":      "Demo cluster connected",

@@ -107,6 +107,27 @@ export default function SuggestionsPage() {
         </div>
       </Column>
 
+      {generate.isError && (
+        <Column lg={16} md={8} sm={4}>
+          <InlineNotification
+            kind="error"
+            title="Operation failed"
+            subtitle={(generate.error as Error)?.message ?? ''}
+            style={{ marginBottom: 'var(--cds-spacing-05)' }}
+          />
+        </Column>
+      )}
+      {deleteSuggestion.isError && (
+        <Column lg={16} md={8} sm={4}>
+          <InlineNotification
+            kind="error"
+            title="Operation failed"
+            subtitle={(deleteSuggestion.error as Error)?.message ?? ''}
+            style={{ marginBottom: 'var(--cds-spacing-05)' }}
+          />
+        </Column>
+      )}
+
       <Column lg={16} md={8} sm={4}>
         {!environmentId ? (
           <Tile style={{ textAlign: 'center', padding: '3rem' }}>

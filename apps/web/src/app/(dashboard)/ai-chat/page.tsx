@@ -153,6 +153,16 @@ function ChatArea({ sessionId }: { sessionId: string }) {
         )}
         <div ref={bottomRef} />
       </div>
+      {send.isError && (
+        <div style={{ padding: '0 1rem' }}>
+          <InlineNotification
+            kind="error"
+            title="Operation failed"
+            subtitle={(send.error as Error)?.message ?? ''}
+            style={{ marginBottom: 'var(--cds-spacing-05)' }}
+          />
+        </div>
+      )}
       <div style={{ padding: '1rem', borderTop: '1px solid var(--cds-border-subtle)', display: 'flex', gap: '0.5rem' }}>
         <TextInput
           id="chat-input"
@@ -206,6 +216,22 @@ export default function AIChatPage() {
           kind="error"
           title="Failed to load chat sessions"
           subtitle={(error as Error)?.message ?? ''}
+          style={{ marginBottom: 'var(--cds-spacing-05)' }}
+        />
+      )}
+      {createSession.isError && (
+        <InlineNotification
+          kind="error"
+          title="Operation failed"
+          subtitle={(createSession.error as Error)?.message ?? ''}
+          style={{ marginBottom: 'var(--cds-spacing-05)' }}
+        />
+      )}
+      {deleteSession.isError && (
+        <InlineNotification
+          kind="error"
+          title="Operation failed"
+          subtitle={(deleteSession.error as Error)?.message ?? ''}
           style={{ marginBottom: 'var(--cds-spacing-05)' }}
         />
       )}

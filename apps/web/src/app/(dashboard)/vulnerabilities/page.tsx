@@ -156,6 +156,22 @@ export default function VulnerabilitiesPage() {
                     </Button>
                   </TableToolbarContent>
                 </TableToolbar>
+                {scan.isError && (
+                  <InlineNotification
+                    kind="error"
+                    title="Operation failed"
+                    subtitle={(scan.error as Error)?.message ?? ''}
+                    style={{ marginBottom: 'var(--cds-spacing-05)' }}
+                  />
+                )}
+                {updateStatus.isError && (
+                  <InlineNotification
+                    kind="error"
+                    title="Operation failed"
+                    subtitle={(updateStatus.error as Error)?.message ?? ''}
+                    style={{ marginBottom: 'var(--cds-spacing-05)' }}
+                  />
+                )}
                 <Table {...getTableProps()}>
                   <TableHead>
                     <TableRow>

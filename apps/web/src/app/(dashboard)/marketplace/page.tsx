@@ -61,6 +61,22 @@ export default function MarketplacePage() {
                     style={{ marginBottom: 'var(--cds-spacing-05)' }}
                   />
                 )}
+                {installMutation.isError && (
+                  <InlineNotification
+                    kind="error"
+                    title="Operation failed"
+                    subtitle={(installMutation.error as Error)?.message ?? ''}
+                    style={{ marginBottom: 'var(--cds-spacing-05)' }}
+                  />
+                )}
+                {uninstallMutation.isError && (
+                  <InlineNotification
+                    kind="error"
+                    title="Operation failed"
+                    subtitle={(uninstallMutation.error as Error)?.message ?? ''}
+                    style={{ marginBottom: 'var(--cds-spacing-05)' }}
+                  />
+                )}
                 {isLoading && (
                   <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(320px, 1fr))', gap: 'var(--cds-spacing-05)', marginTop: 'var(--cds-spacing-05)' }}>
                     {Array.from({ length: 6 }).map((_, i) => (

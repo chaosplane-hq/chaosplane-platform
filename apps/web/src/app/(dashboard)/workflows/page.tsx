@@ -122,6 +122,17 @@ export default function WorkflowsPage() {
         </Column>
       )}
 
+      {deleteTemplate.isError && (
+        <Column lg={16} md={8} sm={4}>
+          <InlineNotification
+            kind="error"
+            title="Operation failed"
+            subtitle={(deleteTemplate.error as Error)?.message ?? ''}
+            style={{ marginBottom: 'var(--cds-spacing-05)' }}
+          />
+        </Column>
+      )}
+
       <Column lg={16} md={8} sm={4}>
         {isLoading ? (
           <SkeletonText paragraph lineCount={6} />

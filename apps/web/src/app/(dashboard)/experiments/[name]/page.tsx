@@ -116,6 +116,14 @@ export default function ExperimentDetailPage({ params }: PageProps) {
               </Button>
             )}
           </div>
+          {abortMutation.isError && (
+            <InlineNotification
+              kind="error"
+              title="Operation failed"
+              subtitle={(abortMutation.error as Error)?.message ?? ''}
+              style={{ marginBottom: 'var(--cds-spacing-05)' }}
+            />
+          )}
         </div>
       </Column>
 

@@ -88,6 +88,17 @@ export default function PoliciesPage() {
         </Column>
       )}
 
+      {deleteMutation.isError && (
+        <Column lg={16} md={8} sm={4}>
+          <InlineNotification
+            kind="error"
+            title="Operation failed"
+            subtitle={(deleteMutation.error as Error)?.message ?? ''}
+            style={{ marginBottom: 'var(--cds-spacing-05)' }}
+          />
+        </Column>
+      )}
+
       <Column lg={16} md={8} sm={4}>
         {isLoading ? (
           <SkeletonText paragraph lineCount={8} />

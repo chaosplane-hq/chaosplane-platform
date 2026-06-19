@@ -286,6 +286,15 @@ export default function TopologyPage() {
               ) : drifts.isError ? (
                 <InlineNotification kind="error" title="Failed to load drifts" subtitle="" />
               ) : (
+                <>
+                {acknowledge.isError && (
+                  <InlineNotification
+                    kind="error"
+                    title="Operation failed"
+                    subtitle={(acknowledge.error as Error)?.message ?? ''}
+                    style={{ marginBottom: 'var(--cds-spacing-05)' }}
+                  />
+                )}
                 <DataTable rows={driftRows} headers={driftHeaders}>
                   {({ rows, headers, getTableProps, getHeaderProps, getRowProps }) => (
                     <TableContainer>
@@ -335,6 +344,7 @@ export default function TopologyPage() {
                     </TableContainer>
                   )}
                 </DataTable>
+                </>
               )}
             </TabPanel>
 
